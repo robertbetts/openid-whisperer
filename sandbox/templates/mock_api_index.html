@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mock API Service</title>
+    <style>
+        h1, body {
+            font-family: arial, sans-serif;
+        }
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        td, th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+    </style>
+</head>
+<body>
+<h1> Welcome {{claims.FirstName}} to the Python Flask sample application</h1>
+You have successfully authenticated using IDAnywhere.
+<br>Your current token expires: {{exp_date}}
+<br>The access token contains the following claims:
+<br>
+<table>
+    <tr>
+        <th>CLAIM</th>
+        <th>VALUE</th>
+    </tr>
+    {% for key, value in claims.items() %}
+ 
+    <tr>
+        <td> {{ key }} </td>
+        <td> {{ value }} </td>
+    </tr>
+ 
+    {% endfor %}
+</table>
+<br>
+<a href="/mock-api/gettoken">Click here to see the access token</a>
+<br>
+<a href="/mock-api/logout">Click here to logout</a>
+</body>
+</html>
