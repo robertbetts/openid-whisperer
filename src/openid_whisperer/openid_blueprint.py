@@ -156,6 +156,7 @@ def authorize() -> ResponseReturnValue:
 
         if request_params["state"]:
             redirect_uri = f'{redirect_uri}&state={request_params["state"]}'
+
         return redirect(redirect_uri, code=302)
 
     if "token" in request_params["response_type"]:
@@ -224,6 +225,9 @@ def token() -> ResponseReturnValue:
     """
     grant_type: str = request.form["grant_type"]
     if grant_type == "authorization_code":
+        # TODO: look into specifications for handling redirect_uri and compair with openid specs MS reference below:
+        # https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
+
         # client_id: str | None = request.form["client_id"]
         code: str = request.form["code"] if request.form["code"] else ""
         # redirect_uri: str | None = request.form["redirect_uri"]

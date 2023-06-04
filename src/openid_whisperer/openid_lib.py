@@ -132,6 +132,10 @@ def get_client_id_information(
         the scope the application identified by client_id
         If there is no valid scope for username within the application 
         client_id then return None
+
+        Specifications for standard industry claims can be found here:
+            https://www.iana.org/assignments/jwt/jwt.xhtml#claims
+
     """
     payload: Dict[str, Any] | None = None
     if client_id and username:
@@ -253,15 +257,17 @@ def authenticate_token(
     return response
 
 
-def authenticate_code(client_id: str, resource: str,
-                      username: str, user_secret: str,
+def authenticate_code(client_id: str,
+                      resource: str,
+                      username: str,
+                      user_secret: str,
                       nonce: str,
                       scope: str,
                       kmsi: str | None = None,
                       mfa_code: str | None = None) -> Optional[str]:
-    """ Using client_id, username, resource, user_secret and mfs_code to
+    """ Using client_id, username, resource, user_secret and mfa_code to
         authenticate a user and return an authentication code
-        if authentication fails then , return None
+        if authentication fails then return None
     """
     _ = kmsi
     response: str | None = None

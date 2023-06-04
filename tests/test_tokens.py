@@ -102,7 +102,9 @@ def test_authorisation_code():
                 issuer=ISSUER)
             assert claims["aud"] == [client_id, resource] and\
                    claims["iss"] == ISSUER and\
-                   claims["appid"] == client_id
+                   claims["appid"] == client_id and \
+                   claims["nonce"] == nonce and \
+                   claims["username"] == username
 
 
 def test_authenticate_token():
@@ -131,4 +133,5 @@ def test_authenticate_token():
         assert claims["aud"] == [client_id, resource] and \
                claims["iss"] == ISSUER and \
                claims["appid"] == client_id and \
-               claims["nonce"] == nonce
+               claims["nonce"] == nonce and \
+               claims["username"] == username
