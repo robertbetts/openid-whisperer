@@ -9,6 +9,7 @@ from cryptography.hazmat.backends import default_backend
 from datetime import datetime
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from typing import Dict, Any
+import math
 
 from flask import Flask, request, session, render_template, make_response, redirect, Response
 import requests
@@ -17,10 +18,10 @@ import jwt
 #
 # API service parameters
 #
-API_GW_HOST: str = os.getenv("API_HOST", "192.168.56.102")
-API_GW_PORT: int = int(os.getenv("API_PORT", "8000"))
+API_GW_HOST: str = os.getenv("API_HOST", "localhost")
+API_GW_PORT: int = int(os.getenv("API_PORT", "5006"))
 API_HOST: str = os.getenv("API_HOST", "localhost")
-API_PORT: int = int(os.getenv("API_PORT", "5001"))
+API_PORT: int = int(os.getenv("API_PORT", "5006"))
 FLASK_DEBUG: bool = os.getenv("FLASK_DEBUG", "True").lower() == "true"
 VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "False").lower() != "false"
 
@@ -53,7 +54,7 @@ class IdentityConfig(UserDict):
 #
 # Identity Provider Parameters
 #
-identity_endpoint: str = "https://localhost:5000/adfs/"
+identity_endpoint: str = "https://localhost:5005/adfs/"
 identity_config: IdentityConfig = IdentityConfig(identity_endpoint, VALIDATE_CERTS)
 identity_keys: Dict[str, Any] = {}
 validated_claims: Dict[str, Any] = {}
@@ -76,7 +77,9 @@ def validate_access_token(access_token: str, verify_server: bool = True) -> Dict
     """
     global identity_keys, validated_claims
     at_list = access_token.split(".")
-    header = json.loads(base64.b64decode(at_list[0]).decode("utf-8"))
+    # Adjust the left padding to avoid the base64 padding error
+    token_header = at_list[0].ljust(int(math.ceil(len(at_list[0]) / 4)) * 4, '=')
+    header = json.loads(base64.b64decode(token_header).decode("utf-8"))
     tok_x5t = header["x5t"]
     issuer: str = identity_config["access_token_issuer"]
 

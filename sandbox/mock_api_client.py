@@ -6,10 +6,10 @@ import requests
 
 client_id: str = "PC-90274-SID-12655-DEV"
 resource_uri: str = "URI:API:RS-104134-21171-mock-api-PROD"
-openid_base_url: str = "https://localhost:5000"
+openid_base_url: str = "https://localhost:5005"
 
-api_base_url_direct: str = "http://localhost:5001"
-api_base_url_gw: str = "http://192.168.56.102:8000"
+api_base_url_direct: str = "http://localhost:5006"
+api_base_url_gw: str = "http://localhost:5006"
 
 
 def get_token_grant(

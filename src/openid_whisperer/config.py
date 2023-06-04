@@ -9,7 +9,7 @@ import os
 
 IDP_SERVICE_HOST: str = os.getenv("IDP_SERVICE_HOST", "openid-whisperer")
 IDP_SERVICE_BINDING: str = os.getenv("IDP_SERVICE_BINDING", "0.0.0.0")
-IDP_SERVICE_PORT: int = int(os.getenv("IDP_SERVICE_PORT", "5000"))
+IDP_SERVICE_PORT: int = int(os.getenv("IDP_SERVICE_PORT", "5005"))
 IDP_BASE_URL: str = f"https://{IDP_SERVICE_HOST}:{IDP_SERVICE_PORT}"
 FLASK_DEBUG: bool = bool(os.getenv("FLASK_DEBUG", "True"))
 

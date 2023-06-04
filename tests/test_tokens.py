@@ -5,6 +5,7 @@ import json
 import base64
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+import math
 import jwt
 
 from openid_whisperer.openid_lib import create_authorisation_code,\
@@ -15,7 +16,9 @@ from openid_whisperer.openid_lib import ISSUER
 
 def validate_access_token(access_token: str, audience: str, issuer: str):
     at_list = access_token.split(".")
-    header = json.loads(base64.b64decode(at_list[0]).decode("utf-8"))
+    # Adjust the left padding to avoid the base64 padding error
+    token_header = at_list[0].ljust(int(math.ceil(len(at_list[0]) / 4)) * 4, '=')
+    header = json.loads(base64.b64decode(token_header).decode("utf-8"))
     tok_x5t = header["x5t"]
 
     idp_keys = {}
