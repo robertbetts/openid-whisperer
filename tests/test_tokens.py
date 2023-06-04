@@ -3,6 +3,7 @@
 import logging
 import json
 import base64
+from typing import Dict, Any
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 import math
@@ -21,7 +22,7 @@ def validate_access_token(access_token: str, audience: str, issuer: str):
     header = json.loads(base64.b64decode(token_header).decode("utf-8"))
     tok_x5t = header["x5t"]
 
-    idp_keys = {}
+    idp_keys: Dict[str, Any] = {}
 
     # Loop through keys to create dictionary
     for key in get_keys()["keys"]:
@@ -74,7 +75,6 @@ def validate_access_token(access_token: str, audience: str, issuer: str):
         raise
 
 
-
 def test_authorisation_code():
     client_id = "ID_12345"
     resource = "MOCK:URI:RS-104134-21171-mockapi-PROD"
@@ -89,14 +89,20 @@ def test_authorisation_code():
         username=domain_name,
         nonce=nonce,
         scope=scope)
-    access_token = get_access_token_from_authorisation_code(authorisation_code)
-    claims = validate_access_token(
-        access_token=access_token["access_token"],
-        audience=resource,
-        issuer=ISSUER)
-    assert claims["aud"] == [client_id, resource] and\
-           claims["iss"] == ISSUER and\
-           claims["appid"] == client_id
+    if authorisation_code is None:
+        raise Exception("invalid authorisation code")
+    else:
+        access_token = get_access_token_from_authorisation_code(authorisation_code)
+        if access_token is None:
+            raise Exception("invalid access token")
+        else:
+            claims = validate_access_token(
+                access_token=access_token["access_token"],
+                audience=resource,
+                issuer=ISSUER)
+            assert claims["aud"] == [client_id, resource] and\
+                   claims["iss"] == ISSUER and\
+                   claims["appid"] == client_id
 
 
 def test_authenticate_token():
@@ -115,11 +121,14 @@ def test_authenticate_token():
         user_secret=user_secret,
         nonce=nonce,
         scope=scope)
-    claims = validate_access_token(
-        access_token=access_token["access_token"],
-        audience=resource,
-        issuer=ISSUER)
-    assert claims["aud"] == [client_id, resource] and \
-           claims["iss"] == ISSUER and \
-           claims["appid"] == client_id and \
-           claims["nonce"] == nonce
+    if access_token is None:
+        raise Exception("invalid access token")
+    else:
+        claims = validate_access_token(
+            access_token=access_token["access_token"],
+            audience=resource,
+            issuer=ISSUER)
+        assert claims["aud"] == [client_id, resource] and \
+               claims["iss"] == ISSUER and \
+               claims["appid"] == client_id and \
+               claims["nonce"] == nonce

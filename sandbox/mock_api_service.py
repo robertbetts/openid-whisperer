@@ -38,7 +38,7 @@ class IdentityConfig(UserDict):
     """
     def __init__(self, provider_url: str, verify_server: bool = True):
         self.provider_url: str = provider_url
-        self.verify_server: str = verify_server
+        self.verify_server: bool = verify_server
         super().__init__()
         self.refresh()
 
@@ -72,7 +72,7 @@ app.secret_key = secrets.token_urlsafe(46)
 
 
 def validate_access_token(access_token: str, verify_server: bool = True) -> Dict[str, Any]:
-    """ Validate a JWT against the keys provided by the IDA service and return a valid claim payload.
+    """ Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
         if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
     """
     global identity_keys, validated_claims
@@ -82,6 +82,8 @@ def validate_access_token(access_token: str, verify_server: bool = True) -> Dict
     header = json.loads(base64.b64decode(token_header).decode("utf-8"))
     tok_x5t = header["x5t"]
     issuer: str = identity_config["access_token_issuer"]
+
+    claims: Dict[str, Any] = {}
 
     if not identity_keys:
         key_endpoint = replace_base_netloc(identity_endpoint, identity_config["jwks_uri"])
@@ -109,9 +111,8 @@ def validate_access_token(access_token: str, verify_server: bool = True) -> Dict
                                 audience=resource_uri, issuer=issuer, algorithms=["RS256"])
             if claims:
                 validated_claims[access_token] = claims
-                return claims
             else:
-                raise Exception("Access token contains no valid claims")
+                token_errors.append((access_token, Exception("Access token contains no valid claims")))
 
         except jwt.ExpiredSignatureError as e:
             key_errors.append((key, e))
@@ -121,11 +122,16 @@ def validate_access_token(access_token: str, verify_server: bool = True) -> Dict
 
     for error in token_errors:
         logging.error('Invalid JWT token: %s, %s', error[1], error[0])
-        raise error[1]
 
     for error in key_errors:
         logging.error('IDA key signature error: %s - %s', error[0], error[1])
-        raise error[1]
+
+    if token_errors:
+        raise token_errors[0][1]
+    if key_errors:
+        raise key_errors[0][1]
+
+    return claims
 
 
 @app.route('/mock-api/handleAccessToken')

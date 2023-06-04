@@ -1,7 +1,7 @@
 """ Flask Blueprint with OpenID compatible endpoints
 """
 import json
-from typing import List
+from typing import List, Dict, Any
 from urllib.parse import urljoin
 from flask import Blueprint, request, make_response, render_template, redirect, abort
 from flask.typing import ResponseReturnValue
@@ -50,6 +50,7 @@ claims_supported: List[str] = [
 token_endpoint_auth_signing_alg_values: List[str] = [openid_lib.ALGORITHM]
 id_token_signing_alg_values: List[str] = [openid_lib.ALGORITHM]
 access_token_issuer = openid_lib.ISSUER
+
 
 @openid_blueprint.route("/oauth2/authorize", methods=["GET", "POST"])
 def authorize() -> ResponseReturnValue:
@@ -114,7 +115,7 @@ def authorize() -> ResponseReturnValue:
 
     """
 
-    request_params = {
+    request_params: Dict[str, Any] = {
         "client_id": request.args['client_id'],
         "response_type": request.args['response_type'],
         "redirect_uri": request.args['redirect_uri'],
@@ -137,7 +138,7 @@ def authorize() -> ResponseReturnValue:
     if "code" in request_params["response_type"]:
         username = request.form["UserName"]
         user_secret = request.form["Password"]
-        authorisation_code = openid_lib.authenticate_code(
+        authorisation_code: str | None = openid_lib.authenticate_code(
             client_id=request_params["client_id"],
             resource=request_params["resource"],
             username=username,

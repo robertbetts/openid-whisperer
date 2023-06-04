@@ -21,11 +21,11 @@ from openid_whisperer.config import IDP_SERVICE_HOST
 COUNTRY_NAME: str = "UK"
 STATE_OR_PROVINCE_NAME: str = "Scotland"
 LOCALITY_NAME: str = "Glasgow"
-ORGANIZATION_NAME_CA: str = "Glen Identity CA"
+ORGANIZATION_NAME_CA: str = "Glen Identity Certification Authority"
 COMMON_NAME_CA: str = "GlenId CA"
 
-ORGANIZATION_NAME_ORG: str = "Glen Identity Org"
-COMMON_NAME_ORG: str = "GlenId Org"
+ORGANIZATION_NAME_IDP: str = "Glen Identity Provider"
+COMMON_NAME_IDP: str = "GlenId IDP"
 
 # Generate an RSA private key
 root_key: rsa.RSAPrivateKey = rsa.generate_private_key(
@@ -43,8 +43,8 @@ subject = issuer = x509.Name([
     x509.NameAttribute(NameOID.COMMON_NAME, COMMON_NAME_CA),
 ])
 
-# Create self-signed root certificate valid for 10 years
-root_cert: x509.Certificate = x509.CertificateBuilder().subject_name(
+# Create self-signed CA certificate valid for 10 years
+ca_cert: x509.Certificate = x509.CertificateBuilder().subject_name(
     subject
 ).issuer_name(
     issuer
@@ -60,21 +60,21 @@ root_cert: x509.Certificate = x509.CertificateBuilder().subject_name(
     x509.BasicConstraints(ca=True, path_length=None), critical=True
 ).sign(root_key, hashes.SHA256(), default_backend())
 
-# Now generate a certificate for the mock IDA service, signed by using the root
-# certificate First create a private key
+# Now generate a certificate for the identity service, signed by using the self-signed
+# CA certificate First create a private key
 cert_key: rsa.RSAPrivateKey = rsa.generate_private_key(
     public_exponent=65537,
     key_size=2048,
     backend=default_backend()
 )
 
-# Set the details for the mock IDA service
+# Set the details for the identity provider
 new_subject = x509.Name([
     x509.NameAttribute(NameOID.COUNTRY_NAME, COUNTRY_NAME),
     x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, STATE_OR_PROVINCE_NAME),
     x509.NameAttribute(NameOID.LOCALITY_NAME, LOCALITY_NAME),
-    x509.NameAttribute(NameOID.ORGANIZATION_NAME, ORGANIZATION_NAME_ORG),
-    x509.NameAttribute(NameOID.COMMON_NAME, COMMON_NAME_ORG),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, ORGANIZATION_NAME_IDP),
+    x509.NameAttribute(NameOID.COMMON_NAME, COMMON_NAME_IDP),
 ])
 
 # Create and sign the certificate for the openid identity service using the root cert
@@ -83,7 +83,7 @@ identity_provider_serial_number: int = x509.random_serial_number()
 cert: x509.Certificate = x509.CertificateBuilder().subject_name(
     new_subject
 ).issuer_name(
-    root_cert.issuer
+    ca_cert.issuer
 ).public_key(
     cert_key.public_key()
 ).serial_number(
@@ -109,11 +109,11 @@ def get_server_cert_chain(
     """
     certificate = certificate if certificate else cert
     private_key = private_key if private_key else cert_key
-    issuer_certs = issuer_certs if isinstance(issuer_certs, List) else [root_cert]
+    issuer_certs = issuer_certs if isinstance(issuer_certs, List) else [ca_cert]
     cert_data: str = certificate.public_bytes(
         encoding=serialization.Encoding.PEM
     ).decode("utf-8")
-    pkey_data: str = private_key.private_bytes(
+    primary_key_data: str = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
         encryption_algorithm=serialization.NoEncryption()
@@ -124,7 +124,7 @@ def get_server_cert_chain(
             encoding=serialization.Encoding.PEM
         ).decode("utf-8") + "\n"
 
-    return f"{pkey_data}\n{cert_data}\n{issuer_data}"
+    return f"{primary_key_data}\n{cert_data}\n{issuer_data}"
 
 
 def get_ssl_context(
@@ -133,13 +133,13 @@ def get_ssl_context(
         issuer_certs: Optional[List[x509.Certificate]] = None,
         verify: bool = True
         ) -> SSLContext:
-    """ Create a ssl_context for SSL server with no client verification
-        if certificate or private_key are not passed in, then the context
-        is initialised from the module auto generated private key and certificate.
+    """ Create a ssl_context for SSL server with no client client cert verification
+        if a certificate or private_key is not passed in, then the context
+        is initialised from the module to auto generated a private key and certificate.
     """
     certificate = certificate if certificate else cert
     private_key = private_key if private_key else cert_key
-    issuer_certs = issuer_certs if isinstance(issuer_certs, List) else [root_cert]
+    issuer_certs = issuer_certs if isinstance(issuer_certs, List) else [ca_cert]
 
     ca_data: str = get_server_cert_chain(certificate, private_key, issuer_certs)
     cert_handle, cert_file = tempfile.mkstemp()
@@ -156,33 +156,33 @@ def get_ssl_context(
 
 
 def dump_cert_and_ca_bundle(out_location: str):
-    """Use the CN to dump certificate to PEM format"""
+    """Create files for the certificate, private key and certificate chain
+       in PEM format. certp.pem, key.pem, cert-chain.pem"""
     cert_file = os.path.join(out_location, "cert.pem")
-    pkey_file = os.path.join(out_location, "key.pem")
+    primary_key_file = os.path.join(out_location, "key.pem")
     ca_chain_file = os.path.join(out_location, "cert-chain.pem")
 
     cert_data: bytes = cert.public_bytes(
         encoding=serialization.Encoding.PEM
     )
-    root_cert_data: bytes = root_cert.public_bytes(
+    ca_cert_data: bytes = ca_cert.public_bytes(
         encoding=serialization.Encoding.PEM
     )
     with open(cert_file, "wt") as f:
         f.write(cert_data.decode("utf-8"))
         f.write("\n")
-        f.write(root_cert_data.decode("utf-8"))
+        f.write(ca_cert_data.decode("utf-8"))
 
-    pkey_data: bytes = cert_key.private_bytes(
+    primary_key_data: bytes = cert_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
         encryption_algorithm=serialization.NoEncryption()
     )
-    with open(pkey_file, "wt") as f:
-        f.write(pkey_data.decode("utf-8"))
+    with open(primary_key_file, "wt") as f:
+        f.write(primary_key_data.decode("utf-8"))
 
     with open(ca_chain_file, "a") as output:
         output.write("\n")
-        output.write(root_cert_data.decode("utf-8"))
+        output.write(ca_cert_data.decode("utf-8"))
         output.write("\n")
         output.write(cert_data.decode("utf-8"))
-

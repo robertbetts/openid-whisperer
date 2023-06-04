@@ -7,7 +7,7 @@ server_address = ("localhost", 5000)
 cert_pem = ssl.get_server_certificate(server_address)
 pprint(cert_pem)
 
-context = ssl.create_default_context()
+# context = ssl.create_default_context()
 context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 # context.load_verify_locations("/etc/ssl/certs/ca-bundle.crt")
 context.check_hostname = False

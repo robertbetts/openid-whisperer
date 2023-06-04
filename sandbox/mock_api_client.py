@@ -67,7 +67,7 @@ def call_mock_api_gw(access_token):
     headers = {
         "Authorization": access_token["access_token"]
     }
-    proxies = {'http': None, 'https': None}
+    proxies: Dict[str, Any] = {'http': None, 'https': None}
     try:
         response = requests.get(api_endpoint, headers=headers, proxies=proxies)
         logging.info(response.status_code)

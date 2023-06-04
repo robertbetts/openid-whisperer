@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
 from uuid import uuid4
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from calendar import timegm
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.types import CertificatePublicKeyTypes
@@ -23,7 +23,6 @@ from cryptography import x509
 import jwt
 from jwt.utils import to_base64url_uint
 
-from openid_whisperer.config import IDP_BASE_URL, IDP_SERVICE_HOST
 from openid_whisperer import cert_utils
 
 EXPIRES_SECONDS: int = 600
@@ -134,14 +133,12 @@ def get_client_id_information(
         If there is no valid scope for username within the application 
         client_id then return None
     """
-    payload = None
+    payload: Dict[str, Any] | None = None
     if client_id and username:
-
-        username_parts = username.split("\\")
-        if len(username_parts) == 2:
-            sid = username_parts[1]
-        else:
-            sid = username
+        _ = scope
+        username_parts = username.split("\\", 1)
+        if len(username_parts) > 1:
+            username = username_parts[1]
 
         auth_time = datetime.utcnow()
         expires_in = auth_time + timedelta(seconds=EXPIRES_SECONDS)
@@ -154,6 +151,7 @@ def get_client_id_information(
             "auth_time": auth_time.isoformat(sep=" "),
             "nonce": nonce,
             "appid": client_id,
+            "username": username,
             "Email": "name.surname@mock-company.com",
             "ver": "1.0",
         }
@@ -167,11 +165,11 @@ def create_authorisation_code(
         nonce: str,
         scope: str,
         expiry_timeout: int = 600
-        ) -> str | None:
+        ) -> Optional[str]:
     """ create an authorisation code to pass back to authorisation requester 
         which will allow them to request a valid access token
     """
-    authorisation_code = None
+    authorisation_code: str | None = None
     if client_id and username:
         authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
         expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
@@ -260,13 +258,13 @@ def authenticate_code(client_id: str, resource: str,
                       nonce: str,
                       scope: str,
                       kmsi: str | None = None,
-                      mfa_code: str | None = None) -> str | None:
-    """ Using client_id, username, resource, user_secret  and mfs_code to 
+                      mfa_code: str | None = None) -> Optional[str]:
+    """ Using client_id, username, resource, user_secret and mfs_code to
         authenticate a user and return an authentication code
         if authentication fails then , return None
     """
     _ = kmsi
-    response = None
+    response: str | None = None
     if authenticate(client_id, resource, username, user_secret, mfa_code):
         response = create_authorisation_code(client_id, resource, username, nonce, scope)
     return response
