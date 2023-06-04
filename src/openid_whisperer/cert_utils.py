@@ -21,10 +21,10 @@ from openid_whisperer.config import IDP_SERVICE_HOST
 COUNTRY_NAME: str = "UK"
 STATE_OR_PROVINCE_NAME: str = "Scotland"
 LOCALITY_NAME: str = "Glasgow"
-ORGANIZATION_NAME_CA: str = "Glen Identity Certification Authority"
+ORGANIZATION_NAME_CA: str = "Glen Whisperer Identity Certification Authority"
 COMMON_NAME_CA: str = "GlenId CA"
 
-ORGANIZATION_NAME_IDP: str = "Glen Identity Provider"
+ORGANIZATION_NAME_IDP: str = "Glen Whisperer Identity Provider"
 COMMON_NAME_IDP: str = "GlenId IDP"
 
 # Generate an RSA private key
