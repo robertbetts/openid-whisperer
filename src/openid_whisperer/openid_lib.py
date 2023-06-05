@@ -121,6 +121,7 @@ def get_openid_configuration(base_url: str, openid_prefix: str) -> Dict[str, Any
     }
     return openid_configuration
 
+
 def get_now_seconds_epoch() -> int:
     """ returns seconds between 1 January 1970 and now
     """
@@ -226,8 +227,7 @@ def get_client_id_information(
     if client_id and username:
         _ = scope
         username_parts = username.split("\\", 1)
-        if len(username_parts) > 1:
-            username = username_parts[1]
+        username = username_parts[1] if len(username_parts) > 1 else username
 
         auth_time = datetime.utcnow()
         expires_in = auth_time + timedelta(seconds=EXPIRES_SECONDS)

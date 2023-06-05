@@ -17,7 +17,7 @@ def app() -> Flask:
     return flask_app
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     """ Main entrypoint for a standalone Python running instance
     """
     flask_app: Flask = app()
@@ -29,6 +29,6 @@ def main() -> None:
     )
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
     

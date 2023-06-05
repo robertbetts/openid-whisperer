@@ -4,7 +4,7 @@ import atexit
 import os
 import datetime
 import tempfile
-from typing import Optional, List
+from typing import Optional, List, NoReturn
 import ssl
 from ssl import SSLContext
 
@@ -155,12 +155,22 @@ def get_ssl_context(
     return context
 
 
-def dump_cert_and_ca_bundle(out_location: str):
+def dump_cert_and_ca_bundle(
+        location: Optional[str] = None,
+        cert_filename: Optional[str] = None,
+        primary_key_filename: Optional[str] = None,
+        ca_chain_filename: Optional[str] = None,
+        ) -> NoReturn:
     """Create files for the certificate, private key and certificate chain
        in PEM format. certp.pem, key.pem, cert-chain.pem"""
-    cert_file = os.path.join(out_location, "cert.pem")
-    primary_key_file = os.path.join(out_location, "key.pem")
-    ca_chain_file = os.path.join(out_location, "cert-chain.pem")
+
+    cert_filename = cert_filename if cert_filename else "cert.pem"
+    primary_key_filename = primary_key_filename if primary_key_filename else "key.pem"
+    ca_chain_filename = ca_chain_filename if ca_chain_filename else "cert-chain.pem"
+    if location:
+        cert_filename = os.path.join(location, cert_filename)
+        primary_key_filename = os.path.join(location, primary_key_filename)
+        ca_chain_filename = os.path.join(location, ca_chain_filename)
 
     cert_data: bytes = cert.public_bytes(
         encoding=serialization.Encoding.PEM
@@ -168,7 +178,7 @@ def dump_cert_and_ca_bundle(out_location: str):
     ca_cert_data: bytes = ca_cert.public_bytes(
         encoding=serialization.Encoding.PEM
     )
-    with open(cert_file, "wt") as f:
+    with open(cert_filename, "wt") as f:
         f.write(cert_data.decode("utf-8"))
         f.write("\n")
         f.write(ca_cert_data.decode("utf-8"))
@@ -178,10 +188,10 @@ def dump_cert_and_ca_bundle(out_location: str):
         format=serialization.PrivateFormat.TraditionalOpenSSL,
         encryption_algorithm=serialization.NoEncryption()
     )
-    with open(primary_key_file, "wt") as f:
+    with open(primary_key_filename, "wt") as f:
         f.write(primary_key_data.decode("utf-8"))
 
-    with open(ca_chain_file, "a") as output:
+    with open(ca_chain_filename, "a") as output:
         output.write("\n")
         output.write(ca_cert_data.decode("utf-8"))
         output.write("\n")

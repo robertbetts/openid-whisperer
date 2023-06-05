@@ -6,6 +6,23 @@ authors = ["Robert Betts"]
 readme = "README.md"
 packages = [{include = "openid_whisperer", from = "src" }]
 
+[tool.pytest]
+testpaths = ["tests"]
+
+[tool.pytest.ini_options]
+log_cli = true
+log_level = "DEBUG"
+log_cli_format = "%(asctime)s %(levelname)s %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+log_file = "test.log"
+log_file_level = "INFO"
+log_file_format = "%(asctime)s %(levelname)s %(message)s"
+log_file_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.coverage.run]
+omit = [".*", "*/site-packages/*"]
+[tool.coverage.report]
+fail_under = 100
 
 [tool.mypy]
 check_untyped_defs = true
@@ -31,6 +48,7 @@ certifi = "^2022.12.7"
 mypy = "^1.3.0"
 pylint = "^2.17.4"
 types-requests = "^2.31.0.1"
+coverage = {extras = ["toml"], version = "^7.2.7"}
 
 [build-system]
 requires = ["poetry-core"]

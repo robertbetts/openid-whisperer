@@ -1,14 +1,17 @@
 """ Flask Blueprint with OpenID compatible endpoints
 """
+import logging
 import json
 from typing import List, Dict, Any
 from urllib.parse import urljoin
 from flask import Blueprint, request, make_response, render_template, redirect, abort
+from werkzeug.exceptions import BadRequestKeyError
 from flask.typing import ResponseReturnValue
 
 from openid_whisperer import openid_lib
 from openid_whisperer.config import IDP_BASE_URL
 
+logger = logging.getLogger()
 openid_prefix: str = "/adfs"
 openid_blueprint: Blueprint = Blueprint('openid', __name__,
                                         url_prefix=openid_prefix,
@@ -79,20 +82,27 @@ def authorize() -> ResponseReturnValue:
 
     """
 
-    request_params: Dict[str, Any] = {
-        "client_id": request.args['client_id'],
-        "response_type": request.args['response_type'],
-        "redirect_uri": request.args['redirect_uri'],
-        "nonce": request.args.get('nonce', ""),
-        "scope": request.args.get('scope', "").split(" "),
-        "resource": request.args.get('resource', ""),
-        "response_mode": request.args.get('response_mode', ""),
-        "state": request.args.get('state', ""),
-        "mfa": request.args.get('mfa', ""),
-    }
+    request_params: Dict[str, Any] = {}
+    try:
+        scope: str = request.args['scope'].split(" "),
+        response_type: str = request.args['response_type']
+        client_id: str = request.args['client_id'],
+        redirect_uri: str = request.args['redirect_uri']
+        state: str = request.args.get('state', "")
+        response_mode: str = request.args.get('response_mode', "")
+        nonce: str = request.args.get('nonce', "")
+        resource: str = request.args.get('resource', "")
+    except BadRequestKeyError as e:
+        error_message = f"Invalid input, missing query parameter {e.args[0]}. "\
+                        "scope, response_type, client_id, redirect_url are required parameters"
+        logger.debug(error_message)
+        abort(403, error_message)
 
     if request.method == "GET":
-        url_params = "&".join([f"{key}={value}" for key, value in request_params.items()])
+        url_variables = [
+            "scope", "response_type", "client_id", "redirect_uri", "state", "response_mode", "nonce", "resource",
+        ]
+        url_params = "&".join([f"{var}={eval('var')}" for var in url_variables])
         action = f"?{url_params}"
         resp = make_response(render_template('login.html',
                                              action=action,
@@ -100,47 +110,62 @@ def authorize() -> ResponseReturnValue:
                                              redirect_uri=None))
         return resp
 
-    if "code" in request_params["response_type"]:
-        username = request.form["UserName"]
-        user_secret = request.form["Password"]
-        authorisation_code: str | None = openid_lib.authenticate_code(
-            client_id=request_params["client_id"],
-            resource=request_params["resource"],
-            username=username,
-            user_secret=user_secret,
-            nonce=request_params["nonce"],
-            scope=request_params["scope"]
-        )
-        if authorisation_code is None:
-            abort(401, "Unable to authenticate using the information provided")
-        redirect_uri: str = request_params["redirect_uri"]
-        if "?" in redirect_uri:
-            redirect_uri = f"{redirect_uri}&code={authorisation_code}"
-        else:
-            redirect_uri = f"{redirect_uri}?code={authorisation_code}"
+    if request.method == "POST":
+        if "code" in response_type:
+            try:
+                username = request.form["UserName"]
+                user_secret = request.form["Password"]
+            except BadRequestKeyError as e:
+                error_message = f"Invalid input, form input {e.args[0]}. " \
+                                "UserName, Password are required form parameters"
+                logging.debug(error_message)
+                abort(403, error_message)
 
-        if request_params["state"]:
-            redirect_uri = f'{redirect_uri}&state={request_params["state"]}'
+            authorisation_code: str | None = openid_lib.authenticate_code(
+                client_id=client_id,
+                resource=resource,
+                username=username,
+                user_secret=user_secret,
+                nonce=nonce,
+                scope=scope
+            )
+            if authorisation_code is None:
+                abort(401, "Unable to authenticate using the information provided")
+            if "?" in redirect_uri:
+                redirect_uri = f"{redirect_uri}&code={authorisation_code}"
+            else:
+                redirect_uri = f"{redirect_uri}?code={authorisation_code}"
+            if state:
+                redirect_uri = f'{redirect_uri}&state={state}'
 
-        return redirect(redirect_uri, code=302)
+            return redirect(redirect_uri, code=302)
 
-    if "token" in request_params["response_type"]:
-        username = request.form["UserName"]
-        user_secret = request.form["Password"]
-        kmsi = request.form["Kmsi"]
-        access_token_response = openid_lib.authenticate_token(
-            client_id=request_params["client_id"],
-            resource=request_params["resource"],
-            username=username,
-            user_secret=user_secret,
-            nonce=request_params["nonce"],
-            scope=request_params["scope"],
-            kmsi=kmsi
-        )
-        if not access_token_response:
-            abort(401, "Unable to authenticate using the information provided")
-        return json.dumps(access_token_response)
-    abort(500, "Invalid call to authorize ")
+        if "token" in response_type:
+            try:
+                username = request.form["UserName"]
+                user_secret = request.form["Password"]
+                kmsi = request.form.get("Kmsi", "")
+            except BadRequestKeyError as e:
+                error_message = f"Invalid input, form input {e.args[0]}. " \
+                                "UserName, Password are required form parameters"
+                abort(403, error_message)
+
+            access_token_response = openid_lib.authenticate_token(
+                client_id=client_id,
+                resource=resource,
+                username=username,
+                user_secret=user_secret,
+                nonce=nonce,
+                scope=scope,
+                kmsi=kmsi
+            )
+            if not access_token_response:
+                abort(401, "Unable to authenticate using the information provided")
+            return json.dumps(access_token_response)
+
+        abort(500, f"Invalid value for query parameter response_type, {response_type}")
+
+    abort(500, f"Invalid request method {request.method}")
 
 
 @openid_blueprint.route("/oauth2/token", methods=["POST"])
@@ -190,7 +215,7 @@ def token() -> ResponseReturnValue:
     """
     grant_type: str = request.form["grant_type"]
     if grant_type == "authorization_code":
-        # TODO: look into specifications for handling redirect_uri and compair with openid specs MS reference below:
+        # TODO: look into specifications for handling redirect_uri and compare with openid specs MS reference below:
         # https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
 
         # client_id: str | None = request.form["client_id"]
