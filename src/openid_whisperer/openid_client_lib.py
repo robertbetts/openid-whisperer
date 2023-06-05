@@ -107,6 +107,7 @@ class OpenIDClient:
                 key_errors.append((key, e))
 
             except jwt.InvalidTokenError as e:
+                logging.exception(e)
                 token_errors.append((access_token, e))
 
         for error in token_errors:

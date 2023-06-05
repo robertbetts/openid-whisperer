@@ -10,6 +10,8 @@ import requests
 import jwt
 
 from openid_whisperer.openid_client_lib import OpenIDClient
+from config import config
+
 
 # API service parameters
 #
@@ -111,12 +113,14 @@ def index():
             session.clear()
             return resp
     else:
+        scope = "openid profile"
         nonce = session["nonce"] = uuid4().hex
         state = session["state"] = secrets.token_hex()
         auth_url = openid_client.authorization_endpoint_url()
-        auth_url += "?response_type=code&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
-            client_id, resource_uri, nonce, redirect_url, state, nonce
-        )
+        auth_url += \
+            "?scope={}&response_type=code&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
+                scope, client_id, resource_uri, nonce, redirect_url, state, nonce
+            )
         return redirect(auth_url, code=302)
 
 
@@ -155,4 +159,5 @@ def logout():
 
 
 if __name__ == "__main__":
+    config.initialize_logging()
     app.run(debug=FLASK_DEBUG, host='0.0.0.0', port=API_PORT)

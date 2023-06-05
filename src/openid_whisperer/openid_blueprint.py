@@ -84,14 +84,15 @@ def authorize() -> ResponseReturnValue:
 
     request_params: Dict[str, Any] = {}
     try:
-        scope: str = request.args['scope'].split(" "),
+        scope: str = request.args['scope'].split(" ")
         response_type: str = request.args['response_type']
-        client_id: str = request.args['client_id'],
+        client_id: str = request.args['client_id']
         redirect_uri: str = request.args['redirect_uri']
         state: str = request.args.get('state', "")
         response_mode: str = request.args.get('response_mode', "")
         nonce: str = request.args.get('nonce', "")
         resource: str = request.args.get('resource', "")
+
     except BadRequestKeyError as e:
         error_message = f"Invalid input, missing query parameter {e.args[0]}. "\
                         "scope, response_type, client_id, redirect_url are required parameters"
@@ -99,10 +100,10 @@ def authorize() -> ResponseReturnValue:
         abort(403, error_message)
 
     if request.method == "GET":
-        url_variables = [
-            "scope", "response_type", "client_id", "redirect_uri", "state", "response_mode", "nonce", "resource",
-        ]
-        url_params = "&".join([f"{var}={eval('var')}" for var in url_variables])
+        url_params = \
+            "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
+                scope, response_type, client_id, resource, redirect_uri, nonce, state
+            )
         action = f"?{url_params}"
         resp = make_response(render_template('login.html',
                                              action=action,
