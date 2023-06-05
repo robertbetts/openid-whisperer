@@ -35,6 +35,12 @@ def test_logout():
     assert response.status_code == 302
 
 
+def test_discover_keys():
+    test_client = app().test_client()
+    response = test_client.get("/adfs/discovery/keys")
+    assert response.status_code == 200
+
+
 def test_openid_configuration():
     test_client = app().test_client()
     response = test_client.get("/adfs/.well-known/openid-configuration")

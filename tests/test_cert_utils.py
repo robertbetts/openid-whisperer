@@ -1,6 +1,4 @@
-import logging
 import tempfile
-import atexit
 import os
 
 from openid_whisperer import cert_utils
@@ -10,8 +8,8 @@ def test_ssl_context():
     certificate = cert_utils.cert
     private_key = cert_utils.cert_key
     issuer_certs = [cert_utils.ca_cert]
-    context = cert_utils.get_ssl_context(certificate, private_key, issuer_certs)
-    context_with_no_validation = cert_utils.get_ssl_context(certificate, private_key, issuer_certs, verify=False)
+    _ = cert_utils.get_ssl_context(certificate, private_key, issuer_certs)
+    _ = cert_utils.get_ssl_context(certificate, private_key, issuer_certs, verify=False)
 
 
 def test_certificate_dump():
@@ -20,4 +18,3 @@ def test_certificate_dump():
         assert os.path.exists(os.path.join(temp_dir_name, "cert.pem"))
         assert os.path.exists(os.path.join(temp_dir_name, "key.pem"))
         assert os.path.exists(os.path.join(temp_dir_name, "cert-chain.pem"))
-

@@ -116,7 +116,7 @@ def authorize() -> ResponseReturnValue:
                 username = request.form["UserName"]
                 user_secret = request.form["Password"]
             except BadRequestKeyError as e:
-                error_message = f"Invalid input, form input {e.args[0]}. " \
+                error_message = f"Invalid input, missing form input {e.args[0]}. " \
                                 "UserName, Password are required form parameters"
                 logging.debug(error_message)
                 abort(403, error_message)
@@ -131,12 +131,10 @@ def authorize() -> ResponseReturnValue:
             )
             if authorisation_code is None:
                 abort(401, "Unable to authenticate using the information provided")
-            if "?" in redirect_uri:
-                redirect_uri = f"{redirect_uri}&code={authorisation_code}"
-            else:
-                redirect_uri = f"{redirect_uri}?code={authorisation_code}"
-            if state:
-                redirect_uri = f'{redirect_uri}&state={state}'
+
+            query_start = "&" if "?" in redirect_uri else "?"
+            redirect_uri = f"{redirect_uri}{query_start}code={authorisation_code}"
+            redirect_uri = f'{redirect_uri}&state={state}' if state else redirect_uri
 
             return redirect(redirect_uri, code=302)
 
@@ -146,7 +144,7 @@ def authorize() -> ResponseReturnValue:
                 user_secret = request.form["Password"]
                 kmsi = request.form.get("Kmsi", "")
             except BadRequestKeyError as e:
-                error_message = f"Invalid input, form input {e.args[0]}. " \
+                error_message = f"Invalid input, missing form input {e.args[0]}. " \
                                 "UserName, Password are required form parameters"
                 abort(403, error_message)
 
@@ -165,7 +163,7 @@ def authorize() -> ResponseReturnValue:
 
         abort(500, f"Invalid value for query parameter response_type, {response_type}")
 
-    abort(500, f"Invalid request method {request.method}")
+    # abort(500, f"Invalid request method {request.method}")
 
 
 @openid_blueprint.route("/oauth2/token", methods=["POST"])
