@@ -7,23 +7,24 @@
     <meta http-equiv="cache-control" content="no-cache,no-store"/>
     <meta http-equiv="pragma" content="no-cache"/>
     <meta http-equiv="expires" content="-1"/>
-    <meta name='mswebdialog-title' content='Glen Whisperer Identity Provider'/>
 
-    <title>'Glen Whisperer Sign In</title>
+    <title>Glen Whisperer Identity Provider</title>
     <script type='text/javascript'>
         //<![CDATA[
-        function LoginErrors(){this.userNameFormatError = 'Enter your user ID in the format \u0026quot;domain\\user\u0026quot; or \u0026quot;user@domain\u0026quot;.'; this.passwordEmpty = 'Enter your password.'; this.passwordTooLong = 'Password is too long (\u0026gt; 128 characters).';}; var maxPasswordLength = 128;
+        function LoginErrors(){
+            this.userNameFormatError = 'Enter your user ID in the format \u0026quot;domain\\user\u0026quot; or \u0026quot;user@domain\u0026quot;.';
+            this.passwordEmpty = 'Enter your password.';
+            this.passwordTooLong = 'Password is too long (\u0026gt; 128 characters).';
+        };
+        var maxPasswordLength = 128;
         //]]>
     </script>
 
     <script type='text/javascript'>
         //<![CDATA[
-        // Copyright (c) Microsoft Corporation.  All rights reserved.
         function InputUtil(errTextElementID, errDisplayElementID) {
-
             if (!errTextElementID)  errTextElementID = 'errorText';
             if (!errDisplayElementID)  errDisplayElementID = 'error';
-
             this.hasFocus = false;
             this.errLabel = document.getElementById(errTextElementID);
             this.errDisplay = document.getElementById(errDisplayElementID);
@@ -151,9 +152,6 @@
 
         //]]>
     </script>
-
-
-
     <link rel="stylesheet" type="text/css" href="/static/style.css" />
 </head>
 <body dir="ltr" class="body">
@@ -176,11 +174,7 @@
             </div>
             <main>
                 <div id="workArea">
-
                     <div id="authArea" class="groupMargin">
-
-
-
                         <div id="loginArea">
                             <div id="loginMessage" class="groupMargin">Sign in</div>
 
@@ -206,9 +200,9 @@
                                         <label for="kmsiInput">Keep me signed in</label>
                                     </div>
                                     <div id="submissionArea" class="submitMargin">
-                    <span id="submitButton" class="submit" tabindex="4" role="button"
-                          onKeyPress="if (event && event.keyCode == 32) Login.submitLoginRequest();"
-                          onclick="return Login.submitLoginRequest();">Sign in</span>
+                                        <span id="submitButton" class="submit" tabindex="4" role="button"
+                                          onKeyPress="if (event && event.keyCode == 32) Login.submitLoginRequest();"
+                                          onclick="return Login.submitLoginRequest();">Sign in</span>
                                     </div>
                                 </div>
                                 <input id="optionForms" type="hidden" name="AuthMethod" value="FormsAuthentication"/>
@@ -474,20 +468,17 @@
                                 //]]>
                             </script>
                         </div>
-
                     </div>
-
                 </div>
             </main>
             <div id="footerPlaceholder"></div>
         </div>
         <footer id="footer">
             <div id="footerLinks" class="floatReverse">
-                <div><span id="copyright">&#169; 2018 Microsoft</span></div>
+                <div><span>GlenW IDP</span></div>
             </div>
         </footer>
     </div>
 </div>
 </body>
-</html> 
-
+</html>

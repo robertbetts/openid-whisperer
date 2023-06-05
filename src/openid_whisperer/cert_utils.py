@@ -22,10 +22,10 @@ COUNTRY_NAME: str = "UK"
 STATE_OR_PROVINCE_NAME: str = "Scotland"
 LOCALITY_NAME: str = "Glasgow"
 ORGANIZATION_NAME_CA: str = "Glen Whisperer Identity Certification Authority"
-COMMON_NAME_CA: str = "GlenId CA"
+COMMON_NAME_CA: str = "GlenW CA"
 
 ORGANIZATION_NAME_IDP: str = "Glen Whisperer Identity Provider"
-COMMON_NAME_IDP: str = "GlenId IDP"
+COMMON_NAME_IDP: str = "GlenW IDP"
 
 # Generate an RSA private key
 root_key: rsa.RSAPrivateKey = rsa.generate_private_key(

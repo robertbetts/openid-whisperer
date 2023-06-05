@@ -12,8 +12,9 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
+from urllib.parse import urljoin
 from uuid import uuid4
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from calendar import timegm
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.types import CertificatePublicKeyTypes
@@ -31,10 +32,94 @@ KEY_ID: str = "idp-key-id"
 KEY: rsa.RSAPrivateKey = cert_utils.cert_key
 CERTIFICATE: x509.Certificate = cert_utils.cert
 ISSUER: str = f"urn:whisperer:openid:issuer:{cert_utils.identity_provider_serial_number}"
-
+UNIT_TESTING: bool = False
 authorisation_codes: Dict[str, Any] = {}
 access_tokens: Dict[str, Any] = {}
 
+scopes_supported = [
+    "user_impersonation",
+    "delete",
+    "logon_cert",
+    "winhello_cert",
+    "profile",
+    "put",
+    "email",
+    "openid",
+    "allatclaims",
+    "aza",
+    "post",
+    "vpn_cert",
+    "get",
+]
+claims_supported: List[str] = [
+    "aud",
+    "iss",
+    "iat",
+    "exp",
+    "auth_time",
+    "nonce",
+    "at_hash",
+    "c_hash",
+    "sub",
+    "upn",
+    "unique_name",
+    "pwd_url",
+    "pwd_exp",
+    "mfa_auth_time",
+    "sid",
+    "nbf",
+]
+token_endpoint_auth_signing_alg_values: List[str] = [ALGORITHM]
+id_token_signing_alg_values: List[str] = [ALGORITHM]
+access_token_issuer = ISSUER
+
+
+def get_openid_configuration(base_url: str, openid_prefix: str) -> Dict[str, Any]:
+    openid_configuration: Dict[str, Any] = {
+        "access_token_issuer": access_token_issuer,
+        "as_access_token_token_binding_supported": False,
+        "as_refresh_token_token_binding_supported": False,
+        "authorization_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/authorize"),
+        "capabilities": ["kdf_ver2"],
+        "claims_supported": claims_supported,
+        "device_authorization_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/devicecode"),
+        "end_session_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/logout"),
+        "frontchannel_logout_session_supported": True,
+        "frontchannel_logout_supported": True,
+        "grant_types_supported": ["authorization_code",
+                                  "refresh_token",
+                                  "client_credentials",
+                                  "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                                  "implicit",
+                                  "password",
+                                  "srv_challenge",
+                                  "urn:ietf:params:oauth:grant-type:device_code",
+                                  "device_code"],
+        "id_token_signing_alg_values_supported": id_token_signing_alg_values,
+        "issuer": urljoin(base_url, f"{openid_prefix}"),
+        "jwks_uri": urljoin(base_url, f"{openid_prefix}/discovery/keys"),
+        "microsoft_multi_refresh_token": True,
+        "op_id_token_token_binding_supported": False,
+        "resource_access_token_token_binding_supported": False,
+        "response_modes_supported": ["query", "fragment", "form_post"],
+        "response_types_supported": ["code",
+                                     "id_token",
+                                     "code id_token",
+                                     "id_token token",
+                                     "code token",
+                                     "code id_token token"],
+        "rp_id_token_token_binding_supported": False,
+        "scopes_supported": scopes_supported,
+        "subject_types_supported": ["pairwise"],
+        "token_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/token"),
+        "token_endpoint_auth_methods_supported": ["client_secret_post",
+                                                  "client_secret_basic",
+                                                  "private_key_jwt",
+                                                  "windows_client_authentication"],
+        "token_endpoint_auth_signing_alg_values_supported": token_endpoint_auth_signing_alg_values,
+        "userinfo_endpoint": urljoin(base_url, f"{openid_prefix}/userinfo")
+    }
+    return openid_configuration
 
 def get_now_seconds_epoch() -> int:
     """ returns seconds between 1 January 1970 and now
@@ -156,7 +241,7 @@ def get_client_id_information(
             "nonce": nonce,
             "appid": client_id,
             "username": username,
-            "Email": "name.surname@mock-company.com",
+            "email": "name.surname@mock-company.com",
             "ver": "1.0",
         }
     return payload
