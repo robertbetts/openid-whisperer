@@ -240,6 +240,20 @@ def token() -> ResponseReturnValue:
         #     user_code = openid_lib.device_user_codes[device_code]
         #     response = openid_lib.get_access_token_from_authorisation_code(device_code)
 
+    elif grant_type.endswith("jwt-bearer"):
+        # For on-behalf-of flow
+        client_id: str = request.form["client_id"]
+        client_secret = request.form.get("client_secret","")
+
+        # urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+        # client_secret is no required when client_assertion used
+        client_assertion_type = request.form.get("client_assertion_type", "")
+        client_assertion = request.form.get("client_assertion", "")
+
+        assertion = request.form["assertion"]
+        requested_token_use = request.form["requested_token_use"]
+        scope = request.form["scope"]
+
     elif grant_type == "authorization_code":
         # check specifications for handling redirect_uri and compare with openid specs MS reference below:
         # https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
