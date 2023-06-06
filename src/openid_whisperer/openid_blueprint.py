@@ -229,30 +229,39 @@ def token() -> ResponseReturnValue:
     if grant_type.endswith("device_code"):
         device_code: str = request.form["device_code"]
         client_id: str = request.form["client_id"]
-        response = {
-            "error": "authorization_pending",
-            "error_description": "MSIS9659: Invalid 'username' or 'password'."
-        }
-        # TODO: clean up references and expiry for device codes
         if device_code in openid_lib.authorisation_codes:
             response = openid_lib.get_access_token_from_authorisation_code(device_code)
-        # if device_code in openid_lib.device_user_codes:
-        #     user_code = openid_lib.device_user_codes[device_code]
-        #     response = openid_lib.get_access_token_from_authorisation_code(device_code)
+        else:
+            user_code = openid_lib.device_user_codes.get(device_code)
+            if user_code:
+                device_request = openid_lib.device_code_requests.get(user_code)
+                response = {
+                    "error": "authorization_pending",
+                    "error_description": "Authentication with user_code has not been completed"
+                }
+                # TODO: handle additional error states and device_code cache cleanup
+                # Possible additional error states are: authorization_declined, expired_token
+            else:
+                response = {
+                    "error": "bad_verification_code",
+                    "error_description": "device code is not recognised"
+                }
 
-    elif grant_type.endswith("jwt-bearer"):
-        # For on-behalf-of flow
-        client_id: str = request.form["client_id"]
-        client_secret = request.form.get("client_secret","")
-
-        # urn:ietf:params:oauth:client-assertion-type:jwt-bearer
-        # client_secret is no required when client_assertion used
-        client_assertion_type = request.form.get("client_assertion_type", "")
-        client_assertion = request.form.get("client_assertion", "")
-
-        assertion = request.form["assertion"]
-        requested_token_use = request.form["requested_token_use"]
-        scope = request.form["scope"]
+    # TODO: handle grant_type for on-behalf-of flow
+    # elif grant_type.endswith("jwt-bearer"):
+    #     # For on-behalf-of flow
+    #     client_id: str = request.form["client_id"]
+    #     client_secret = request.form.get("client_secret", "")
+    #
+    #     # urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+    #     # client_secret is no required when client_assertion used
+    #     client_assertion_type = request.form.get("client_assertion_type", "")
+    #     client_assertion = request.form.get("client_assertion", "")
+    #
+    #     assertion = request.form["assertion"]
+    #     requested_token_use = request.form["requested_token_use"]
+    #     resource = request.form["resource"]  # second api resource uri
+    #     scope = request.form["scope"]
 
     elif grant_type == "authorization_code":
         # check specifications for handling redirect_uri and compare with openid specs MS reference below:

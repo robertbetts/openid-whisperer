@@ -277,7 +277,7 @@ def create_authorisation_code(
         if code_challenge:
             # user_codes: Dict[str, Any] = {}  # Indexed by user_code
             # device_user_code: Dict[str, str] = {}  # Indexed by device_code
-            device_code_request = device_code_requests.pop(code_challenge)
+            device_code_request = device_code_requests.pop(code_challenge, None)
             if device_code_request is None:
                 raise Exception(f"no device code request found for {code_challenge}")
 
@@ -311,15 +311,15 @@ def devicecode_request(
 
     # code that will be used to retrieve the token
     device_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
-    # code the user will have to enter when authorising
-    user_code = ''.join(secrets.choice(string.digits) for i in range(8))
 
-    while user_code in device_code_requests:
-        # if a user code exists, then generate a new code
-        user_code = ''.join(secrets.choice(string.alphabet) for i in range(8))
+    # code the user will have to enter when authorising
+    # if a user code exists, then generate a new code
+    while True:
+        user_code = ''.join(secrets.choice(string.digits) for i in range(8))
+        if user_code not in device_code_requests:
+            break
 
     expires_in = datetime.utcnow() + timedelta(minutes=15)
-
     response_type = "code"
     auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
     auth_link += "?scope={}&response_type={}&client_id={}&resource={}".format(
