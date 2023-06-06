@@ -12,9 +12,11 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote
 from uuid import uuid4
 from typing import Dict, Any, Optional, List
+import string
+import secrets
 from calendar import timegm
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.types import CertificatePublicKeyTypes
@@ -33,8 +35,13 @@ KEY: rsa.RSAPrivateKey = cert_utils.cert_key
 CERTIFICATE: x509.Certificate = cert_utils.cert
 ISSUER: str = f"urn:whisperer:openid:issuer:{cert_utils.identity_provider_serial_number}"
 UNIT_TESTING: bool = False
+
 authorisation_codes: Dict[str, Any] = {}
 access_tokens: Dict[str, Any] = {}
+
+# for tracking device_code flow
+device_code_requests: Dict[str, Any] = {}  # Indexed by user_code
+device_user_codes: Dict[str, str] = {}  # Indexed by device_code
 
 scopes_supported = [
     "user_impersonation",
@@ -74,16 +81,16 @@ id_token_signing_alg_values: List[str] = [ALGORITHM]
 access_token_issuer = ISSUER
 
 
-def get_openid_configuration(base_url: str, openid_prefix: str) -> Dict[str, Any]:
+def get_openid_configuration(base_url: str, tenant: str) -> Dict[str, Any]:
     openid_configuration: Dict[str, Any] = {
         "access_token_issuer": access_token_issuer,
         "as_access_token_token_binding_supported": False,
         "as_refresh_token_token_binding_supported": False,
-        "authorization_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/authorize"),
+        "authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/authorize"),
         "capabilities": ["kdf_ver2"],
         "claims_supported": claims_supported,
-        "device_authorization_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/devicecode"),
-        "end_session_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/logout"),
+        "device_authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/devicecode"),
+        "end_session_endpoint": urljoin(base_url, f"{tenant}/oauth2/logout"),
         "frontchannel_logout_session_supported": True,
         "frontchannel_logout_supported": True,
         "grant_types_supported": ["authorization_code",
@@ -96,8 +103,8 @@ def get_openid_configuration(base_url: str, openid_prefix: str) -> Dict[str, Any
                                   "urn:ietf:params:oauth:grant-type:device_code",
                                   "device_code"],
         "id_token_signing_alg_values_supported": id_token_signing_alg_values,
-        "issuer": urljoin(base_url, f"{openid_prefix}"),
-        "jwks_uri": urljoin(base_url, f"{openid_prefix}/discovery/keys"),
+        "issuer": urljoin(base_url, f"{tenant}"),
+        "jwks_uri": urljoin(base_url, f"{tenant}/discovery/keys"),
         "microsoft_multi_refresh_token": True,
         "op_id_token_token_binding_supported": False,
         "resource_access_token_token_binding_supported": False,
@@ -111,13 +118,13 @@ def get_openid_configuration(base_url: str, openid_prefix: str) -> Dict[str, Any
         "rp_id_token_token_binding_supported": False,
         "scopes_supported": scopes_supported,
         "subject_types_supported": ["pairwise"],
-        "token_endpoint": urljoin(base_url, f"{openid_prefix}/oauth2/token"),
+        "token_endpoint": urljoin(base_url, f"{tenant}/oauth2/token"),
         "token_endpoint_auth_methods_supported": ["client_secret_post",
                                                   "client_secret_basic",
                                                   "private_key_jwt",
                                                   "windows_client_authentication"],
         "token_endpoint_auth_signing_alg_values_supported": token_endpoint_auth_signing_alg_values,
-        "userinfo_endpoint": urljoin(base_url, f"{openid_prefix}/userinfo")
+        "userinfo_endpoint": urljoin(base_url, f"{tenant}/userinfo")
     }
     return openid_configuration
 
@@ -231,10 +238,13 @@ def get_client_id_information(
 
         auth_time = datetime.utcnow()
         expires_in = auth_time + timedelta(seconds=EXPIRES_SECONDS)
+        audience = [client_id]
+        if resource:
+            audience.append(resource)
         payload = {
             "iss": ISSUER,
             "sub": uuid4().hex,
-            "aud": [client_id, resource],
+            "aud": audience,
             "exp": get_seconds_epoch(expires_in),
             "iat": get_seconds_epoch(auth_time),
             "auth_time": auth_time.isoformat(sep=" "),
@@ -253,14 +263,29 @@ def create_authorisation_code(
         username: str,
         nonce: str,
         scope: str,
+        code_challenge: str | None = None,
         expiry_timeout: int = 600
         ) -> Optional[str]:
-    """ create an authorisation code to pass back to authorisation requester 
+    """ Create an authorisation code to pass back to authorisation requester
         which will allow them to request a valid access token
+
+        When a value for code_challenge is entered, then we are supporting the device code
+        authentication flow.
     """
     authorisation_code: str | None = None
     if client_id and username:
-        authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
+        if code_challenge:
+            # user_codes: Dict[str, Any] = {}  # Indexed by user_code
+            # device_user_code: Dict[str, str] = {}  # Indexed by device_code
+            device_code_request = device_code_requests.pop(code_challenge)
+            if device_code_request is None:
+                raise Exception(f"no device code request found for {code_challenge}")
+
+            authorisation_code = device_code_request["device_code"]
+            # TODO: Check validity and expiry
+        else:
+            authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
+
         expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
         authorisation_codes[authorisation_code] = {
             "authorisation_code": authorisation_code,
@@ -272,6 +297,47 @@ def create_authorisation_code(
             "scope": scope,
         }
     return authorisation_code
+
+
+def devicecode_request(
+        base_url: str,
+        tenant: str,
+        client_id: str,
+        scope: str,
+        resource: Optional[str] = None) -> Dict[str, Any]:
+    """ Generate a time limited user code, that can be authenticated against in order to create
+        a valid token
+    """
+
+    # code that will be used to retrieve the token
+    device_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
+    # code the user will have to enter when authorising
+    user_code = ''.join(secrets.choice(string.digits) for i in range(8))
+
+    while user_code in device_code_requests:
+        # if a user code exists, then generate a new code
+        user_code = ''.join(secrets.choice(string.alphabet) for i in range(8))
+
+    expires_in = datetime.utcnow() + timedelta(minutes=15)
+
+    response_type = "code"
+    auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
+    auth_link += "?scope={}&response_type={}&client_id={}&resource={}".format(
+            scope, response_type, client_id, resource
+        )
+    auth_link += "&prompt=login&code_challenge_method=plain"
+
+    response = {
+        "device_code": device_code,
+        "user_code": user_code,
+        "verification_uri":  quote(auth_link),
+        "expires_in": int(expires_in.timestamp()),
+        "interval": 5,
+        "message": f"Enter the following code: {user_code} at this link, {auth_link}"
+    }
+    device_code_requests[user_code] = response
+    device_user_codes[device_code] = user_code
+    return response
 
 
 def get_access_token_from_authorisation_code(
@@ -348,6 +414,7 @@ def authenticate_code(client_id: str,
                       user_secret: str,
                       nonce: str,
                       scope: str,
+                      code_challenge: str | None = None,
                       kmsi: str | None = None,
                       mfa_code: str | None = None) -> Optional[str]:
     """ Using client_id, username, resource, user_secret and mfa_code to
@@ -357,5 +424,5 @@ def authenticate_code(client_id: str,
     _ = kmsi
     response: str | None = None
     if authenticate(client_id, resource, username, user_secret, mfa_code):
-        response = create_authorisation_code(client_id, resource, username, nonce, scope)
+        response = create_authorisation_code(client_id, resource, username, nonce, scope, code_challenge)
     return response

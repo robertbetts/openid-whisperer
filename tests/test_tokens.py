@@ -69,12 +69,14 @@ def test_authorisation_code():
     domain_username = f"{username}@{domain}"
     nonce = "XX"
     scope = "openid profile"
+    code_challenge = None
     authorisation_code = create_authorisation_code(
         client_id=client_id,
         resource=resource,
         username=domain_username,
         nonce=nonce,
-        scope=scope)
+        scope=scope,
+        code_challenge=code_challenge)
     assert authorisation_code is not None
 
     access_token = get_access_token_from_authorisation_code(authorisation_code)

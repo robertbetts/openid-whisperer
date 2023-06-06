@@ -16,9 +16,9 @@ from config import config
 # API service parameters
 #
 API_GW_HOST: str = os.getenv("API_HOST", "localhost")
-API_GW_PORT: int = int(os.getenv("API_PORT", "5006"))
+API_GW_PORT: int = int(os.getenv("API_PORT", "5007"))
 API_HOST: str = os.getenv("API_HOST", "localhost")
-API_PORT: int = int(os.getenv("API_PORT", "5006"))
+API_PORT: int = int(os.getenv("API_PORT", "5007"))
 FLASK_DEBUG: bool = os.getenv("FLASK_DEBUG", "True").lower() == "true"
 VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "False").lower() != "false"
 
@@ -131,12 +131,14 @@ def api_public():
 
 @app.route('/mock-api/api/private')
 def api_private():
-    token = request.headers.get('Authorization')
-    if token is None:
+    raw_token = request.headers.get('Authorization')
+    if raw_token is None:
         result = {"message": "Access Denied - This is a private endpoint, an access token is required"}
     else:
         try:
-            openid_client.validate_access_token(token, verify_server=VALIDATE_CERTS)
+            token = raw_token[7:]
+            audience = [resource_uri]
+            openid_client.validate_access_token(token, audience, verify_server=VALIDATE_CERTS)
             result = {"message": "You have successfully authenticated for this private endpoint"}
         except Exception as e:
             logging.exception(e)

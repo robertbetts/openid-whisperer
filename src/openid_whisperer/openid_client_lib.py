@@ -7,7 +7,7 @@ from collections import UserDict
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from urllib.parse import urljoin, urlsplit, urlunsplit
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import math
 
 import requests
@@ -57,7 +57,10 @@ class OpenIDClient:
         self.identity_keys: Dict[str, Any] = {}
         self.validated_claims: Dict[str, Any] = {}
 
-    def validate_access_token(self, access_token: str, verify_server: bool = True) -> Dict[str, Any]:
+    def validate_access_token(self,
+                              access_token: str,
+                              audience: Optional[str | List] = None,
+                              verify_server: bool = True) -> Dict[str, Any]:
         """ Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
             if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
         """
@@ -95,7 +98,7 @@ class OpenIDClient:
                 claims = jwt.decode(
                     access_token,
                     self.identity_keys[tok_x5t],
-                    audience=self.resource_uri,
+                    audience=audience,
                     issuer=issuer,
                     algorithms=["RS256"])
                 if claims:

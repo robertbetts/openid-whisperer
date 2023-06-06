@@ -84,18 +84,21 @@ def authorize() -> ResponseReturnValue:
 
     request_params: Dict[str, Any] = {}
     try:
-        scope: str = request.args['scope'].split(" ")
+        scope: str = request.args['scope']
         response_type: str = request.args['response_type']
         client_id: str = request.args['client_id']
-        redirect_uri: str = request.args['redirect_uri']
+        redirect_uri: str = request.args.get('redirect_uri', "")
         state: str = request.args.get('state', "")
         response_mode: str = request.args.get('response_mode', "")
         nonce: str = request.args.get('nonce', "")
         resource: str = request.args.get('resource', "")
+        prompt: str = request.args.get('prompt', "")
+        code_challenge_method: str = request.args.get('code_challenge_method', "")
+        code_challenge: str = request.args.get('code_challenge_method', "")
 
     except BadRequestKeyError as e:
         error_message = f"Invalid input, missing query parameter {e.args[0]}. "\
-                        "scope, response_type, client_id, redirect_url are required parameters"
+                        "scope, response_type, client_id are required parameters"
         logger.debug(error_message)
         abort(403, error_message)
 
@@ -104,11 +107,16 @@ def authorize() -> ResponseReturnValue:
             "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
                 scope, response_type, client_id, resource, redirect_uri, nonce, state
             )
+        url_params += f"&prompt={prompt}" if prompt else ""
+        url_params += f"&code_challenge_method={code_challenge_method}" if code_challenge_method else ""
+        url_params += f"&code_challenge={code_challenge}" if prompt else ""
         action = f"?{url_params}"
         resp = make_response(render_template('login.html',
                                              action=action,
                                              client_id=None,
-                                             redirect_uri=None))
+                                             redirect_uri=None,
+                                             code_challenge_method=code_challenge_method,
+                                             code_challenge=code_challenge))
         return resp
 
     if request.method == "POST":
@@ -116,6 +124,7 @@ def authorize() -> ResponseReturnValue:
             try:
                 username = request.form["UserName"]
                 user_secret = request.form["Password"]
+                code_challenge = request.form.get("CodeChallenge", "")
             except BadRequestKeyError as e:
                 error_message = f"Invalid input, missing form input {e.args[0]}. " \
                                 "UserName, Password are required form parameters"
@@ -128,10 +137,14 @@ def authorize() -> ResponseReturnValue:
                 username=username,
                 user_secret=user_secret,
                 nonce=nonce,
-                scope=scope
+                scope=scope,
+                code_challenge=code_challenge,
             )
             if authorisation_code is None:
                 abort(401, "Unable to authenticate using the information provided")
+
+            if "offline_access" in scope:
+                return "User successfully authenticated"
 
             query_start = "&" if "?" in redirect_uri else "?"
             redirect_uri = f"{redirect_uri}{query_start}code={authorisation_code}"
@@ -213,9 +226,24 @@ def token() -> ResponseReturnValue:
             PKCE RFC. This option applies to AD FS 2019 and later
     """
     grant_type: str = request.form["grant_type"]
-    if grant_type == "authorization_code":
-        # TODO: look into specifications for handling redirect_uri and compare with openid specs MS reference below:
+    if grant_type.endswith("device_code"):
+        device_code: str = request.form["device_code"]
+        client_id: str = request.form["client_id"]
+        response = {
+            "error": "authorization_pending",
+            "error_description": "MSIS9659: Invalid 'username' or 'password'."
+        }
+        # TODO: clean up references and expiry for device codes
+        if device_code in openid_lib.authorisation_codes:
+            response = openid_lib.get_access_token_from_authorisation_code(device_code)
+        # if device_code in openid_lib.device_user_codes:
+        #     user_code = openid_lib.device_user_codes[device_code]
+        #     response = openid_lib.get_access_token_from_authorisation_code(device_code)
+
+    elif grant_type == "authorization_code":
+        # check specifications for handling redirect_uri and compare with openid specs MS reference below:
         # https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
+        # redirect_uri: str = request.args.get("redirect_uri", "")
 
         # client_id: str | None = request.form["client_id"]
         code: str = request.form["code"] if request.form["code"] else ""
@@ -265,7 +293,17 @@ def userinfo() -> ResponseReturnValue:
 def devicecode() -> ResponseReturnValue:
     """ returns the device code and user code
     """
-    return ""
+    try:
+        client_id = request.form["client_id"]
+        scope = request.form["scope"]
+        resource = request.form.get("resource", "")
+        response = openid_lib.devicecode_request(IDP_BASE_URL, openid_prefix, client_id, scope, resource)
+    except KeyError as e:
+        response = {
+            "error": "bad_devicecode_request",
+            "error_description": str(e)
+        }
+    return json.dumps(response)
 
 
 @openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET"])
