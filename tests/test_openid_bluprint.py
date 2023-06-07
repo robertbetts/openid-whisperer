@@ -266,8 +266,7 @@ def test_device_code_flow(client):
 
     # Authenticate with user_code
     response = run_authorize_code_offline_access(client, devicecode_response["user_code"])
-    assert response.status_code == 200
-    assert "User successfully authenticated" in response.text
+    assert response.status_code == 302
 
 
 # Test valid token

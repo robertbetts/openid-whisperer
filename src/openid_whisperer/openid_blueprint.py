@@ -143,13 +143,11 @@ def authorize() -> ResponseReturnValue:
             if authorisation_code is None:
                 abort(401, "Unable to authenticate using the information provided")
 
-            if "offline_access" in scope:
-                return "User successfully authenticated"
-
             query_start = "&" if "?" in redirect_uri else "?"
             redirect_uri = f"{redirect_uri}{query_start}code={authorisation_code}"
             redirect_uri = f'{redirect_uri}&state={state}' if state else redirect_uri
 
+            # TODO: research and handle cases where redirect is not required
             return redirect(redirect_uri, code=302)
 
         if "token" in response_type:
