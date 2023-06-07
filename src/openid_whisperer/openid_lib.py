@@ -9,6 +9,7 @@
     Initial specifications taken from:
     https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
 """
+import logging
 from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
@@ -45,18 +46,10 @@ device_user_codes: Dict[str, str] = {}  # Indexed by device_code
 
 scopes_supported = [
     "user_impersonation",
-    "delete",
-    "logon_cert",
-    "winhello_cert",
+    "offline_access",
     "profile",
-    "put",
     "email",
     "openid",
-    "allatclaims",
-    "aza",
-    "post",
-    "vpn_cert",
-    "get",
 ]
 claims_supported: List[str] = [
     "aud",
@@ -79,6 +72,20 @@ claims_supported: List[str] = [
 token_endpoint_auth_signing_alg_values: List[str] = [ALGORITHM]
 id_token_signing_alg_values: List[str] = [ALGORITHM]
 access_token_issuer = ISSUER
+
+
+def split_scope_and_resource(scope: str, resource: str) -> tuple(List[str]):
+    resource_list = [resource] if resource else []
+    scope_list = []
+    for item in scope.split(" "):
+        if item in scopes_supported:
+            if item not in scope_list:
+                scope_list.append(item)
+        else:
+            resource_list.append(item)
+    logging.debug(f"scope: {scope_list}")
+    logging.debug(f"resource: {resource_list}")
+    return scope_list, resource_list
 
 
 def get_openid_configuration(base_url: str, tenant: str) -> Dict[str, Any]:
@@ -238,9 +245,8 @@ def get_client_id_information(
 
         auth_time = datetime.utcnow()
         expires_in = auth_time + timedelta(seconds=EXPIRES_SECONDS)
-        audience = [client_id]
-        if resource:
-            audience.append(resource)
+        _, audience = split_scope_and_resource(scope, resource)
+        audience.append(client_id)
         payload = {
             "iss": ISSUER,
             "sub": uuid4().hex,
@@ -254,6 +260,7 @@ def get_client_id_information(
             "email": "name.surname@mock-company.com",
             "ver": "1.0",
         }
+        logging.debug(payload)
     return payload
 
 

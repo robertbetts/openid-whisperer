@@ -282,7 +282,7 @@ def token() -> ResponseReturnValue:
         scope = request.form.get("scope", "")
         access_token_response = openid_lib.authenticate_token(
             client_id=request.form["client_id"],
-            resource=request.form["resource"],
+            resource=request.form.get("resource", ""),
             username=username,
             user_secret=user_secret,
             nonce=nonce,

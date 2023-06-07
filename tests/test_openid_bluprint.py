@@ -191,10 +191,13 @@ def test_post_get_token_with_password(client):
 
 
 def run_authorize_code_offline_access(client, user_code):
-    scope = "openid profile offline_access"
     response_type = "code"
     client_id = "ID_12345"
+
+    # testing passing in resource in scope for openapi / azure compatibility
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
+    scope = f"openid profile offline_access {resource_uri}"
+
     redirect_url = "http://test/api/handleAccessToken"
     nonce = uuid4().hex
     state = secrets.token_hex()

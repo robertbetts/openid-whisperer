@@ -85,7 +85,7 @@ def test_authorisation_code():
         access_token=access_token["access_token"],
         audience=resource,
         issuer=ISSUER)
-    assert claims["aud"] == [client_id, resource] and\
+    assert claims["aud"] == [resource, client_id] and\
            claims["iss"] == ISSUER and\
            claims["appid"] == client_id and \
            claims["nonce"] == nonce and \
@@ -113,7 +113,7 @@ def test_authenticate_token():
         access_token=access_token["access_token"],
         audience=resource,
         issuer=ISSUER)
-    assert claims["aud"] == [client_id, resource] and \
+    assert claims["aud"] == [resource, client_id] and \
            claims["iss"] == ISSUER and \
            claims["appid"] == client_id and \
            claims["nonce"] == nonce and \
