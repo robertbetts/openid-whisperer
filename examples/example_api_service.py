@@ -15,8 +15,8 @@ from config import config
 
 # API service parameters
 #
-API_GW_HOST: str = os.getenv("API_HOST", "localhost")
-API_GW_PORT: int = int(os.getenv("API_PORT", "5007"))
+API_GW_HOST: str = os.getenv("API_GW_HOST", "localhost")
+API_GW_PORT: int = int(os.getenv("API_GW_PORT", "5007"))
 API_HOST: str = os.getenv("API_HOST", "localhost")
 API_PORT: int = int(os.getenv("API_PORT", "5007"))
 FLASK_DEBUG: bool = os.getenv("FLASK_DEBUG", "True").lower() == "true"
@@ -24,7 +24,7 @@ VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "False").lower() != "false"
 
 # Identity Provider Parameters
 #
-identity_endpoint: str = "https://localhost:5005/adfs/"
+identity_endpoint: str = config.identity_endpoint
 
 # API service identity parameters
 #

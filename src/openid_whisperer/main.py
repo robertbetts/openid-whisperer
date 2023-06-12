@@ -1,4 +1,4 @@
-""" Module for initialising the openid_whisperer running service
+""" Module for initialising the OpenID Whisperer running service
 """
 from flask import Flask
 from openid_whisperer.cert_utils import get_ssl_context
@@ -22,9 +22,13 @@ def main() -> None:  # pragma: no cover
     """
     flask_app: Flask = app()
     flask_app.run(
-        ssl_context=get_ssl_context(verify=False),
-        host=IDP_SERVICE_BINDING,
-        port=IDP_SERVICE_PORT,
+        ssl_context=get_ssl_context(
+            certificate=config.org_cert,
+            private_key=config.org_key,
+            issuer_certs=[config.ca_cert],
+            verify=False),
+        host=IDP_SSL_SERVICE_BINDING,
+        port=IDP_SSL_SERVICE_PORT,
         debug=FLASK_DEBUG
     )
 

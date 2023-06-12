@@ -28,15 +28,19 @@ class IdentityConfig(UserDict):
         self.provider_url: str = provider_url
         self.verify_server: bool = verify_server
         super().__init__()
-        self.refresh()
+        # self.refresh()
 
     def refresh(self):
         """ Update the dictionary's data with that from the identity provider
         """
         endpoint = urljoin(self.provider_url, ".well-known/openid-configuration")
         response = requests.get(url=endpoint, verify=self.verify_server)
-        config_data: Dict[str, Any] = response.json()
-        self.update(config_data)
+        if response.status_code == 200:
+            config_data: Dict[str, Any] = response.json()
+            self.update(config_data)
+        else:
+            logging.error("Failed identity provider endpoint {}".format(endpoint))
+            raise Exception("Unable to connect to the identity provider\n{}".format(response.text))
 
 
 class OpenIDClient:

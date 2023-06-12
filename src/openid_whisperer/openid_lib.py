@@ -27,14 +27,14 @@ from cryptography import x509
 import jwt
 from jwt.utils import to_base64url_uint
 
-from openid_whisperer import cert_utils
+from openid_whisperer.config import config
 
 EXPIRES_SECONDS: int = 600
 ALGORITHM: str = "RS256"
 KEY_ID: str = "idp-key-id"
-KEY: rsa.RSAPrivateKey = cert_utils.cert_key
-CERTIFICATE: x509.Certificate = cert_utils.cert
-ISSUER: str = f"urn:whisperer:openid:issuer:{cert_utils.identity_provider_serial_number}"
+KEY: rsa.RSAPrivateKey = config.org_key
+CERTIFICATE: x509.Certificate = config.org_cert
+ISSUER: str = f"urn:whisperer:openid:issuer:{CERTIFICATE.serial_number}"
 UNIT_TESTING: bool = False
 
 authorisation_codes: Dict[str, Any] = {}
