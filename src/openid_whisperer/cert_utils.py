@@ -35,10 +35,8 @@ def generate_ca_key_and_certificate(
         country_name: str = COUNTRY_NAME,
         state_name: str = STATE_OR_PROVINCE_NAME,
         locality_name: str = LOCALITY_NAME,
-        organization_name_ca: str = ORGANIZATION_NAME_CA,
-        common_name_ca: str = COMMON_NAME_CA,
-        organization_name: str = ORGANIZATION_NAME,
-        common_name: str = COMMON_NAME) -> Tuple[rsa.RSAPrivateKey, x509.Certificate]:
+        organization_name: str = ORGANIZATION_NAME_CA,
+        common_name: str = COMMON_NAME_CA) -> Tuple[rsa.RSAPrivateKey, x509.Certificate]:
     """ Generate a private key and self-signed certificate for a given CA organisation
     """
     # Generate an RSA private key
@@ -55,8 +53,8 @@ def generate_ca_key_and_certificate(
         x509.NameAttribute(NameOID.COUNTRY_NAME, country_name),
         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state_name),
         x509.NameAttribute(NameOID.LOCALITY_NAME, locality_name),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization_name_ca),
-        x509.NameAttribute(NameOID.COMMON_NAME, common_name_ca),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization_name),
+        x509.NameAttribute(NameOID.COMMON_NAME, common_name),
     ])
 
     # Create self-signed CA certificate valid for 10 years

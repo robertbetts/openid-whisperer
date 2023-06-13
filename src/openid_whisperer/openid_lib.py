@@ -83,8 +83,8 @@ def split_scope_and_resource(scope: str, resource: str) -> tuple(List[str]):
                 scope_list.append(item)
         else:
             resource_list.append(item)
-    logging.debug(f"scope: {scope_list}")
-    logging.debug(f"resource: {resource_list}")
+    # logging.debug(f"scope: {scope_list}")
+    # logging.debug(f"resource: {resource_list}")
     return scope_list, resource_list
 
 

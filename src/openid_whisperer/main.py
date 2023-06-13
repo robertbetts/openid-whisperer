@@ -27,8 +27,8 @@ def main() -> None:  # pragma: no cover
             private_key=config.org_key,
             issuer_certs=[config.ca_cert],
             verify=False),
-        host=IDP_SSL_SERVICE_BINDING,
-        port=IDP_SSL_SERVICE_PORT,
+        host=IDP_SERVICE_BINDING,
+        port=IDP_SERVICE_PORT,
         debug=FLASK_DEBUG
     )
 

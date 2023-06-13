@@ -1,4 +1,4 @@
-""" Module with OpenID client functionality. Used for unit testing and example client code
+""" Module with OpenID client functionality. Used for unit testing and example code
 """
 import logging
 import json
@@ -28,7 +28,7 @@ class IdentityConfig(UserDict):
         self.provider_url: str = provider_url
         self.verify_server: bool = verify_server
         super().__init__()
-        # self.refresh()
+        self.refresh()
 
     def refresh(self):
         """ Update the dictionary's data with that from the identity provider
@@ -44,17 +44,19 @@ class IdentityConfig(UserDict):
 
 
 class OpenIDClient:
-    """ OpenID 1.0 Client Library
+    """ OpenID 1.0 Compatible Client Library
     """
     def __init__(self,
                  provider_url: str,
+                 provider_url_gw: str,
                  client_id: str,
-                 resource_uri: Optional[str] = None,
+                 resource: Optional[str] = None,
                  verify_server: bool = True):
 
         self.provider_url: str = provider_url
+        self.provider_url_gw: str = provider_url_gw
         self.client_id: str = client_id
-        self.resource_uri: str = resource_uri if resource_uri else ""
+        self.resource: str = resource if resource else ""
         self.verify_server = verify_server
 
         self.identity_config: IdentityConfig = IdentityConfig(provider_url, verify_server)
@@ -67,6 +69,12 @@ class OpenIDClient:
                               verify_server: bool = True) -> Dict[str, Any]:
         """ Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
             if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
+
+            audience is mandatory token check, as a minimum the aud claim will always contain the OpenID client_id. Where
+            resource has been specified, this will be included in the aud claim.
+            Where the audience parameter is None, the audience is assigned [self.client_id, self.resource]
+
+
         """
         at_list = access_token.split(".")
         # Adjust the left padding to avoid the base64 padding error
@@ -107,34 +115,50 @@ class OpenIDClient:
                     algorithms=["RS256"])
                 if claims:
                     self.validated_claims[access_token] = claims
+                    # Token and claims are good, ignore possible failed validations against invalid keys
+                    key_errors = []
+                    token_errors = []
+                    break
                 else:
-                    token_errors.append((access_token, Exception("Access token contains no valid claims")))
+                    token_errors.append((access_token, Exception("Token contains no validated claims")))
 
             except jwt.ExpiredSignatureError as e:
                 key_errors.append((key, e))
 
-            except jwt.InvalidTokenError as e:
-                logging.exception(e)
+            except jwt.InvalidAudienceError as e:
+                # logging.exception("Unable to validate audience claim for %s, %s", audience, e)
                 token_errors.append((access_token, e))
 
-        for error in token_errors:
-            logging.error('Invalid JWT token: %s, %s', error[1], error[0])
+            except jwt.InvalidTokenError as e:
+                # logging.exception(e)
+                token_errors.append((access_token, e))
 
-        for error in key_errors:
-            logging.error('IDA key signature error: %s - %s', error[0], error[1])
+        # for error in token_errors:
+        #     logging.error('Token validation error: %s, %s', error[1], error[0])
+        # for error in key_errors:
+        #     logging.error('Signature validation error: %s - %s', error[0], error[1])
 
+        err = None
         if token_errors:
-            raise token_errors[0][1]
+            err = token_errors[0][1]
+            for error in token_errors:
+                logging.error("%s", error[1])
         if key_errors:
-            raise key_errors[0][1]
+            err = key_errors[0][1] if err is None else err
+            for error in key_errors:
+                logging.error("keyError: %s", error[1])
+        if err:
+            raise err
 
         return claims
 
-    def token_endpoint_url(self) -> str:
-        return replace_base_netloc(self.provider_url, self.identity_config["token_endpoint"])
+    def token_endpoint_url(self, gateway: bool = True) -> str:
+        provider_url: str = self.provider_url_gw if gateway else self.provider_url
+        return replace_base_netloc(provider_url, self.identity_config["token_endpoint"])
 
-    def authorization_endpoint_url(self) -> str:
-        return replace_base_netloc(self.provider_url, self.identity_config["authorization_endpoint"])
+    def authorization_endpoint_url(self, gateway: bool = True) -> str:
+        provider_url: str = self.provider_url_gw if gateway else self.provider_url
+        return replace_base_netloc(provider_url, self.identity_config["authorization_endpoint"])
 
     def request_token_password_grant(
             self,
@@ -148,11 +172,11 @@ class OpenIDClient:
         request_data = {
             "grant_type": "password",
             "client_id": self.client_id,
-            "resource": self.resource_uri,
+            "resource": self.resource,
             "username": username,
             "password": secret,
         }
-        token_endpoint_url = self.token_endpoint_url()
+        token_endpoint_url = self.token_endpoint_url(gateway=True)
         headers = {} if headers is None else headers
         headers.update({'content_type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'})
         try:

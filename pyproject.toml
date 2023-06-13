@@ -1,12 +1,22 @@
 [tool.poetry]
-name = "api-gw-openid"
+name = "openid-whisperer"
 version = "0.1.0"
 description = "OpenID Oauth 2.0 compatible Identity Provider"
 authors = ["Robert Betts"]
 readme = "README.md"
-packages = [{include = "openid_whisperer", from = "src" }]
+packages = [
+    {include = "openid_whisperer", from = "src" },
+    {include = "mock_api_service", from = "src" }
+]
+
+[tool.poetry.scripts]
+openid-whisperer = 'mock_api_service.main:main'
+mock-api-service = 'mock_api_service.mock_api_service:main'
+mock-api-client = 'mock_api_service.mock_api_client:main'
+
 
 [tool.pytest]
+env_files = [".env_test"]
 testpaths = ["tests"]
 
 [tool.pytest.ini_options]
@@ -43,12 +53,14 @@ python-dotenv = "^1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
+poetry = "^1.5.1"
 pytest = "^7.3.1"
 certifi = "^2022.12.7"
 mypy = "^1.3.0"
 pylint = "^2.17.4"
 types-requests = "^2.31.0.1"
 coverage = {extras = ["toml"], version = "^7.2.7"}
+pytest-dotenv = "^0.5.2"
 
 [build-system]
 requires = ["poetry-core"]
