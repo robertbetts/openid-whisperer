@@ -443,12 +443,6 @@ a:hover {
     min-height: 50px;
 }
 
-#jpmcLogo {
-    width:100%;
-    height:auto;
-    max-width:426px; /* Total width of JPMC logo */
-}
-
 #regularView .error {
     color: #BF2155; /* Tuxedo Color - Jam */
 }
