@@ -2,8 +2,7 @@
 """
 import logging
 import json
-from typing import List, Dict, Any
-from urllib.parse import urljoin
+from typing import Dict, Any
 from flask import Blueprint, request, make_response, render_template, redirect, abort
 from werkzeug.exceptions import BadRequestKeyError
 from flask.typing import ResponseReturnValue
@@ -83,18 +82,28 @@ def authorize() -> ResponseReturnValue:
     """
 
     request_params: Dict[str, Any] = {}
+    scope: str = ""
+    response_type: str = ""
+    client_id: str = ""
+    resource: str = ""
+    redirect_uri: str = ""
+    state: str = ""
+    nonce: str = ""
+    prompt: str = ""
+    code_challenge_method: str = ""
+    code_challenge: str = ""
     try:
-        scope: str = request.args['scope']
-        response_type: str = request.args['response_type']
-        client_id: str = request.args['client_id']
-        redirect_uri: str = request.args.get('redirect_uri', "")
-        state: str = request.args.get('state', "")
+        scope = request.args['scope']
+        response_type = request.args['response_type']
+        client_id = request.args['client_id']
+        redirect_uri = request.args.get('redirect_uri', "")
+        state = request.args.get('state', "")
         response_mode: str = request.args.get('response_mode', "")
-        nonce: str = request.args.get('nonce', "")
-        resource: str = request.args.get('resource', "")
-        prompt: str = request.args.get('prompt', "")
-        code_challenge_method: str = request.args.get('code_challenge_method', "")
-        code_challenge: str = request.args.get('code_challenge_method', "")
+        nonce = request.args.get('nonce', "")
+        resource = request.args.get('resource', "")
+        prompt = request.args.get('prompt', "")
+        code_challenge_method = request.args.get('code_challenge_method', "")
+        code_challenge = request.args.get('code_challenge_method', "")
 
     except BadRequestKeyError as e:
         error_message = f"Invalid input, missing query parameter {e.args[0]}. "\
@@ -175,7 +184,7 @@ def authorize() -> ResponseReturnValue:
 
         abort(500, f"Invalid value for query parameter response_type, {response_type}")
 
-    # abort(500, f"Invalid request method {request.method}")
+    abort(500, f"Invalid request method {request.method}")  # pragma: no cover
 
 
 @openid_blueprint.route("/oauth2/token", methods=["POST"])

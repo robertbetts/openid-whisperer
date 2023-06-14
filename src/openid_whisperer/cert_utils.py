@@ -5,19 +5,25 @@ import atexit
 import os
 import datetime
 import tempfile
-from typing import Optional, List, NoReturn, Tuple
+from typing import Optional, List, Tuple
 import ssl
 from ssl import SSLContext
 import ipaddress
 
 from cryptography import x509
+from cryptography.x509.general_name import GeneralName
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
-
+from cryptography.hazmat.primitives.asymmetric.types import (
+    PublicKeyTypes,
+)
+from cryptography.hazmat.primitives.asymmetric.types import (
+    CertificatePublicKeyTypes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,13 +109,17 @@ def make_and_sign_new_org_csr(
 
     certificate_expiry_days: int = 30
 
-    alternative_names: List[str]
+    alternative_names: List[str] | None
     if isinstance(host_names, str):
         alternative_names = [item.strip() for item in host_names.split(",")]
     else:
         alternative_names = host_names
 
     certificate_serial_number: int = x509.random_serial_number()
+    issuer_public_key: PublicKeyTypes = ca_cert.public_key()
+    if not isinstance(issuer_public_key, rsa.RSAPublicKey):
+        raise Exception(f"Invalid ca_cert public key type {type(issuer_public_key)}")  # pragma: no cover
+    org_public_key: CertificatePublicKeyTypes = org_key.public_key()
     org_csr: x509.CertificateBuilder = x509.CertificateBuilder().subject_name(
         new_subject
     ).issuer_name(
@@ -123,10 +133,10 @@ def make_and_sign_new_org_csr(
     ).not_valid_after(
         datetime.datetime.utcnow() + datetime.timedelta(days=certificate_expiry_days)
     ).add_extension(
-        x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()),
+        x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_public_key),
         critical=False
     ).add_extension(
-        x509.SubjectKeyIdentifier.from_public_key(org_key.public_key()),
+        x509.SubjectKeyIdentifier.from_public_key(org_public_key),
         critical=False
     ).add_extension(
         x509.KeyUsage(digital_signature=True, key_encipherment=True, key_cert_sign=True,
@@ -141,7 +151,7 @@ def make_and_sign_new_org_csr(
         critical=False
     )
     if alternative_names:
-        subject_alternative_names = []
+        subject_alternative_names: List[GeneralName] = []
         for name in alternative_names:
             try:
                 subject_alternative_names.append(x509.IPAddress(ipaddress.ip_address(name)))
@@ -157,7 +167,7 @@ def make_and_sign_new_org_csr(
     return org_cert
 
 
-def check_sha256_certificate(certificate, issuer_certificate) -> bool:
+def check_sha256_certificate(certificate: x509.Certificate, issuer_certificate: x509.Certificate) -> bool:
     """ Validates and SHA256 (PKCS1v15) signed certificate, returns True when valid.
         If validation fails, then and InvalidSignature exception is raised.
 
@@ -176,6 +186,8 @@ def check_sha256_certificate(certificate, issuer_certificate) -> bool:
         )
     """
     public_key = issuer_certificate.public_key()
+    if not isinstance(public_key, rsa.RSAPublicKey):
+        raise Exception("Only RSA keys supported")  # pragma: no cover
     padding_input = padding.PKCS1v15()
     public_key.verify(
         signature=certificate.signature,
@@ -222,8 +234,8 @@ def generate_org_key_and_certificate(
 
 
 def get_server_cert_chain(
-        certificate: Optional[x509.Certificate],
-        private_key: Optional[rsa.RSAPrivateKey],
+        certificate: x509.Certificate,
+        private_key: rsa.RSAPrivateKey,
         issuer_certs: Optional[List[x509.Certificate]] = None
 ) -> str:
     """ Combine the server certificate and matching private key
@@ -240,7 +252,7 @@ def get_server_cert_chain(
     ).decode("utf-8")
 
     issuer_data: str = ""
-    if issuer_certs:
+    if issuer_certs is not None:
         issuer_data += "\n"
         for issuer_cert in issuer_certs:
             issuer_data += issuer_cert.public_bytes(
@@ -251,12 +263,12 @@ def get_server_cert_chain(
 
 
 def get_ssl_context(
-        certificate: Optional[x509.Certificate] = None,
-        private_key: Optional[rsa.RSAPrivateKey] = None,
+        certificate: x509.Certificate,
+        private_key: rsa.RSAPrivateKey,
         issuer_certs: Optional[List[x509.Certificate]] = None,
         verify: bool = True
 ) -> SSLContext:
-    """ Create a ssl_context for SSL server with no client client cert verification
+    """ Create a ssl_context for SSL server with no client cert verification
         if a certificate or private_key is not passed in, then the context
         is initialised from the module to auto generated a private key and certificate.
     """
@@ -283,7 +295,7 @@ def dump_cert_and_ca_bundle(
         primary_key_filename: Optional[str] = None,
         ca_chain_filename: Optional[str] = None,
         overwrite_existing_files: bool = False,
-) -> NoReturn:
+) -> None:
     """ Create files for the private_key, certificate and certificate chain
        in PEM format. cert.pem, key.pem, cert-chain.pem
        Only overwrite files when overwrite_existing_files is True

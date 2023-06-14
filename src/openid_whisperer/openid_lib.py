@@ -74,7 +74,7 @@ id_token_signing_alg_values: List[str] = [ALGORITHM]
 access_token_issuer = ISSUER
 
 
-def split_scope_and_resource(scope: str, resource: str) -> tuple(List[str]):
+def split_scope_and_resource(scope: str, resource: str) -> tuple[List[str], List[str]]:
     resource_list = [resource] if resource else []
     scope_list = []
     for item in scope.split(" "):
@@ -293,16 +293,17 @@ def create_authorisation_code(
         else:
             authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
 
-        expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
-        authorisation_codes[authorisation_code] = {
-            "authorisation_code": authorisation_code,
-            "expires_in": int(expires_in.timestamp()),
-            "client_id": client_id,
-            "resource": resource,
-            "username": username,
-            "nonce": nonce,
-            "scope": scope,
-        }
+        if authorisation_code is not None:
+            expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
+            authorisation_codes[authorisation_code] = {
+                "authorisation_code": authorisation_code,
+                "expires_in": int(expires_in.timestamp()),
+                "client_id": client_id,
+                "resource": resource,
+                "username": username,
+                "nonce": nonce,
+                "scope": scope,
+            }
     return authorisation_code
 
 

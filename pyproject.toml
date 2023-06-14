@@ -5,6 +5,7 @@ description = "OpenID Oauth 2.0 compatible Identity Provider"
 license = "MIT"
 authors = ["Robert Betts"]
 readme = "README.md"
+keywords = ["python", "mock", "api", "oauth2", "openid"]
 classifiers = [
     'Programming Language :: Python :: 3.11',
     'License :: OSI Approved :: MIT License',
