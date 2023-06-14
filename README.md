@@ -1,4 +1,4 @@
-# OpenID Compatible Identity Service
+# OpenID Whisperer - Identity Service
 OpenID Compliant Identity Service
 
 This project started life as a mock Microsoft ADFS service, it has since evolved into a compliant
