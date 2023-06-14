@@ -23,6 +23,7 @@ openid_client: OpenIDClient = OpenIDClient(
     provider_url_gw=config.identity_endpoint_gw,
     client_id=config.client_id,
     resource=config.resource_uri,
+    use_gateway=False,
     verify_server=config.validate_certs,
     )
 
@@ -48,7 +49,7 @@ def handle_access_token() -> Response:
     else:
         # Using the code from the redirect (following Authentication), another call is required to IDA to
         # exchange the code for a JWT
-        token_endpoint_url = openid_client.token_endpoint_url(gateway=True)
+        token_endpoint_url = openid_client.token_endpoint_url(use_gateway=True)
         header = {'content_type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
         payload = {'client_id': config.client_id, 'code': code, 'redirect_uri': config.redirect_url,
                    'resource': config.resource_uri, 'grant_type': 'authorization_code'}
@@ -137,7 +138,7 @@ def index():
         scope = "openid profile"
         nonce = session["nonce"] = uuid4().hex
         state = session["state"] = secrets.token_hex()
-        auth_url = openid_client.authorization_endpoint_url(gateway=True)
+        auth_url = openid_client.authorization_endpoint_url(use_gateway=True)
         auth_url += \
             "?scope={}&response_type=code&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
                 scope, config.client_id, config.resource_uri, nonce, config.redirect_url, state, nonce

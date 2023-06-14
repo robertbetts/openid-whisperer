@@ -2,6 +2,7 @@
 name = "openid-whisperer"
 version = "0.1.0"
 description = "OpenID Oauth 2.0 compatible Identity Provider"
+license = "MIT"
 authors = ["Robert Betts"]
 readme = "README.md"
 packages = [

@@ -22,16 +22,18 @@ def replace_base_netloc(url1: str, url2: str) -> str:
 
 
 class IdentityConfig(UserDict):
-    """ Dictionary like class for caching the Identity provider's configuration
+    """ Dictionary like class for accessing and caching an OpenID Identity provider's configuration
     """
     def __init__(self, provider_url: str, verify_server: bool = True):
         self.provider_url: str = provider_url
         self.verify_server: bool = verify_server
+        self.initialised: bool = False
         super().__init__()
-        self.refresh()
 
     def refresh(self):
-        """ Update the dictionary's data with that from the identity provider
+        """ Update the dictionary's data with that from the identity provider.
+            this class is refreshed with the identity provider the first an
+            element is retrieved.
         """
         endpoint = urljoin(self.provider_url, ".well-known/openid-configuration")
         response = requests.get(url=endpoint, verify=self.verify_server)
@@ -42,6 +44,15 @@ class IdentityConfig(UserDict):
             logging.error("Failed identity provider endpoint {}".format(endpoint))
             raise Exception("Unable to connect to the identity provider\n{}".format(response.text))
 
+    def __getitem__(self, item):
+        """ checking if this is the first get operation to trigger a refresh
+        """
+        if self.initialised is False:
+            self.refresh()
+            self.initialised = True
+        return UserDict.__getitem__(self, item)
+
+
 
 class OpenIDClient:
     """ OpenID 1.0 Compatible Client Library
@@ -51,22 +62,27 @@ class OpenIDClient:
                  provider_url_gw: str,
                  client_id: str,
                  resource: Optional[str] = None,
+                 use_gateway: bool = False,
                  verify_server: bool = True):
 
         self.provider_url: str = provider_url
         self.provider_url_gw: str = provider_url_gw
         self.client_id: str = client_id
         self.resource: str = resource if resource else ""
+        self.use_gateway: bool = use_gateway
         self.verify_server = verify_server
 
-        self.identity_config: IdentityConfig = IdentityConfig(provider_url, verify_server)
         self.identity_keys: Dict[str, Any] = {}
         self.validated_claims: Dict[str, Any] = {}
+
+        provider_url = self.provider_url_gw if use_gateway else self.provider_url
+        self.identity_config: IdentityConfig = IdentityConfig(provider_url, verify_server)
 
     def validate_access_token(self,
                               access_token: str,
                               audience: Optional[str | List] = None,
-                              verify_server: bool = True) -> Dict[str, Any]:
+                              verify_server: bool = True,
+                              use_gateway: bool = False) -> Dict[str, Any]:
         """ Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
             if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
 
@@ -84,9 +100,12 @@ class OpenIDClient:
         issuer: str = self.identity_config["access_token_issuer"]
 
         claims: Dict[str, Any] = {}
+        provider_url: str = self.provider_url_gw if self.use_gateway else self.provider_url
+        if use_gateway:
+            provider_url = self.provider_url_gw
 
         if not self.identity_keys:
-            key_endpoint = replace_base_netloc(self.provider_url, self.identity_config["jwks_uri"])
+            key_endpoint = replace_base_netloc(provider_url, self.identity_config["jwks_uri"])
             header = {'content_type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
             response = requests.get(url=key_endpoint, headers=header, verify=verify_server)
             keys = json.loads(response.text)["keys"]
@@ -133,11 +152,6 @@ class OpenIDClient:
                 # logging.exception(e)
                 token_errors.append((access_token, e))
 
-        # for error in token_errors:
-        #     logging.error('Token validation error: %s, %s', error[1], error[0])
-        # for error in key_errors:
-        #     logging.error('Signature validation error: %s - %s', error[0], error[1])
-
         err = None
         if token_errors:
             err = token_errors[0][1]
@@ -152,12 +166,16 @@ class OpenIDClient:
 
         return claims
 
-    def token_endpoint_url(self, gateway: bool = True) -> str:
-        provider_url: str = self.provider_url_gw if gateway else self.provider_url
+    def token_endpoint_url(self, use_gateway: bool = False) -> str:
+        provider_url: str = self.provider_url_gw if self.use_gateway else self.provider_url
+        if use_gateway:
+            provider_url = self.provider_url_gw
         return replace_base_netloc(provider_url, self.identity_config["token_endpoint"])
 
-    def authorization_endpoint_url(self, gateway: bool = True) -> str:
-        provider_url: str = self.provider_url_gw if gateway else self.provider_url
+    def authorization_endpoint_url(self, use_gateway: bool = False) -> str:
+        provider_url: str = self.provider_url_gw if self.use_gateway else self.provider_url
+        if use_gateway:
+            provider_url = self.provider_url_gw
         return replace_base_netloc(provider_url, self.identity_config["authorization_endpoint"])
 
     def request_token_password_grant(
@@ -166,7 +184,7 @@ class OpenIDClient:
             secret: str,
             mfa: Optional[str] = "",
             headers: Dict[str, Any] | None = None,
-    ) -> Dict[str, Any]:
+            use_gateway: bool = False) -> Dict[str, Any]:
         """ make a rest call to an identity service for the issuance of a valid jwt
         """
         request_data = {
@@ -176,7 +194,8 @@ class OpenIDClient:
             "username": username,
             "password": secret,
         }
-        token_endpoint_url = self.token_endpoint_url(gateway=True)
+
+        token_endpoint_url = self.token_endpoint_url(use_gateway=use_gateway)
         headers = {} if headers is None else headers
         headers.update({'content_type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'})
         try:

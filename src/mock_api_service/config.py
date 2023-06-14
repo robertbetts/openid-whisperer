@@ -5,8 +5,15 @@ from logging import Formatter as LogFormatter
 import sys
 import os
 
-from dotenv import load_dotenv
-load_dotenv()
+from dotenv import load_dotenv, dotenv_values
+load_dotenv(".env", override=True, interpolate=True)
+ENVIRONMENT: str = os.getenv("ENVIRONMENT", "TEST")
+dotenv_file: str = f".env_{ENVIRONMENT.lower()}"
+load_dotenv(f"{dotenv_file}", override=True, interpolate=True)
+NO_PROXY: str = os.getenv("NO_PROXY", "")
+print(f"Ensure an appropriate env var for NO_PROXY is set before starting. Currently is: {NO_PROXY}")
+for key, value in dotenv_values().items():
+    print(f"{key}={value}")
 
 API_HOST: str = os.getenv("API_HOST", "10.95.55.84")
 API_PORT: int = int(os.getenv("API_PORT", "5007"))

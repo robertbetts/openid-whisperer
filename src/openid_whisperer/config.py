@@ -10,8 +10,16 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
-from dotenv import load_dotenv
-load_dotenv()
+from dotenv import load_dotenv, dotenv_values
+NO_PROXY_PRE: str = os.getenv("NO_PROXY", "")
+load_dotenv(".env", override=True, interpolate=True)
+ENVIRONMENT: str = os.getenv("ENVIRONMENT", "TEST")
+dotenv_file: str = f".env_{ENVIRONMENT.lower()}"
+load_dotenv(f"{dotenv_file}", override=True)
+NO_PROXY: str = os.getenv("NO_PROXY", "")
+print(f"Ensure an appropriate env var for NO_PROXY is set before starting. Currently is: {NO_PROXY}")
+for key, value in dotenv_values().items():
+    print(f"{key}={value}")
 
 IDP_SERVICE_HOST_GW: str = os.getenv("IDP_SERVICE_HOST_GW", "192.168.56.102")
 IDP_SERVICE_PORT_GW: str = os.getenv("IDP_SERVICE_PORT_GW", "8100")

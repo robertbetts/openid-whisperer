@@ -8,8 +8,9 @@ from mock_api_service.openid_client_lib import OpenIDClient
 from mock_api_service.config import config
 
 
-def call_api_private_endpoint(access_token):
-    api_endpoint: str = urljoin(config.api_endpoint_gw, "/mock-api/api/private")
+def call_api_private_endpoint(access_token, use_gateway: bool = False):
+    api_endpoint: str = config.api_endpoint_gw if use_gateway else config.api_endpoint
+    api_endpoint = urljoin(api_endpoint, "/mock-api/api/private")
     headers = {
         "Authorization": f"Bearer {access_token['access_token']}"
     }
@@ -35,13 +36,17 @@ def main():
         client_id=config.client_id,
         resource=config.resource_uri,
         verify_server=config.validate_certs,
+        use_gateway=False,
         )
     access_token = openid_client.request_token_password_grant(
         username="username@domain",
         secret="very long dev reminder",
         )
-    logging.info(f"Access Token: {access_token}")
-    call_api_private_endpoint(access_token)
+    if not access_token:
+        logging.error("Unable to validate credentials against the openid provider at %s", config.identity_endpoint)
+    else:
+        logging.info(f"Access Token: {access_token}")
+        call_api_private_endpoint(access_token)
 
 
 if __name__ == "__main__":
