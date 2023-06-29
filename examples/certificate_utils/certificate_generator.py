@@ -185,15 +185,10 @@ def main():
     ca_key_filename: str = "root_ca_key.pem"
     ca_cert_filename: str = "root_ca_cert.pem"
 
-    if 0:
-        organization_name = common_name = "OpenID Provider"
-        host_name = "10.95.55.84"  # Dev env IP
-    else:
-        organization_name = common_name = "API Gateway"
-        host_name = "192.168.56.102"  # Container IP
+    organization_name = common_name = "OpenID Provider"
+    host_name = "10.95.55.84"  # Dev env IP
 
     org_key_filename: str | None = None
-    # org_key_filename: str | None = "org_key.pem",
 
     overwrite_existing_files: bool = False
 

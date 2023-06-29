@@ -38,10 +38,10 @@ API_HOST=localhost
 API_PORT=5700
 API_HOST_GW=localhost
 API_PORT_GW=5700
-IDP_SERVICE_HOST=localhost
-IDP_SERVICE_PORT=5000
-IDP_SERVICE_HOST_GW=localhost
-IDP_SERVICE_PORT_GW=5000
+ID_SERVICE_HOST=localhost
+ID_SERVICE_PORT=5000
+ID_SERVICE_HOST_GW=localhost
+ID_SERVICE_PORT_GW=5000
 CA_KEY_FILENAME=certs/ca_key.pem
 CA_CERT_FILENAME=certs/ca_cert.pem
 ORG_KEY_FILENAME=certs/key.pem
@@ -55,11 +55,11 @@ ENVIRONMENT=TEST
 ## Running Code
 ### Running unit tests
 Code test coverage objective is 100%. there are currently no unit tests for the module mock_api_service
-```commandline
+```
 poetry run coverage run -m pytest && poetry run coverage report -m
 ```
 
 Run OpenID Whisperer (from project root)
-```commandline
+```
 poetry run python -m mock_api_service.mock_api_service > nul 2>&1
 ```

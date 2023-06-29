@@ -46,13 +46,13 @@ def test_post_authorize_code_error(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 403
-    assert "missing form input UserName" in response.text
+    assert response.status_code == 302
+    assert "error_code" in response.location
 
     data["UserName"] = ""
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 401
-    assert "Unable to authenticate" in response.text
+    assert response.status_code == 302
+    assert "error_code" in response.location
 
 
 def test_post_authorize_token_error(client):
@@ -62,7 +62,7 @@ def test_post_authorize_token_error(client):
         4) Test invalid request method
     """
     scope = "openid profile"
-    response_type = "token"
+    response_type = "token id_token"
     client_id = "ID_12345"
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
     redirect_url = "http://test/api/handleAccessToken"
@@ -85,14 +85,18 @@ def test_post_authorize_token_error(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 403
-    assert "missing form input UserName" in response.text
+    assert response.status_code == 200
+    result = json.loads(response.text)
+    assert "error_code" in result
+    assert "A valid username and user_secret is required" in result["error_description"]
 
     data["UserName"] = ""
 
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 401
-    assert "Unable to authenticate" in response.text
+    assert response.status_code == 200
+    result = json.loads(response.text)
+    assert "error_code" in result
+    assert "A valid username and user_secret is required" in result["error_description"]
 
     response_type = "BadValue"
     auth_url = "/adfs/oauth2/authorize?"
@@ -101,8 +105,10 @@ def test_post_authorize_token_error(client):
     )
     data["UserName"] = domain_username
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 500
-    assert f"Invalid value for query parameter response_type, {response_type}" in response.text
+    assert response.status_code == 403
+    assert "Invalid response_type" in response.text
+    # assert "A valid username and user_secret is required" in result["error_description"]
+    # assert f"Invalid value for query parameter response_type, {response_type}" in response.text
 
     response_type = "token"
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(

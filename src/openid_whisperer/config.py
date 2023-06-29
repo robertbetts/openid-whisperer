@@ -24,21 +24,25 @@ print(f"Ensure an appropriate env var for NO_PROXY is set before starting. Curre
 for key, value in dotenv_values().items():
     print(f"{key}={value}")
 
-IDP_SERVICE_HOST_GW: str = os.getenv("IDP_SERVICE_HOST_GW", "192.168.56.102")
-IDP_SERVICE_PORT_GW: str = os.getenv("IDP_SERVICE_PORT_GW", "8100")
-IDP_SERVICE_HOST: str = os.getenv("IDP_SERVICE_HOST", "10.95.55.84")
-IDP_SERVICE_BINDING: str = os.getenv("IDP_SERVICE_BINDING", "0.0.0.0")
-IDP_SERVICE_PORT: int = int(os.getenv("IDP_SERVICE_PORT", "5000"))
-IDP_BASE_URL: str = f"https://{IDP_SERVICE_HOST}:{IDP_SERVICE_PORT_GW}"
-IDP_BASE_URL_GW = f"https://{IDP_SERVICE_HOST_GW}:{IDP_SERVICE_PORT_GW}/adfs/"
+ID_SERVICE_HOST_GW: str = os.getenv("ID_SERVICE_HOST_GW", "192.168.56.102")
+ID_SERVICE_PORT_GW: str = os.getenv("ID_SERVICE_PORT_GW", "8100")
+ID_SERVICE_HOST: str = os.getenv("ID_SERVICE_HOST", "10.95.55.84")
+ID_SERVICE_BINDING: str = os.getenv("ID_SERVICE_BINDING", "0.0.0.0")
+ID_SERVICE_PORT: int = int(os.getenv("ID_SERVICE_PORT", "5000"))
+IDP_BASE_URL: str = f"https://{ID_SERVICE_HOST}:{ID_SERVICE_PORT_GW}"
+IDP_BASE_URL_GW = f"https://{ID_SERVICE_HOST_GW}:{ID_SERVICE_PORT_GW}/adfs/"
 FLASK_DEBUG: bool = bool(os.getenv("FLASK_DEBUG", "True").lower() == "true")
 
-CA_KEY_FILENAME: str = os.getenv("CA_KEY_FILENAME", "ca_key.pem")
+CA_KEY_FILENAME: str = os.getenv("CA_KEY_FILENAME", "root_ca_key.pem")
 CA_KEY_PASSWORD: str = os.getenv("CA_CERT_PASSWORD", "")
-CA_CERT_FILENAME: str = os.getenv("CA_CERT_FILENAME", "ca_cert.pem")
+CA_CERT_FILENAME: str = os.getenv("CA_CERT_FILENAME", "root_ca_cert.pem")
 ORG_KEY_FILENAME: str = os.getenv("ORG_KEY_FILENAME", "key.pem")
 ORG_KEY_PASSWORD: str = os.getenv("ORG_KEY_PASSWORD", "")
 ORG_CERT_FILENAME: str = os.getenv("ORG_CERT_FILENAME", "cert.pem")
+
+
+class ConfigurationException(Exception):
+    ...
 
 
 def init_certs(
@@ -65,7 +69,7 @@ def init_certs(
                         password=ca_key_password
                     )
                     if not isinstance(ca_key, rsa.RSAPrivateKey):
-                        raise Exception("Only RSA private keys supported")  # pragma: no cover
+                        raise ConfigurationException("Only RSA private keys supported")  # pragma: no cover
                     org_key_password = ORG_KEY_PASSWORD.encode() if ORG_KEY_PASSWORD else None
                     org_cert: x509.Certificate = x509.load_pem_x509_certificate(org_cert_file.read(), default_backend())
                     org_key = serialization.load_pem_private_key(
@@ -74,7 +78,7 @@ def init_certs(
                         password=org_key_password
                     )
                     if not isinstance(org_key, rsa.RSAPrivateKey):
-                        raise Exception("Only RSA private keys supported")  # pragma: no cover
+                        raise ConfigurationException("Only RSA private keys supported")  # pragma: no cover
                     return ca_key, ca_cert, org_key, org_cert
 
 
@@ -86,7 +90,7 @@ class Config:
         self.logging = "debug"
         certificates = init_certs()
         if certificates is None:
-            raise Exception("Unable to initialise private keys and certificates") # pragma: no cover
+            raise ConfigurationException("Unable to initialise private keys and certificates") # pragma: no cover
         self.ca_key: rsa.RSAPrivateKey = certificates[0]
         self.ca_cert: x509.Certificate = certificates[1]
         self.org_key: rsa.RSAPrivateKey = certificates[2]

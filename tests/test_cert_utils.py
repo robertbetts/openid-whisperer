@@ -1,4 +1,3 @@
-import logging
 import tempfile
 import os
 from cryptography.exceptions import InvalidSignature

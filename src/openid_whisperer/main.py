@@ -5,7 +5,7 @@ from openid_whisperer.cert_utils import get_ssl_context
 from openid_whisperer.openid_blueprint import openid_blueprint
 
 from openid_whisperer.config import config
-from openid_whisperer.config import FLASK_DEBUG, IDP_SERVICE_PORT, IDP_SERVICE_BINDING
+from openid_whisperer.config import FLASK_DEBUG, ID_SERVICE_PORT, ID_SERVICE_BINDING
 
 
 def app() -> Flask:
@@ -27,8 +27,8 @@ def main() -> None:  # pragma: no cover
             private_key=config.org_key,
             issuer_certs=[config.ca_cert],
             verify=False),
-        host=IDP_SERVICE_BINDING,
-        port=IDP_SERVICE_PORT,
+        host=ID_SERVICE_BINDING,
+        port=ID_SERVICE_PORT,
         debug=FLASK_DEBUG
     )
 

@@ -1,12 +1,15 @@
-""" Primary oAuth Library
+""" OpenID Library to Support the following authentication flows:
+        * username and password flow
+        * authorisation code flow
+        * device code flow
 
-    Functions to support OAuth 2.0 provider that is capable of Authenticating the End-User and providing Claims to a
-    Relaying Party about the Authentication event and the End-User.
+    Supports OpenID 1.0 provider capable of authenticating and end-user and providing claims to a
+    relaying party about the authentication event and the end-user.
 
-    Following specification direction from OpenID:
+    Specifications from OpenID:
     https://openid.net/specs/openid-connect-core-1_0.html
 
-    Initial specifications taken from:
+    Specifications referenced from Microsoft:
     https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
 """
 import logging
@@ -27,6 +30,7 @@ from cryptography import x509
 import jwt
 from jwt.utils import to_base64url_uint
 
+# Module configuration Information and default values
 from openid_whisperer.config import config
 
 EXPIRES_SECONDS: int = 600
@@ -37,10 +41,12 @@ CERTIFICATE: x509.Certificate = config.org_cert
 ISSUER: str = f"urn:whisperer:openid:issuer:{CERTIFICATE.serial_number}"
 UNIT_TESTING: bool = False
 
+
+# Module authentication flow state tracking
 authorisation_codes: Dict[str, Any] = {}
 access_tokens: Dict[str, Any] = {}
 
-# for tracking device_code flow
+# Module device_code flow state tracking
 device_code_requests: Dict[str, Any] = {}  # Indexed by user_code
 device_user_codes: Dict[str, str] = {}  # Indexed by device_code
 
@@ -83,8 +89,6 @@ def split_scope_and_resource(scope: str, resource: str) -> tuple[List[str], List
                 scope_list.append(item)
         else:
             resource_list.append(item)
-    # logging.debug(f"scope: {scope_list}")
-    # logging.debug(f"resource: {resource_list}")
     return scope_list, resource_list
 
 
@@ -182,19 +186,18 @@ def create_access_token_response(
         payload: Dict[str, Any],
         headers: Dict[str, Any] | None = None
         ) -> Dict[str, Any]:
-    """ return an access_token response dictionary with the keys below.
+    """Returns an access_token response dictionary with the keys below.
 
     access_token	The requested access token. The app can use this token to 
                     authenticate to the secured resource(Web API).
-    token_type	Indicates the token type value. The only type that AD FS 
-                supports is Bearer.expires_in	How long the access token is 
-                valid (in seconds).
+    token_type	Indicates the token type value. The only type currently
+                supported is Bearer.
+    expires_in	How long the access token is valid (in seconds).
     refresh_token	An OAuth 2.0 refresh token. The app can use this token to 
                     acquire more access tokens after the current access token 
                     expires. Refresh_tokens are long-lived, and can be used to 
                     retain access to resources for extended periods of time.
-    refresh_token_expires_in	How long the refresh token is valid (in 
-                                seconds).
+    refresh_token_expires_in	How long the refresh token is valid (in seconds).
     id_token	A JSON Web Token (JWT). The app can decode the segments of this 
                 token to request information about the user who signed in. The 
                 app can cache the values and display them, but it shouldn't 
@@ -202,12 +205,10 @@ def create_access_token_response(
     """
     headers = headers if isinstance(headers, dict) else {}
 
-    access_token = \
-        jwt.encode(payload, KEY, algorithm=ALGORITHM, headers=headers)
+    access_token = jwt.encode(payload, KEY, algorithm=ALGORITHM, headers=headers)
     expires_in = datetime.utcnow() + timedelta(seconds=EXPIRES_SECONDS)
     refresh_token = ""
-    refresh_token_expires_in = \
-        datetime.utcnow() + timedelta(seconds=EXPIRES_SECONDS)
+    refresh_token_expires_in = datetime.utcnow() + timedelta(seconds=EXPIRES_SECONDS)
     access_token_response = {
         "access_token": access_token,
         "token_type": "Bearer",
@@ -230,12 +231,11 @@ def get_client_id_information(
         ) -> Dict[str, Any] | None:
     """ Retrieve user information for the user identified by username within 
         the scope the application identified by client_id
-        If there is no valid scope for username within the application 
-        client_id then return None
+        If there is no valid scope for the given username for the client_id
+        then return None
 
-        Specifications for standard industry claims can be found here:
+        Specifications for standard industry claims found here:
             https://www.iana.org/assignments/jwt/jwt.xhtml#claims
-
     """
     payload: Dict[str, Any] | None = None
     if client_id and username:
@@ -273,11 +273,10 @@ def create_authorisation_code(
         code_challenge: str | None = None,
         expiry_timeout: int = 600
         ) -> Optional[str]:
-    """ Create an authorisation code to pass back to authorisation requester
+    """ Create an authorisation code to pass back to the authorisation requester client_id
         which will allow them to request a valid access token
 
-        When a value for code_challenge is entered, then we are supporting the device code
-        authentication flow.
+        When a value for code_challenge is entered, then we assume device code authentication flow.
     """
     authorisation_code: str | None = None
     if client_id and username:
@@ -323,7 +322,7 @@ def devicecode_request(
     # code the user will have to enter when authorising
     # if a user code exists, then generate a new code
     while True:
-        user_code = ''.join(secrets.choice(string.digits) for i in range(8))
+        user_code = ''.join(secrets.choice(string.digits) for _ in range(8))
         if user_code not in device_code_requests:
             break
 
@@ -351,8 +350,8 @@ def devicecode_request(
 def get_access_token_from_authorisation_code(
         code: str
         ) -> Dict[str, Any] | None:
-    """ Search for code in issued authorisation codes, if found then create and
-        return an access token response
+    """ Search for the given code amongst the issued authorisation codes and if present, then create
+        and return an access token.
     """
     response = None
     auth_request_info = authorisation_codes.get(code)
@@ -379,8 +378,10 @@ def authenticate(
         user_secret: str,
         mfa_code: str | None = None
         ) -> bool:
-    """ Using client_id, resource, username and user_secret, mfa_code to 
-        authenticate a user and return True or False
+    """ Using (username and user_secret, mfa_code) to authenticate against a (client_id, resource),
+        and return True or False
+
+        This always returns True there are non-empty strings for the parameters: client_id, username, user_secret
     """
     _, _ = resource, mfa_code
     response = False
@@ -399,13 +400,13 @@ def authenticate_token(
         kmsi: str | None = None,
         mfa_code: str | None = None
         ) -> Dict[str, Any] | None:
-    """ Using client_id, resource, username, user_secret, kmsi and mfa_code to
-        authenticate a user and return an access_token_response
-        if authentication fails then , return None
+    """ Returns an access token after authenticating against client_id, resource, username,
+        user_secret, kmsi and mfa_code
+        if authentication fails return None
     """
     _, _ = kmsi, mfa_code
     response = None
-    if authenticate(client_id, resource, username, user_secret):
+    if authenticate(client_id, resource, username, user_secret, mfa_code):
         payload = get_client_id_information(client_id, resource, username, nonce, scope)
         if payload:
             headers = {
@@ -425,8 +426,8 @@ def authenticate_code(client_id: str,
                       code_challenge: str | None = None,
                       kmsi: str | None = None,
                       mfa_code: str | None = None) -> Optional[str]:
-    """ Using client_id, username, resource, user_secret and mfa_code to
-        authenticate a user and return an authentication code
+    """ Returns an authentication code after authenticating against client_id, username,
+        resource, user_secret and mfa_code to
         if authentication fails then return None
     """
     _ = kmsi

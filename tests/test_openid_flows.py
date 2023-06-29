@@ -5,84 +5,66 @@ from urllib.parse import urlparse
 from typing import List
 from openid_whisperer.main import app
 
-import pytest
 
-def test_userinfo():
+def test_userinfo_call():
     test_client = app().test_client()
     response = test_client.post("/adfs/oauth2/userinfo")
-    # if response.status_code != 200:
-    #     logging.info(response.text)
     assert response.status_code == 200
 
 
-def test_devicecode():
+def test_devicecode_call():
     test_client = app().test_client()
     response = test_client.post("/adfs/oauth2/devicecode")
-    # if response.status_code != 200:
-    #     logging.info(response.text)
     assert response.status_code == 200
 
 
-def test_logout():
+def test_logout_call():
     test_client = app().test_client()
     response = test_client.post("/adfs/oauth2/logout?post_logout_redirect_uri=http://test/api/logout")
-    # if response.status_code != 302:
-    #     logging.info(response.text)
     assert response.status_code == 302
 
     test_client = app().test_client()
     response = test_client.get("/adfs/oauth2/v2.0/logout?post_logout_redirect_uri=http://test/api/logout")
-    # if response.status_code != 302:
-    #     logging.info(response.text)
     assert response.status_code == 302
 
 
-def test_discover_keys():
+def test_discover_keys_call():
     test_client = app().test_client()
     response = test_client.get("/adfs/discovery/keys")
     assert response.status_code == 200
 
 
-def test_openid_configuration():
+def test_openid_configuration_call():
     test_client = app().test_client()
     response = test_client.get("/adfs/.well-known/openid-configuration")
-    # if response.status_code != 200:
-    #     logging.info(response.text)
     assert response.status_code == 200
 
 
-def test_get_authorize():
+def test_authorize_get_call():
     scope = "openid profile"
     response_type = "code"
     client_id = "ID_12345"
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
-    redirect_url = "http://test/api/handleAccessToken"
+    redirect_uri = "http://test/api/handleAccessToken"
     nonce = uuid4().hex
     state = secrets.token_hex()
-    auth_url = "/adfs/oauth2/authorize?"
-    auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&state={}&nonce={}".format(
-        scope, response_type, client_id, resource_uri, redirect_url, state, nonce
-    )
+    auth_url = f"/adfs/oauth2/authorize?scope={scope}&response_type={response_type}&client_id={client_id}"\
+               f"&resource={resource_uri}&redirect_uri={redirect_uri}&state={state}&nonce={nonce}"
     test_client = app().test_client()
     response = test_client.get(auth_url)
     assert response.status_code == 200
 
 
-
-
-
-def test_authorize_code_and_fetch_token(client):
+def test_authorize_code_and_fetch_token_flow(client):
     scope = "openid profile"
     response_type = "code"
     client_id = "ID_12345"
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
-    redirect_url = "http://test/api/handleAccessToken"
+    redirect_uri = "http://test/api/handleAccessToken"
     nonce = uuid4().hex
     state = secrets.token_hex()
-    auth_url = "/adfs/oauth2/authorize?"
-    auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
-        scope, response_type, client_id, resource_uri, redirect_url, nonce, state
-    )
+    auth_url = f"/adfs/oauth2/authorize?scope={scope}&response_type={response_type}&client_id={client_id}" \
+               f"&resource={resource_uri}&redirect_uri={redirect_uri}&state={state}&nonce={nonce}"
     domain = "my-domain"
     username = "my-name"
     domain_username = f"{username}@{domain}"
@@ -96,8 +78,6 @@ def test_authorize_code_and_fetch_token(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(auth_url, data=data, headers=headers)
-    # if response.status_code != 302:
-    #     logging.info(response.text)
     assert response.status_code == 302
 
     query = urlparse(response.location).query
@@ -112,14 +92,12 @@ def test_authorize_code_and_fetch_token(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(token_url, data=data, headers=headers)
-    # if response.status_code != 200:
-    #     logging.info(response.text)
     assert response.status_code == 200
 
 
-def test_post_authorize_token(client):
+def test_authorize_token_flow(client):
     scope = "openid profile"
-    response_type = "token"
+    response_type = "token id_token"
     client_id = "ID_12345"
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
     redirect_url = "http://test/api/handleAccessToken"
@@ -146,11 +124,11 @@ def test_post_authorize_token(client):
     assert response.status_code == 200
 
 
-def test_post_get_token_with_password(client):
+def test_fetch_token_with_password_flow(client):
     scope = "openid profile"
     client_id = "ID_12345"
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
-    response_type = "token"
+    response_type = "token id_token"
     redirect_url = "http://test/api/handleAccessToken"
     auth_url = "/adfs/oauth2/authorize?"
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}".format(

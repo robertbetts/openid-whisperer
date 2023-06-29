@@ -3,7 +3,7 @@ import json
 import secrets
 from datetime import datetime
 from uuid import uuid4
-from typing import Dict
+from typing import Dict, Any, NoReturn
 
 from flask import Flask, request, session, render_template, make_response, redirect, Response
 import requests
@@ -40,7 +40,7 @@ def handle_access_token() -> Response:
     state = request.args.get("state")
 
     message: str | None = None
-    access_token: Dict[str, any] | None = None
+    access_token: str | None = None
 
     if state != session.get("state"):
         message = "Unable to pair state of access code response with the login redirect"
@@ -68,7 +68,7 @@ def handle_access_token() -> Response:
                     message = "Unknown response from Identity Provider"
             except JSONDecodeError as e:
                 logging.error(e)
-                logging.debug(request.text)
+                logging.debug(r.text)
                 message = "Error requesting token from the Identity Provider error, bad JSON data"
             except Exception as e:
                 logging.error(e)
@@ -193,7 +193,7 @@ def logout():
     return resp
 
 
-def main():
+def main() -> None:
     config.initialize_logging()
     app.run(
         ssl_context='adhoc',
