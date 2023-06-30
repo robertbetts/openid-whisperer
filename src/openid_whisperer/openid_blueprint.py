@@ -140,10 +140,11 @@ def authorize_post() -> ResponseReturnValue:
         error_description = openid_response.get('error_description')
         abort(403, f"{error_code}: {error_description}")
 
-    else:
+    else:  # catch all line, because of response_type validation this line will never evaluate
         # TODO: see about when to abort or to rather redirect and include error details
-        abort(403, f"InvalidResponseType: response_type value of '{response_type}' is not supported. A call to "
-                   f"/.well-known/openid-configuration will provide information on supported response types")
+        abort(403, f"InvalidResponseType: response_type value of '{response_type}' is not supported. "
+                   f"A call to /.well-known/openid-configuration will provide information on "
+                   f"supported response types")  # pragma: no cover
 
 
 @openid_blueprint.route("/oauth2/token", methods=["POST"])  # type: ignore[misc]
@@ -245,7 +246,7 @@ def devicecode() -> ResponseReturnValue:
 
 
 @openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET", "POST"])  # type: ignore[misc]
-@openid_blueprint.route("/oauth2/logout", methods=["POST", "POST"])  # type: ignore[misc]
+@openid_blueprint.route("/oauth2/logout", methods=["GET", "POST"])  # type: ignore[misc]
 def logout() -> ResponseReturnValue:
     """logs out the end user, the client is also responsible for clearing out
     any cached authenticated session info held. The end uer is then redirected to the

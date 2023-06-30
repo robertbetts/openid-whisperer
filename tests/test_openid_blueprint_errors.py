@@ -54,6 +54,34 @@ def test_post_authorize_code_error(client):
     assert response.status_code == 302
     assert "error_code" in response.location
 
+    response_type = "code"
+    data["UserName"] = "user@domain"
+    redirect_url = ""
+    nonce = uuid4().hex
+    state = secrets.token_hex()
+    auth_url = "/adfs/oauth2/authorize?"
+    auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
+        scope, response_type, client_id, resource_uri, redirect_url, nonce, state
+    )
+    response = client.post(auth_url, data=data, headers=headers)
+    assert response.status_code == 302
+    assert "error_code" in response.location
+    assert "auth_processing_error" in response.location
+
+    response_type = "code"
+    data["UserName"] = "user@domain"
+    redirect_url = "http://test/api/handleAccessToken"
+    nonce = ""
+    state = secrets.token_hex()
+    auth_url = "/adfs/oauth2/authorize?"
+    auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
+        scope, response_type, client_id, resource_uri, redirect_url, nonce, state
+    )
+    response = client.post(auth_url, data=data, headers=headers)
+    assert response.status_code == 302
+    assert "error_code" in response.location
+    assert "auth_processing_error" in response.location
+
 
 def test_post_authorize_token_error(client):
     """ 1) Test missing form parameter UserName
@@ -132,7 +160,7 @@ def test_post_get_token_error(client):
     assert response.status_code == 403
     result = json.loads(response.text)
     assert result["error"] == "auth_processing_error"
-    assert result["error_description"] == f"The grant_type of '{data['grant_type']}' not as yet implemented"
+    assert result["error_description"] == f"The grant_type of '{data['grant_type']}' is not supported"
 
     scope = "openid profile"
     client_id = "ID_12345"

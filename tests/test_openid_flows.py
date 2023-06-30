@@ -21,11 +21,15 @@ def test_devicecode_call():
 
 def test_logout_call():
     test_client = app().test_client()
+    response = test_client.get("/adfs/oauth2/logout?post_logout_redirect_uri=http://test/api/logout")
+    assert response.status_code == 302
     response = test_client.post("/adfs/oauth2/logout?post_logout_redirect_uri=http://test/api/logout")
     assert response.status_code == 302
 
     test_client = app().test_client()
     response = test_client.get("/adfs/oauth2/v2.0/logout?post_logout_redirect_uri=http://test/api/logout")
+    assert response.status_code == 302
+    response = test_client.post("/adfs/oauth2/v2.0/logout?post_logout_redirect_uri=http://test/api/logout")
     assert response.status_code == 302
 
 

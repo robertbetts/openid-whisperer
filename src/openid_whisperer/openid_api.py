@@ -130,11 +130,11 @@ def validate_grant_type(grant_type: str) -> str:
     if not isinstance(grant_type, str) or grant_type == "":
         error_message = "An empty input for grant_type is not supported"
     elif grant_type not in GRANT_TYPES_SUPPORTED:
-        error_message = f"An grant_type of '{grant_type}' is not supported"
+        error_message = f"The grant_type of '{grant_type}' is not supported"
     elif grant_type.startswith("urn:ietf:params:oauth:grant-type:"):
         grant_type = grant_type.split(":")[-1].strip()
 
-    if grant_type not in ("device_code", "authorization_code", "password"):
+    if error_message is None and grant_type not in ("device_code", "authorization_code", "password"):
         error_message = f"The grant_type of '{grant_type}' not as yet implemented"
 
     if error_message is not None:
@@ -246,8 +246,9 @@ def initiate_end_user_authentication(
     if not isinstance(client_id, str) or client_id == "":
         raise OpenidException("auth_processing_error", "A valid client_id is required")
 
-    if not isinstance(scope, str) or scope == "":
-        raise OpenidException("auth_processing_error", "A valid scope is required")
+    # if not isinstance(scope, str) or scope == "":
+    #     raise OpenidException("auth_processing_error", "A valid scope is required")
+    scope = scope if scope else "openid"
 
     action: str = f"?scope={scope}&response_type={response_type}&response_mode={response_mode}&client_id={client_id}" \
                   f"&resource={resource}&redirect_uri={redirect_uri}&nonce={nonce}&state={state}&prompt={prompt}" \
@@ -354,10 +355,11 @@ def process_token_request(
                         "End user authentication relating to the user_code provided has not been completed."
                     )
                 else:
+                    # this condition has not been implemented as yet
                     raise OpenidException(
                         "authorization_declined",
                         "End user authentication relating to the user_code was not successful."
-                    )
+                    )  # pragma: no cover
             else:
                 # TODO: research standard error codes
                 raise OpenidException(
@@ -479,7 +481,11 @@ def process_end_user_authentication(
             must do PKCE (RFC7636).
     """
     if not validate_client_id(client_id, client_secret):
-        raise OpenidException("client_auth_error", "Unable to validate the referring client application.")
+        # This is a cursory validation at present and this condition will not fail unless
+        # client_id is None or empty or client_secret is None
+        raise OpenidException(
+            "client_auth_error", "Unable to validate the referring client application."
+        )  # pragma: no cover
 
     response_type = validate_response_type(response_type)
     response_mode = validate_response_mode(response_type, response_mode)
@@ -488,8 +494,7 @@ def process_end_user_authentication(
        not isinstance(user_secret, str) or user_secret == "":
         raise OpenidException("auth_processing_error", "A valid username and user_secret is required")
 
-    if scope is None or scope == "":
-        scope = "openid"
+    scope = scope if scope else "openid"
 
     resource: str | None = kwargs.get("resource")
     code_challenge: str | None = kwargs.get("code_challenge")

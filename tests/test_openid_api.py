@@ -1,5 +1,6 @@
 import pytest
-from openid_whisperer.openid_api import validate_response_type, validate_response_mode, OpenidException
+from openid_whisperer.openid_api import validate_response_type, validate_response_mode, OpenidException, \
+    validate_client_id, validate_grant_type
 
 
 def test_valid_response_types():
@@ -57,3 +58,36 @@ def test_validate_response_mode():
     response_type, response_mode = "code", "form_post"
     adjusted_response_mode = validate_response_mode(response_type, response_mode)
     assert adjusted_response_mode == response_mode
+
+
+def test_validate_client_id():
+    client_id: str = "client_1234"
+    client_secret: str | None = None
+    try:
+        validate_client_id(client_id, client_secret)
+    except OpenidException as e:
+        assert e.error_description == "Unable to validate the referring client application."
+
+
+def test_validate_grant_type():
+    grant_type: str | None = None
+    try:
+        validate_grant_type(grant_type)
+    except OpenidException as e:
+        assert e.error_description == f"An empty input for grant_type is not supported"
+
+    grant_type = "xxinvalid_grantxx"
+    try:
+        validate_grant_type(grant_type)
+    except OpenidException as e:
+        assert e.error_description == f"The grant_type of '{grant_type}' is not supported"
+
+    grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+    grant_type = validate_grant_type(grant_type)
+    assert grant_type == "device_code"
+
+    grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+    try:
+        validate_grant_type(grant_type)
+    except OpenidException as e:
+        assert e.error_description == "The grant_type of 'jwt-bearer' not as yet implemented"
