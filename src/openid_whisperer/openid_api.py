@@ -241,6 +241,30 @@ def initiate_end_user_authentication(
         code_challenge method.
     """
 
+    response_type = validate_response_type(response_type)
+    response_mode = validate_response_mode(response_type, response_mode)
+    if not isinstance(client_id, str) or client_id == "":
+        raise OpenidException("auth_processing_error", "A valid client_id is required")
+
+    if not isinstance(scope, str) or scope == "":
+        raise OpenidException("auth_processing_error", "A valid scope is required")
+
+    action: str = f"?scope={scope}&response_type={response_type}&response_mode={response_mode}&client_id={client_id}" \
+                  f"&resource={resource}&redirect_uri={redirect_uri}&nonce={nonce}&state={state}&prompt={prompt}" \
+                  f"&code_challenge_method={code_challenge_method}"
+
+    response: dict[str, Any] = {
+        "action": action,
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_mode": response_mode,
+        "response_type": response_type,
+        "prompt": prompt,
+        "code_challenge_method": code_challenge_method,
+    }
+    return response
+
+
 
 def process_token_request(
         grant_type: str,

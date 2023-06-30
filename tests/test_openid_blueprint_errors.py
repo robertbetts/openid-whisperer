@@ -19,7 +19,7 @@ def test_get_authorize_error(client):
     )
     response = client.get(auth_url)
     assert response.status_code == 403
-    assert "missing query parameter client_id" in response.text
+    assert "A valid client_id is required" in response.text
 
 
 def test_post_authorize_code_error(client):

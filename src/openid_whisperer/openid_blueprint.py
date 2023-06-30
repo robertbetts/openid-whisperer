@@ -4,7 +4,6 @@ import logging
 import json
 from flask import Blueprint, request, make_response, render_template, redirect, abort, jsonify
 from flask.typing import ResponseReturnValue
-from werkzeug.exceptions import BadRequestKeyError
 
 from openid_whisperer import openid_lib, openid_api
 from openid_whisperer.config import IDP_BASE_URL
@@ -25,20 +24,10 @@ def authorize_get() -> ResponseReturnValue:
         flow.
     """
 
-    response_type: str = ""
-    client_id: str = ""
-    scope: str = ""
-
     # Mandatory query string arguments
-    try:
-        response_type = request.args["response_type"]
-        client_id = request.args["client_id"]
-        scope = request.args["scope"]
-    except BadRequestKeyError as e:
-        error_message = f"Invalid input, missing query parameter {e.args[0]}. " \
-                        "scope, response_type, client_id are all required parameters"
-        logger.debug(error_message)
-        abort(403, error_message)
+    response_type: str = request.args.get("response_type", "")
+    client_id: str = request.args.get("client_id", "")
+    scope: str = request.args.get("scope", "")
 
     # Optional query string arguments
     response_mode: str = request.args.get("response_mode", "")
@@ -48,22 +37,25 @@ def authorize_get() -> ResponseReturnValue:
     state: str = request.args.get("state", "")
     prompt: str = request.args.get("prompt", "")
     code_challenge_method: str = request.args.get("code_challenge_method", "")
-    code_challenge: str = request.args.get("code_challenge", "")
 
-    action = f"?scope={scope}&response_type={response_type}&response_mode={response_mode}&client_id={client_id}"\
-             f"&resource={resource}&redirect_uri={redirect_uri}&nonce={nonce}&state={state}&prompt={prompt}" \
-             f"&code_challenge_method={code_challenge_method}&code_challenge={code_challenge}"
-
-    resp = make_response(render_template("login.html",
-                                         action=action,
-                                         client_id=client_id,
-                                         redirect_uri=redirect_uri,
-                                         response_mode=response_mode,
-                                         reponse_type=response_type,
-                                         prompt=prompt,
-                                         code_challenge_method=code_challenge_method,
-                                         code_challenge=code_challenge))
-    return resp
+    try:
+        template_parameters = openid_api.initiate_end_user_authentication(
+            response_type=response_type,
+            client_id=client_id,
+            scope=scope,
+            resource=resource,
+            response_mode=response_mode,
+            redirect_uri=redirect_uri,
+            state=state,
+            nonce=nonce,
+            prompt=prompt,
+            rcode=resource,
+            code_challenge_method=code_challenge_method,
+        )
+        authorize_get_resp = make_response(render_template("login.html", **template_parameters))
+        return authorize_get_resp
+    except OpenidException as e:
+        abort(403, str(e))
 
 
 @openid_blueprint.route("/oauth2/authorize", methods=["POST"])  # type: ignore[misc]
@@ -211,7 +203,7 @@ def token() -> ResponseReturnValue:
 
 @openid_blueprint.route("/oauth2/userinfo", methods=["POST"])  # type: ignore[misc]
 def userinfo() -> ResponseReturnValue:
-    """ returns claims about the authenticated user
+    """ Returns claims about the authenticated user
     """
     return ""
 
@@ -252,10 +244,12 @@ def devicecode() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET"])  # type: ignore[misc]
-@openid_blueprint.route("/oauth2/logout", methods=["POST"])  # type: ignore[misc]
+@openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET", "POST"])  # type: ignore[misc]
+@openid_blueprint.route("/oauth2/logout", methods=["POST", "POST"])  # type: ignore[misc]
 def logout() -> ResponseReturnValue:
-    """ logs out the user
+    """logs out the end user, the client is also responsible for clearing out
+    any cached authenticated session info held. The end uer is then redirected to the
+    given post_logout_redirect_uri
     """
     post_logout_redirect_uri = request.args["post_logout_redirect_uri"]
     return redirect(post_logout_redirect_uri, code=302)
@@ -263,13 +257,13 @@ def logout() -> ResponseReturnValue:
 
 @openid_blueprint.route("/discovery/keys", methods=["GET"])  # type: ignore[misc]
 def keys() -> ResponseReturnValue:
-    """ public keys used to sign responses
+    """ Returns the public keys used to sign tokens
     """
     return jsonify(openid_lib.get_keys()), 200
 
 
 @openid_blueprint.route("/.well-known/openid-configuration", methods=["GET"])  # type: ignore[misc]
 def openid_configuration() -> ResponseReturnValue:
-    """ returns OAuth/OpenID Connect metadata
+    """ returns OpenID Connect metadata
     """
     return jsonify(openid_lib.get_openid_configuration(IDP_BASE_URL, openid_prefix)), 200
