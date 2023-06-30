@@ -129,10 +129,10 @@ def test_post_get_token_error(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(token_url, data=data, headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 403
     result = json.loads(response.text)
-    assert result["error"] == "invalid_grant"
-    assert result["error_description"] == f"unsupported grant_type: {data['grant_type']}"
+    assert result["error"] == "auth_processing_error"
+    assert result["error_description"] == f"The grant_type of '{data['grant_type']}' not as yet implemented"
 
     scope = "openid profile"
     client_id = "ID_12345"
@@ -152,7 +152,7 @@ def test_post_get_token_error(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(token_url, data=data, headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 403
     result = json.loads(response.text)
-    assert result["error"] == "invalid_grant"
-    assert result["error_description"] == "MSIS9659: Invalid 'username' or 'password'."
+    assert result["error"] == "bad_token_request"
+    assert result["error_description"] == "Unable to retrieve token for grant 'password'"

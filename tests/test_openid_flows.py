@@ -15,7 +15,8 @@ def test_userinfo_call():
 def test_devicecode_call():
     test_client = app().test_client()
     response = test_client.post("/adfs/oauth2/devicecode")
-    assert response.status_code == 200
+    assert response.status_code == 403
+    assert response.json["error"] == "bad_devicecode_request"
 
 
 def test_logout_call():
@@ -225,7 +226,7 @@ def test_device_code_flow(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(token_url, data=data, headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 403
     token_response = json.loads(response.text)
     assert token_response["error"] == "bad_verification_code"
 
@@ -238,7 +239,7 @@ def test_device_code_flow(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(token_url, data=data, headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 403
     token_response = json.loads(response.text)
     assert token_response["error"] == "authorization_pending"
 
