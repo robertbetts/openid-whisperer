@@ -6,12 +6,15 @@ import sys
 import os
 
 from dotenv import load_dotenv, dotenv_values
+
 load_dotenv(".env", override=True, interpolate=True)
 ENVIRONMENT: str = os.getenv("ENVIRONMENT", "TEST")
 dotenv_file: str = f".env_{ENVIRONMENT.lower()}"
 load_dotenv(f"{dotenv_file}", override=True, interpolate=True)
 NO_PROXY: str = os.getenv("NO_PROXY", "")
-print(f"Ensure an appropriate env var for NO_PROXY is set before starting. Currently is: {NO_PROXY}")
+print(
+    f"Ensure an appropriate env var for NO_PROXY is set before starting. Currently is: {NO_PROXY}"
+)
 for key, value in dotenv_values().items():
     print(f"{key}={value}")
 
@@ -33,8 +36,7 @@ RESOURCE_URI: str = os.getenv("RESOURCE_URI", "URI:API:RS-104134-21171-mock-api-
 
 
 class Config:
-    DEFAULT_LOGGING_FORMAT = \
-        "[%(levelname)1.1s %(asctime)s.%(msecs)03d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
+    DEFAULT_LOGGING_FORMAT = "[%(levelname)1.1s %(asctime)s.%(msecs)03d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
 
     def __init__(self) -> None:
         self.logging = "debug"
@@ -43,12 +45,16 @@ class Config:
         self.gw_host = API_HOST_GW
         self.gw_port = API_PORT_GW
         self.identity_endpoint = f"https://{ID_SERVICE_HOST}:{ID_SERVICE_PORT}/adfs/"
-        self.identity_endpoint_gw = f"https://{ID_SERVICE_HOST_GW}:{ID_SERVICE_PORT_GW}/adfs/"
+        self.identity_endpoint_gw = (
+            f"https://{ID_SERVICE_HOST_GW}:{ID_SERVICE_PORT_GW}/adfs/"
+        )
 
         self.api_endpoint = f"https://{API_HOST}:{API_PORT}/adfs/"
         self.api_endpoint_gw = f"https://{API_HOST_GW}:{API_PORT_GW}/adfs/"
 
-        self.redirect_url: str = f"https://{self.gw_host}:{self.gw_port}/mock-api/handleAccessToken"
+        self.redirect_url: str = (
+            f"https://{self.gw_host}:{self.gw_port}/mock-api/handleAccessToken"
+        )
         self.client_id: str = CLIENT_ID
         self.resource_uri: str = RESOURCE_URI
         self.audience = [self.client_id, self.resource_uri]
@@ -64,7 +70,7 @@ class Config:
         logger.addHandler(channel)
         logger.setLevel(getattr(logging, self.logging.upper()))
         logging.getLogger("asyncio").setLevel(logging.INFO)
-        logging.info('Logging initialized')
+        logging.info("Logging initialized")
 
 
 config = Config()

@@ -100,19 +100,23 @@ def get_openid_configuration(base_url: str, tenant: str) -> Dict[str, Any]:
         "authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/authorize"),
         "capabilities": ["kdf_ver2"],
         "claims_supported": claims_supported,
-        "device_authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/devicecode"),
+        "device_authorization_endpoint": urljoin(
+            base_url, f"{tenant}/oauth2/devicecode"
+        ),
         "end_session_endpoint": urljoin(base_url, f"{tenant}/oauth2/logout"),
         "frontchannel_logout_session_supported": True,
         "frontchannel_logout_supported": True,
-        "grant_types_supported": ["authorization_code",
-                                  "refresh_token",
-                                  "client_credentials",
-                                  "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                                  "implicit",
-                                  "password",
-                                  "srv_challenge",
-                                  "urn:ietf:params:oauth:grant-type:device_code",
-                                  "device_code"],
+        "grant_types_supported": [
+            "authorization_code",
+            "refresh_token",
+            "client_credentials",
+            "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            "implicit",
+            "password",
+            "srv_challenge",
+            "urn:ietf:params:oauth:grant-type:device_code",
+            "device_code",
+        ],
         "id_token_signing_alg_values_supported": id_token_signing_alg_values,
         "issuer": urljoin(base_url, f"{tenant}"),
         "jwks_uri": urljoin(base_url, f"{tenant}/discovery/keys"),
@@ -120,41 +124,42 @@ def get_openid_configuration(base_url: str, tenant: str) -> Dict[str, Any]:
         "op_id_token_token_binding_supported": False,
         "resource_access_token_token_binding_supported": False,
         "response_modes_supported": ["query", "fragment", "form_post"],
-        "response_types_supported": ["code",
-                                     "id_token",
-                                     "code id_token",
-                                     "id_token token",
-                                     "code token",
-                                     "code id_token token"],
+        "response_types_supported": [
+            "code",
+            "id_token",
+            "code id_token",
+            "id_token token",
+            "code token",
+            "code id_token token",
+        ],
         "rp_id_token_token_binding_supported": False,
         "scopes_supported": scopes_supported,
         "subject_types_supported": ["pairwise"],
         "token_endpoint": urljoin(base_url, f"{tenant}/oauth2/token"),
-        "token_endpoint_auth_methods_supported": ["client_secret_post",
-                                                  "client_secret_basic",
-                                                  "private_key_jwt",
-                                                  "windows_client_authentication"],
+        "token_endpoint_auth_methods_supported": [
+            "client_secret_post",
+            "client_secret_basic",
+            "private_key_jwt",
+            "windows_client_authentication",
+        ],
         "token_endpoint_auth_signing_alg_values_supported": token_endpoint_auth_signing_alg_values,
-        "userinfo_endpoint": urljoin(base_url, f"{tenant}/userinfo")
+        "userinfo_endpoint": urljoin(base_url, f"{tenant}/userinfo"),
     }
     return openid_configuration
 
 
 def get_now_seconds_epoch() -> int:
-    """ returns seconds between 1 January 1970 and now
-    """
+    """returns seconds between 1 January 1970 and now"""
     return timegm(datetime.now(tz=timezone.utc).utctimetuple())
 
 
 def get_seconds_epoch(time_now: datetime) -> int:
-    """ returns seconds between 1 January 1970 and time_now
-    """
+    """returns seconds between 1 January 1970 and time_now"""
     return timegm(time_now.utctimetuple())
 
 
 def get_keys() -> Dict[str, Any]:
-    """ returns public key info
-    """
+    """returns public key info"""
     pn_n: str = ""
     pn_e: str = ""
     public_key: CertificatePublicKeyTypes = CERTIFICATE.public_key()
@@ -162,9 +167,7 @@ def get_keys() -> Dict[str, Any]:
         public_numbers: rsa.RSAPublicNumbers = public_key.public_numbers()
         pn_n = to_base64url_uint(public_numbers.n).decode("ascii")
         pn_e = to_base64url_uint(public_numbers.e).decode("ascii")
-    public_cert: bytes = CERTIFICATE.public_bytes(
-                    encoding=serialization.Encoding.DER
-                )
+    public_cert: bytes = CERTIFICATE.public_bytes(encoding=serialization.Encoding.DER)
     x5c: str = base64.b64encode(public_cert).decode("ascii")
     return {
         "keys": [
@@ -183,24 +186,23 @@ def get_keys() -> Dict[str, Any]:
 
 
 def create_access_token_response(
-        payload: Dict[str, Any],
-        headers: Dict[str, Any] | None = None
-        ) -> Dict[str, Any]:
+    payload: Dict[str, Any], headers: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """Returns an access_token response dictionary with the keys below.
 
-    access_token	The requested access token. The app can use this token to 
+    access_token	The requested access token. The app can use this token to
                     authenticate to the secured resource(Web API).
     token_type	Indicates the token type value. The only type currently
                 supported is Bearer.
     expires_in	How long the access token is valid (in seconds).
-    refresh_token	An OAuth 2.0 refresh token. The app can use this token to 
-                    acquire more access tokens after the current access token 
-                    expires. Refresh_tokens are long-lived, and can be used to 
+    refresh_token	An OAuth 2.0 refresh token. The app can use this token to
+                    acquire more access tokens after the current access token
+                    expires. Refresh_tokens are long-lived, and can be used to
                     retain access to resources for extended periods of time.
     refresh_token_expires_in	How long the refresh token is valid (in seconds).
-    id_token	A JSON Web Token (JWT). The app can decode the segments of this 
-                token to request information about the user who signed in. The 
-                app can cache the values and display them, but it shouldn't 
+    id_token	A JSON Web Token (JWT). The app can decode the segments of this
+                token to request information about the user who signed in. The
+                app can cache the values and display them, but it shouldn't
                 rely on them for any authorization or security boundaries.
     """
     headers = headers if isinstance(headers, dict) else {}
@@ -214,8 +216,7 @@ def create_access_token_response(
         "token_type": "Bearer",
         "expires_in": get_seconds_epoch(expires_in),
         "refresh_token": refresh_token,
-        "refresh_token_expires_in":
-            get_seconds_epoch(refresh_token_expires_in),
+        "refresh_token_expires_in": get_seconds_epoch(refresh_token_expires_in),
         "id_token": access_token,
     }
     access_tokens[access_token] = access_token_response
@@ -223,19 +224,19 @@ def create_access_token_response(
 
 
 def get_client_id_information(
-        client_id: str,
-        resource: str,
-        username: str,
-        nonce: str,
-        scope: str,
-        ) -> Dict[str, Any] | None:
-    """ Retrieve user information for the user identified by username within 
-        the scope the application identified by client_id
-        If there is no valid scope for the given username for the client_id
-        then return None
+    client_id: str,
+    resource: str,
+    username: str,
+    nonce: str,
+    scope: str,
+) -> Dict[str, Any] | None:
+    """Retrieve user information for the user identified by username within
+    the scope the application identified by client_id
+    If there is no valid scope for the given username for the client_id
+    then return None
 
-        Specifications for standard industry claims found here:
-            https://www.iana.org/assignments/jwt/jwt.xhtml#claims
+    Specifications for standard industry claims found here:
+        https://www.iana.org/assignments/jwt/jwt.xhtml#claims
     """
     payload: Dict[str, Any] | None = None
     if client_id and username:
@@ -265,18 +266,18 @@ def get_client_id_information(
 
 
 def create_authorisation_code(
-        client_id: str,
-        resource: str,
-        username: str,
-        nonce: str,
-        scope: str,
-        code_challenge: str | None = None,
-        expiry_timeout: int = 600
-        ) -> Optional[str]:
-    """ Create an authorisation code to pass back to the authorisation requester client_id
-        which will allow them to request a valid access token
+    client_id: str,
+    resource: str,
+    username: str,
+    nonce: str,
+    scope: str,
+    code_challenge: str | None = None,
+    expiry_timeout: int = 600,
+) -> Optional[str]:
+    """Create an authorisation code to pass back to the authorisation requester client_id
+    which will allow them to request a valid access token
 
-        When a value for code_challenge is entered, then we assume device code authentication flow.
+    When a value for code_challenge is entered, then we assume device code authentication flow.
     """
     authorisation_code: str | None = None
     if client_id and username:
@@ -307,13 +308,14 @@ def create_authorisation_code(
 
 
 def devicecode_request(
-        base_url: str,
-        tenant: str,
-        client_id: str,
-        scope: str,
-        resource: Optional[str] = None) -> Dict[str, Any]:
-    """ Generate a time limited user code, that can be authenticated against in order to create
-        a valid token
+    base_url: str,
+    tenant: str,
+    client_id: str,
+    scope: str,
+    resource: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Generate a time limited user code, that can be authenticated against in order to create
+    a valid token
     """
 
     # code that will be used to retrieve the token
@@ -322,7 +324,7 @@ def devicecode_request(
     # code the user will have to enter when authorising
     # if a user code exists, then generate a new code
     while True:
-        user_code = ''.join(secrets.choice(string.digits) for _ in range(8))
+        user_code = "".join(secrets.choice(string.digits) for _ in range(8))
         if user_code not in device_code_requests:
             break
 
@@ -330,37 +332,37 @@ def devicecode_request(
     response_type = "code"
     auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
     auth_link += "?scope={}&response_type={}&client_id={}&resource={}".format(
-            scope, response_type, client_id, resource
-        )
+        scope, response_type, client_id, resource
+    )
     auth_link += "&prompt=login&code_challenge_method=plain"
 
     response = {
         "device_code": device_code,
         "user_code": user_code,
-        "verification_uri":  quote(auth_link),
+        "verification_uri": quote(auth_link),
         "expires_in": int(expires_in.timestamp()),
         "interval": 5,
-        "message": f"Enter the following code: {user_code} at this link, {auth_link}"
+        "message": f"Enter the following code: {user_code} at this link, {auth_link}",
     }
     device_code_requests[user_code] = response
     device_user_codes[device_code] = user_code
     return response
 
 
-def get_access_token_from_authorisation_code(
-        code: str
-        ) -> Dict[str, Any] | None:
-    """ Search for the given code amongst the issued authorisation codes and if present, then create
-        and return an access token.
+def get_access_token_from_authorisation_code(code: str) -> Dict[str, Any] | None:
+    """Search for the given code amongst the issued authorisation codes and if present, then create
+    and return an access token.
     """
     response = None
     auth_request_info = authorisation_codes.get(code)
     if auth_request_info:
-        payload = get_client_id_information(auth_request_info["client_id"],
-                                            auth_request_info["resource"],
-                                            auth_request_info["username"],
-                                            auth_request_info["nonce"],
-                                            auth_request_info["scope"],)
+        payload = get_client_id_information(
+            auth_request_info["client_id"],
+            auth_request_info["resource"],
+            auth_request_info["username"],
+            auth_request_info["nonce"],
+            auth_request_info["scope"],
+        )
         if payload:
             headers = {
                 "typ": "JWT",
@@ -372,16 +374,16 @@ def get_access_token_from_authorisation_code(
 
 
 def authenticate(
-        client_id: str,
-        resource: str,
-        username: str,
-        user_secret: str,
-        mfa_code: str | None = None
-        ) -> bool:
-    """ Using (username and user_secret, mfa_code) to authenticate against a (client_id, resource),
-        and return True or False
+    client_id: str,
+    resource: str,
+    username: str,
+    user_secret: str,
+    mfa_code: str | None = None,
+) -> bool:
+    """Using (username and user_secret, mfa_code) to authenticate against a (client_id, resource),
+    and return True or False
 
-        This always returns True there are non-empty strings for the parameters: client_id, username, user_secret
+    This always returns True there are non-empty strings for the parameters: client_id, username, user_secret
     """
     _, _ = resource, mfa_code
     response = False
@@ -391,18 +393,18 @@ def authenticate(
 
 
 def authenticate_token(
-        client_id: str,
-        resource: str,
-        username: str,
-        user_secret: str,
-        nonce: str,
-        scope: str,
-        kmsi: str | None = None,
-        mfa_code: str | None = None
-        ) -> Dict[str, Any] | None:
-    """ Returns an access token after authenticating against client_id, resource, username,
-        user_secret, kmsi and mfa_code
-        if authentication fails return None
+    client_id: str,
+    resource: str,
+    username: str,
+    user_secret: str,
+    nonce: str,
+    scope: str,
+    kmsi: str | None = None,
+    mfa_code: str | None = None,
+) -> Dict[str, Any] | None:
+    """Returns an access token after authenticating against client_id, resource, username,
+    user_secret, kmsi and mfa_code
+    if authentication fails return None
     """
     _, _ = kmsi, mfa_code
     response = None
@@ -417,21 +419,25 @@ def authenticate_token(
     return response
 
 
-def authenticate_code(client_id: str,
-                      resource: str,
-                      username: str,
-                      user_secret: str,
-                      nonce: str,
-                      scope: str,
-                      code_challenge: str | None = None,
-                      kmsi: str | None = None,
-                      mfa_code: str | None = None) -> Optional[str]:
-    """ Returns an authentication code after authenticating against client_id, username,
-        resource, user_secret and mfa_code to
-        if authentication fails then return None
+def authenticate_code(
+    client_id: str,
+    resource: str,
+    username: str,
+    user_secret: str,
+    nonce: str,
+    scope: str,
+    code_challenge: str | None = None,
+    kmsi: str | None = None,
+    mfa_code: str | None = None,
+) -> Optional[str]:
+    """Returns an authentication code after authenticating against client_id, username,
+    resource, user_secret and mfa_code to
+    if authentication fails then return None
     """
     _ = kmsi
     response: str | None = None
     if authenticate(client_id, resource, username, user_secret, mfa_code):
-        response = create_authorisation_code(client_id, resource, username, nonce, scope, code_challenge)
+        response = create_authorisation_code(
+            client_id, resource, username, nonce, scope, code_challenge
+        )
     return response

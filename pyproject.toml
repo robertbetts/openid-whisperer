@@ -63,9 +63,6 @@ enable_error_code = [
 exclude = [
     "tests",
     "src/mock_api_service"
-#    "tests/fixtures",
-#    "tests/masonry/builders/fixtures",
-#    "tests/utils/fixtures",
 ]
 
 [tool.pylint]
@@ -90,6 +87,7 @@ certifi = "^2022.12.7"
 types-requests = "^2.31.0.1"
 coverage = {extras = ["toml"], version = "^7.2.7"}
 pytest-dotenv = "^0.5.2"
+black = "^23.3.0"
 
 [build-system]
 requires = ["poetry-core"]

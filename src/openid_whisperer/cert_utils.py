@@ -38,72 +38,74 @@ COMMON_NAME: str = "Service Provider"
 
 
 def generate_ca_key_and_certificate(
-        country_name: str = COUNTRY_NAME,
-        state_name: str = STATE_OR_PROVINCE_NAME,
-        locality_name: str = LOCALITY_NAME,
-        organization_name: str = ORGANIZATION_NAME_CA,
-        common_name: str = COMMON_NAME_CA) -> Tuple[rsa.RSAPrivateKey, x509.Certificate]:
-    """ Generate a private key and self-signed certificate for a given CA organisation
-    """
+    country_name: str = COUNTRY_NAME,
+    state_name: str = STATE_OR_PROVINCE_NAME,
+    locality_name: str = LOCALITY_NAME,
+    organization_name: str = ORGANIZATION_NAME_CA,
+    common_name: str = COMMON_NAME_CA,
+) -> Tuple[rsa.RSAPrivateKey, x509.Certificate]:
+    """Generate a private key and self-signed certificate for a given CA organisation"""
     # Generate an RSA private key
     ca_key: rsa.RSAPrivateKey = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
+        public_exponent=65537, key_size=2048, backend=default_backend()
     )
 
     certificate_expiry_days: int = 3650  # 10 years
 
     # Provide Issuer details for root certificate, root certs usually have the same subject and issuer
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, country_name),
-        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state_name),
-        x509.NameAttribute(NameOID.LOCALITY_NAME, locality_name),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization_name),
-        x509.NameAttribute(NameOID.COMMON_NAME, common_name),
-    ])
+    subject = issuer = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, country_name),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state_name),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, locality_name),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization_name),
+            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        ]
+    )
 
     # Create self-signed CA certificate valid for 10 years
-    ca_cert: x509.Certificate = x509.CertificateBuilder().subject_name(
-        subject
-    ).issuer_name(
-        issuer
-    ).public_key(
-        ca_key.public_key()
-    ).serial_number(
-        x509.random_serial_number()
-    ).not_valid_before(
-        datetime.datetime.utcnow()
-    ).not_valid_after(
-        datetime.datetime.utcnow() + datetime.timedelta(days=certificate_expiry_days)
-    ).add_extension(
-        x509.BasicConstraints(ca=True, path_length=None), critical=True
-    ).sign(ca_key, hashes.SHA256(), default_backend())
+    ca_cert: x509.Certificate = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.utcnow())
+        .not_valid_after(
+            datetime.datetime.utcnow()
+            + datetime.timedelta(days=certificate_expiry_days)
+        )
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(ca_key, hashes.SHA256(), default_backend())
+    )
 
     return ca_key, ca_cert
 
 
 def make_and_sign_new_org_csr(
-        org_key: rsa.RSAPrivateKey,
-        ca_key: rsa.RSAPrivateKey,
-        ca_cert: x509.Certificate,
-        host_names: str | List[str] | None,
-        country_name: str = COUNTRY_NAME,
-        state_name: str = STATE_OR_PROVINCE_NAME,
-        locality_name: str = LOCALITY_NAME,
-        organization_name: str = ORGANIZATION_NAME,
-        common_name: str = COMMON_NAME) -> x509.Certificate:
-    """ Create CSR and generate a new certificate using the given private
-        key. Sign the certificate using the CA cert and key provided.
+    org_key: rsa.RSAPrivateKey,
+    ca_key: rsa.RSAPrivateKey,
+    ca_cert: x509.Certificate,
+    host_names: str | List[str] | None,
+    country_name: str = COUNTRY_NAME,
+    state_name: str = STATE_OR_PROVINCE_NAME,
+    locality_name: str = LOCALITY_NAME,
+    organization_name: str = ORGANIZATION_NAME,
+    common_name: str = COMMON_NAME,
+) -> x509.Certificate:
+    """Create CSR and generate a new certificate using the given private
+    key. Sign the certificate using the CA cert and key provided.
     """
     # Set the certificate details for the org
-    new_subject = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, country_name),
-        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state_name),
-        x509.NameAttribute(NameOID.LOCALITY_NAME, locality_name),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization_name),
-        x509.NameAttribute(NameOID.COMMON_NAME, common_name),
-    ])
+    new_subject = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, country_name),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state_name),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, locality_name),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization_name),
+            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        ]
+    )
     # Create and sign the certificate for the org using the ca certificate
     # and key as the signing authority and make valid for 30 days
 
@@ -118,44 +120,60 @@ def make_and_sign_new_org_csr(
     certificate_serial_number: int = x509.random_serial_number()
     issuer_public_key: PublicKeyTypes = ca_cert.public_key()
     if not isinstance(issuer_public_key, rsa.RSAPublicKey):
-        raise Exception(f"Invalid ca_cert public key type {type(issuer_public_key)}")  # pragma: no cover
+        raise Exception(
+            f"Invalid ca_cert public key type {type(issuer_public_key)}"
+        )  # pragma: no cover
     org_public_key: CertificatePublicKeyTypes = org_key.public_key()
-    org_csr: x509.CertificateBuilder = x509.CertificateBuilder().subject_name(
-        new_subject
-    ).issuer_name(
-        ca_cert.issuer
-    ).public_key(
-        org_key.public_key()
-    ).serial_number(
-        certificate_serial_number
-    ).not_valid_before(
-        datetime.datetime.utcnow()
-    ).not_valid_after(
-        datetime.datetime.utcnow() + datetime.timedelta(days=certificate_expiry_days)
-    ).add_extension(
-        x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_public_key),
-        critical=False
-    ).add_extension(
-        x509.SubjectKeyIdentifier.from_public_key(org_public_key),
-        critical=False
-    ).add_extension(
-        x509.KeyUsage(digital_signature=True, key_encipherment=True, key_cert_sign=True,
-                      key_agreement=False, content_commitment=False, data_encipherment=False,
-                      crl_sign=False, encipher_only=False, decipher_only=False),
-        critical=False
-    ).add_extension(
-        x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
-        critical=True
-    ).add_extension(
-        x509.BasicConstraints(ca=False, path_length=None),
-        critical=False
+    org_csr: x509.CertificateBuilder = (
+        x509.CertificateBuilder()
+        .subject_name(new_subject)
+        .issuer_name(ca_cert.issuer)
+        .public_key(org_key.public_key())
+        .serial_number(certificate_serial_number)
+        .not_valid_before(datetime.datetime.utcnow())
+        .not_valid_after(
+            datetime.datetime.utcnow()
+            + datetime.timedelta(days=certificate_expiry_days)
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_public_key),
+            critical=False,
+        )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(org_public_key), critical=False
+        )
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                key_encipherment=True,
+                key_cert_sign=True,
+                key_agreement=False,
+                content_commitment=False,
+                data_encipherment=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=False,
+        )
+        .add_extension(
+            x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
+            critical=True,
+        )
+        .add_extension(
+            x509.BasicConstraints(ca=False, path_length=None), critical=False
+        )
     )
     if alternative_names:
         subject_alternative_names: List[GeneralName] = []
         for name in alternative_names:
             try:
-                subject_alternative_names.append(x509.IPAddress(ipaddress.ip_address(name)))
-                logger.info("certificate alternate name %s, represents and ip address.", name)
+                subject_alternative_names.append(
+                    x509.IPAddress(ipaddress.ip_address(name))
+                )
+                logger.info(
+                    "certificate alternate name %s, represents and ip address.", name
+                )
             except ValueError:
                 subject_alternative_names.append(x509.DNSName(name))
 
@@ -163,27 +181,31 @@ def make_and_sign_new_org_csr(
             x509.SubjectAlternativeName(subject_alternative_names),
             critical=False,
         )
-    org_cert: x509.Certificate = org_csr.sign(ca_key, hashes.SHA256(), default_backend())
+    org_cert: x509.Certificate = org_csr.sign(
+        ca_key, hashes.SHA256(), default_backend()
+    )
     return org_cert
 
 
-def check_sha256_certificate(certificate: x509.Certificate, issuer_certificate: x509.Certificate) -> bool:
-    """ Validates and SHA256 (PKCS1v15) signed certificate, returns True when valid.
-        If validation fails, then and InvalidSignature exception is raised.
+def check_sha256_certificate(
+    certificate: x509.Certificate, issuer_certificate: x509.Certificate
+) -> bool:
+    """Validates and SHA256 (PKCS1v15) signed certificate, returns True when valid.
+    If validation fails, then and InvalidSignature exception is raised.
 
-        For reference, PSS is an alternate padding implementation, a note however
-        if that OAEP is the preferred This is the recommended padding algorithm
-        for RSA encryption.
+    For reference, PSS is an alternate padding implementation, a note however
+    if that OAEP is the preferred This is the recommended padding algorithm
+    for RSA encryption.
 
-        padding_input = padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH)
+    padding_input = padding.PSS(
+        mgf=padding.MGF1(hashes.SHA256()),
+        salt_length=padding.PSS.MAX_LENGTH)
 
-        padding_input = padding.OAEP(
-            mgf=padding.MGF1(hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None,
-        )
+    padding_input = padding.OAEP(
+        mgf=padding.MGF1(hashes.SHA256()),
+        algorithm=hashes.SHA256(),
+        label=None,
+    )
     """
     public_key = issuer_certificate.public_key()
     if not isinstance(public_key, rsa.RSAPublicKey):
@@ -193,28 +215,28 @@ def check_sha256_certificate(certificate: x509.Certificate, issuer_certificate: 
         signature=certificate.signature,
         data=certificate.tbs_certificate_bytes,
         padding=padding_input,
-        algorithm=hashes.SHA256())
+        algorithm=hashes.SHA256(),
+    )
     return True
 
 
 def generate_org_key_and_certificate(
-        ca_key: rsa.RSAPrivateKey,
-        ca_cert: x509.Certificate,
-        org_key: Optional[rsa.RSAPrivateKey] = None,
-        host_names: str | None = None,
-        country_name: str = COUNTRY_NAME,
-        state_name: str = STATE_OR_PROVINCE_NAME,
-        locality_name: str = LOCALITY_NAME,
-        organization_name: str = ORGANIZATION_NAME,
-        common_name: str = COMMON_NAME) -> Tuple[rsa.RSAPrivateKey, x509.Certificate]:
-    """ Generate a private key and certificate for a given service organisation, signed using the
-        CA private key and certificate provided
+    ca_key: rsa.RSAPrivateKey,
+    ca_cert: x509.Certificate,
+    org_key: Optional[rsa.RSAPrivateKey] = None,
+    host_names: str | None = None,
+    country_name: str = COUNTRY_NAME,
+    state_name: str = STATE_OR_PROVINCE_NAME,
+    locality_name: str = LOCALITY_NAME,
+    organization_name: str = ORGANIZATION_NAME,
+    common_name: str = COMMON_NAME,
+) -> Tuple[rsa.RSAPrivateKey, x509.Certificate]:
+    """Generate a private key and certificate for a given service organisation, signed using the
+    CA private key and certificate provided
     """
     if org_key is None:
         org_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
+            public_exponent=65537, key_size=2048, backend=default_backend()
         )
 
     # Set the certificate details for the org
@@ -227,20 +249,20 @@ def generate_org_key_and_certificate(
         state_name=state_name,
         locality_name=locality_name,
         organization_name=organization_name,
-        common_name=common_name
+        common_name=common_name,
     )
 
     return org_key, org_cert
 
 
 def get_server_cert_chain(
-        certificate: x509.Certificate,
-        private_key: rsa.RSAPrivateKey,
-        issuer_certs: Optional[List[x509.Certificate]] = None
+    certificate: x509.Certificate,
+    private_key: rsa.RSAPrivateKey,
+    issuer_certs: Optional[List[x509.Certificate]] = None,
 ) -> str:
-    """ Combine the server certificate and matching private key
-        if certificate or private_key are not passed in, then the context
-        is initialised from the module auto generated private key and certificate.
+    """Combine the server certificate and matching private key
+    if certificate or private_key are not passed in, then the context
+    is initialised from the module auto generated private key and certificate.
     """
     cert_data: str = certificate.public_bytes(
         encoding=serialization.Encoding.PEM
@@ -248,29 +270,32 @@ def get_server_cert_chain(
     primary_key_data: str = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     ).decode("utf-8")
 
     issuer_data: str = ""
     if issuer_certs is not None:
         issuer_data += "\n"
         for issuer_cert in issuer_certs:
-            issuer_data += issuer_cert.public_bytes(
-                encoding=serialization.Encoding.PEM
-            ).decode("utf-8") + "\n"
+            issuer_data += (
+                issuer_cert.public_bytes(encoding=serialization.Encoding.PEM).decode(
+                    "utf-8"
+                )
+                + "\n"
+            )
 
     return f"{primary_key_data}\n{cert_data}{issuer_data}"
 
 
 def get_ssl_context(
-        certificate: x509.Certificate,
-        private_key: rsa.RSAPrivateKey,
-        issuer_certs: Optional[List[x509.Certificate]] = None,
-        verify: bool = True
+    certificate: x509.Certificate,
+    private_key: rsa.RSAPrivateKey,
+    issuer_certs: Optional[List[x509.Certificate]] = None,
+    verify: bool = True,
 ) -> SSLContext:
-    """ Create a ssl_context for SSL server with no client cert verification
-        if a certificate or private_key is not passed in, then the context
-        is initialised from the module to auto generated a private key and certificate.
+    """Create a ssl_context for SSL server with no client cert verification
+    if a certificate or private_key is not passed in, then the context
+    is initialised from the module to auto generated a private key and certificate.
     """
     ca_data: str = get_server_cert_chain(certificate, private_key, issuer_certs)
     cert_handle, cert_file = tempfile.mkstemp()
@@ -287,18 +312,18 @@ def get_ssl_context(
 
 
 def dump_cert_and_ca_bundle(
-        private_key: rsa.RSAPrivateKey,
-        certificate: x509.Certificate,
-        ca_certificate: x509.Certificate,
-        location: Optional[str] = None,
-        cert_filename: Optional[str] = None,
-        primary_key_filename: Optional[str] = None,
-        ca_chain_filename: Optional[str] = None,
-        overwrite_existing_files: bool = False,
+    private_key: rsa.RSAPrivateKey,
+    certificate: x509.Certificate,
+    ca_certificate: x509.Certificate,
+    location: Optional[str] = None,
+    cert_filename: Optional[str] = None,
+    primary_key_filename: Optional[str] = None,
+    ca_chain_filename: Optional[str] = None,
+    overwrite_existing_files: bool = False,
 ) -> None:
-    """ Create files for the private_key, certificate and certificate chain
-       in PEM format. cert.pem, key.pem, cert-chain.pem
-       Only overwrite files when overwrite_existing_files is True
+    """Create files for the private_key, certificate and certificate chain
+    in PEM format. cert.pem, key.pem, cert-chain.pem
+    Only overwrite files when overwrite_existing_files is True
     """
 
     cert_filename = cert_filename if cert_filename else "cert.pem"
@@ -309,9 +334,7 @@ def dump_cert_and_ca_bundle(
         primary_key_filename = os.path.join(location, primary_key_filename)
         ca_chain_filename = os.path.join(location, ca_chain_filename)
 
-    cert_data: bytes = certificate.public_bytes(
-        encoding=serialization.Encoding.PEM
-    )
+    cert_data: bytes = certificate.public_bytes(encoding=serialization.Encoding.PEM)
     ca_cert_data: bytes = ca_certificate.public_bytes(
         encoding=serialization.Encoding.PEM
     )
@@ -326,7 +349,7 @@ def dump_cert_and_ca_bundle(
     primary_key_data: bytes = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
     if overwrite_existing_files is False and os.path.exists(primary_key_filename):
         logger.warning("primary key exists, skipping. %s", primary_key_filename)

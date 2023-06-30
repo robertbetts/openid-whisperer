@@ -61,7 +61,7 @@ def test_validate_response_mode():
 
 
 def test_validate_client_id():
-    client_id: str = "client_1234"
+    client_id: str = None
     client_secret: str | None = None
     try:
         validate_client_id(client_id, client_secret)
@@ -70,7 +70,7 @@ def test_validate_client_id():
 
 
 def test_validate_grant_type():
-    grant_type: str | None = None
+    grant_type: str = ""
     try:
         validate_grant_type(grant_type)
     except OpenidException as e:

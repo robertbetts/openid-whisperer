@@ -18,12 +18,14 @@ def replace_base_netloc(url1: str, url2: str) -> str:
     """Combine the network location of url1 with scheme, path, query and fragment of url2"""
     parts1 = urlsplit(url1)
     parts2 = urlsplit(url2)
-    return urlunsplit((parts2.scheme, parts1.netloc, parts2.path, parts2.query, parts2.fragment))
+    return urlunsplit(
+        (parts2.scheme, parts1.netloc, parts2.path, parts2.query, parts2.fragment)
+    )
 
 
 class IdentityConfig(UserDict):
-    """ Dictionary like class for accessing and caching an OpenID Identity provider's configuration
-    """
+    """Dictionary like class for accessing and caching an OpenID Identity provider's configuration"""
+
     def __init__(self, provider_url: str, verify_server: bool = True):
         self.provider_url: str = provider_url
         self.verify_server: bool = verify_server
@@ -31,9 +33,9 @@ class IdentityConfig(UserDict):
         super().__init__()
 
     def refresh(self):
-        """ Update the dictionary's data with that from the identity provider.
-            this class is refreshed with the identity provider the first an
-            element is retrieved.
+        """Update the dictionary's data with that from the identity provider.
+        this class is refreshed with the identity provider the first an
+        element is retrieved.
         """
         endpoint = urljoin(self.provider_url, ".well-known/openid-configuration")
         response = requests.get(url=endpoint, verify=self.verify_server)
@@ -42,29 +44,30 @@ class IdentityConfig(UserDict):
             self.update(config_data)
         else:
             logging.error("Failed identity provider endpoint {}".format(endpoint))
-            raise Exception("Unable to connect to the identity provider\n{}".format(response.text))
+            raise Exception(
+                "Unable to connect to the identity provider\n{}".format(response.text)
+            )
 
     def __getitem__(self, item):
-        """ checking if this is the first get operation to trigger a refresh
-        """
+        """checking if this is the first get operation to trigger a refresh"""
         if self.initialised is False:
             self.refresh()
             self.initialised = True
         return UserDict.__getitem__(self, item)
 
 
-
 class OpenIDClient:
-    """ OpenID 1.0 Compatible Client Library
-    """
-    def __init__(self,
-                 provider_url: str,
-                 provider_url_gw: str,
-                 client_id: str,
-                 resource: Optional[str] = None,
-                 use_gateway: bool = False,
-                 verify_server: bool = True):
+    """OpenID 1.0 Compatible Client Library"""
 
+    def __init__(
+        self,
+        provider_url: str,
+        provider_url_gw: str,
+        client_id: str,
+        resource: Optional[str] = None,
+        use_gateway: bool = False,
+        verify_server: bool = True,
+    ):
         self.provider_url: str = provider_url
         self.provider_url_gw: str = provider_url_gw
         self.client_id: str = client_id
@@ -76,38 +79,51 @@ class OpenIDClient:
         self.validated_claims: Dict[str, Any] = {}
 
         provider_url = self.provider_url_gw if use_gateway else self.provider_url
-        self.identity_config: IdentityConfig = IdentityConfig(provider_url, verify_server)
+        self.identity_config: IdentityConfig = IdentityConfig(
+            provider_url, verify_server
+        )
 
-    def validate_access_token(self,
-                              access_token: str,
-                              audience: Optional[str | List] = None,
-                              verify_server: bool = True,
-                              use_gateway: bool = False) -> Dict[str, Any]:
-        """ Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
-            if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
+    def validate_access_token(
+        self,
+        access_token: str,
+        audience: Optional[str | List] = None,
+        verify_server: bool = True,
+        use_gateway: bool = False,
+    ) -> Dict[str, Any]:
+        """Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
+        if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
 
-            audience is mandatory token check, as a minimum the aud claim will always contain the OpenID client_id. Where
-            resource has been specified, this will be included in the aud claim.
-            Where the audience parameter is None, the audience is assigned [self.client_id, self.resource]
+        audience is mandatory token check, as a minimum the aud claim will always contain the OpenID client_id. Where
+        resource has been specified, this will be included in the aud claim.
+        Where the audience parameter is None, the audience is assigned [self.client_id, self.resource]
 
 
         """
         at_list = access_token.split(".")
         # Adjust the left padding to avoid the base64 padding error
-        token_header = at_list[0].ljust(int(math.ceil(len(at_list[0]) / 4)) * 4, '=')
+        token_header = at_list[0].ljust(int(math.ceil(len(at_list[0]) / 4)) * 4, "=")
         header = json.loads(base64.b64decode(token_header).decode("utf-8"))
         tok_x5t = header["x5t"]
         issuer: str = self.identity_config["access_token_issuer"]
 
         claims: Dict[str, Any] = {}
-        provider_url: str = self.provider_url_gw if self.use_gateway else self.provider_url
+        provider_url: str = (
+            self.provider_url_gw if self.use_gateway else self.provider_url
+        )
         if use_gateway:
             provider_url = self.provider_url_gw
 
         if not self.identity_keys:
-            key_endpoint = replace_base_netloc(provider_url, self.identity_config["jwks_uri"])
-            header = {'content_type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
-            response = requests.get(url=key_endpoint, headers=header, verify=verify_server)
+            key_endpoint = replace_base_netloc(
+                provider_url, self.identity_config["jwks_uri"]
+            )
+            header = {
+                "content_type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+            }
+            response = requests.get(
+                url=key_endpoint, headers=header, verify=verify_server
+            )
             keys = json.loads(response.text)["keys"]
 
             # Loop through keys to create dictionary
@@ -116,7 +132,9 @@ class OpenIDClient:
                 x5c = key["x5c"][0]  # base64 x509 certificate (DER, PKCS1)
                 # extract signed public key to be used for access token validation
                 public_key_spki_der = base64.b64decode(x5c.encode("ascii"))
-                cert = x509.load_der_x509_certificate(public_key_spki_der, default_backend())
+                cert = x509.load_der_x509_certificate(
+                    public_key_spki_der, default_backend()
+                )
                 public_key = cert.public_key()
                 # cache the IDA public key
                 self.identity_keys[x5t] = public_key
@@ -131,7 +149,8 @@ class OpenIDClient:
                     self.identity_keys[tok_x5t],
                     audience=audience,
                     issuer=issuer,
-                    algorithms=["RS256"])
+                    algorithms=["RS256"],
+                )
                 if claims:
                     self.validated_claims[access_token] = claims
                     # Token and claims are good, ignore possible failed validations against invalid keys
@@ -139,7 +158,9 @@ class OpenIDClient:
                     token_errors = []
                     break
                 else:
-                    token_errors.append((access_token, Exception("Token contains no validated claims")))
+                    token_errors.append(
+                        (access_token, Exception("Token contains no validated claims"))
+                    )
 
             except jwt.ExpiredSignatureError as e:
                 key_errors.append((key, e))
@@ -167,26 +188,32 @@ class OpenIDClient:
         return claims
 
     def token_endpoint_url(self, use_gateway: bool = False) -> str:
-        provider_url: str = self.provider_url_gw if self.use_gateway else self.provider_url
+        provider_url: str = (
+            self.provider_url_gw if self.use_gateway else self.provider_url
+        )
         if use_gateway:
             provider_url = self.provider_url_gw
         return replace_base_netloc(provider_url, self.identity_config["token_endpoint"])
 
     def authorization_endpoint_url(self, use_gateway: bool = False) -> str:
-        provider_url: str = self.provider_url_gw if self.use_gateway else self.provider_url
+        provider_url: str = (
+            self.provider_url_gw if self.use_gateway else self.provider_url
+        )
         if use_gateway:
             provider_url = self.provider_url_gw
-        return replace_base_netloc(provider_url, self.identity_config["authorization_endpoint"])
+        return replace_base_netloc(
+            provider_url, self.identity_config["authorization_endpoint"]
+        )
 
     def request_token_password_grant(
-            self,
-            username: str,
-            secret: str,
-            mfa: Optional[str] = "",
-            headers: Dict[str, Any] | None = None,
-            use_gateway: bool = False) -> Dict[str, Any]:
-        """ make a rest call to an identity service for the issuance of a valid jwt
-        """
+        self,
+        username: str,
+        secret: str,
+        mfa: Optional[str] = "",
+        headers: Dict[str, Any] | None = None,
+        use_gateway: bool = False,
+    ) -> Dict[str, Any]:
+        """make a rest call to an identity service for the issuance of a valid jwt"""
         request_data = {
             "grant_type": "password",
             "client_id": self.client_id,
@@ -197,7 +224,12 @@ class OpenIDClient:
 
         token_endpoint_url = self.token_endpoint_url(use_gateway=use_gateway)
         headers = {} if headers is None else headers
-        headers.update({'content_type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'})
+        headers.update(
+            {
+                "content_type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+            }
+        )
         try:
             request_session = requests.session()
             request_session.verify = self.verify_server
@@ -206,7 +238,8 @@ class OpenIDClient:
                 token_endpoint_url,
                 data=request_data,
                 headers=headers,
-                verify=self.verify_server)
+                verify=self.verify_server,
+            )
             access_token = json.loads(response.text)
             return access_token
         except Exception as e:

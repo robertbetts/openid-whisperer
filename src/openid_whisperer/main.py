@@ -9,8 +9,7 @@ from openid_whisperer.config import FLASK_DEBUG, ID_SERVICE_PORT, ID_SERVICE_BIN
 
 
 def app() -> Flask:
-    """ returns WSGI compliant Object wrapper for openid_whisperer
-    """
+    """returns WSGI compliant Object wrapper for openid_whisperer"""
     config.initialize_logging()
     flask_app = Flask(__name__)
     flask_app.register_blueprint(openid_blueprint)
@@ -18,21 +17,20 @@ def app() -> Flask:
 
 
 def main() -> None:  # pragma: no cover
-    """ Main entrypoint for a standalone Python running instance
-    """
+    """Main entrypoint for a standalone Python running instance"""
     flask_app: Flask = app()
     flask_app.run(
         ssl_context=get_ssl_context(
             certificate=config.org_cert,
             private_key=config.org_key,
             issuer_certs=[config.ca_cert],
-            verify=False),
+            verify=False,
+        ),
         host=ID_SERVICE_BINDING,
         port=ID_SERVICE_PORT,
-        debug=FLASK_DEBUG
+        debug=FLASK_DEBUG,
     )
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-    

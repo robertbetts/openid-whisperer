@@ -97,6 +97,7 @@ def test_authorize_code_and_fetch_token_flow(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(token_url, data=data, headers=headers)
+    print(response.text)
     assert response.status_code == 200
 
 
