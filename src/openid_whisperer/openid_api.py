@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from openid_whisperer import openid_lib
 
@@ -11,12 +11,10 @@ RESPONSE_TYPES_SUPPORTED: List[str] = [
     "code id_token",
     "id_token token",
     "code token",
-    "code id_token token"
+    "code id_token token",
 ]
 
-RESPONSE_MODES_SUPPORTED: List[str] = [
-    "fragment", "query", "form_post"
-]
+RESPONSE_MODES_SUPPORTED: List[str] = ["fragment", "query", "form_post"]
 
 GRANT_TYPES_SUPPORTED: List[str] = [
     "authorization_code",
@@ -28,7 +26,7 @@ GRANT_TYPES_SUPPORTED: List[str] = [
     "password",
     "srv_challenge",
     "urn:ietf:params:oauth:grant-type:device_code",
-    "device_code"
+    "device_code",
 ]
 
 
@@ -42,18 +40,28 @@ class OpenidException(Exception):
         return {
             "error": self.error_code,
             "error_code": self.error_code,
-            "error_description": self.error_description
+            "error_description": self.error_description,
         }
 
 
-def validate_client_id(client_id: str, client_secret: str) -> str:
-    """ Returns client_id if successfully validating client_id and client_secret, else
-        raises an OpenidException when unsuccessful
-    """
-    if isinstance(client_id, str) and isinstance(client_secret, str):
-        return client_id
+def stringify(value: str | None) -> str:
+    """returns a string representation of the input value, turning None into an empty string"""
+    if value is None:
+        return ""
     else:
-        raise OpenidException("client_auth_error", "Unable to validate the referring client application.")
+        return value
+
+
+def validate_client_id(client_id: str, client_secret: str) -> str:
+    """Returns client_id if successfully validating client_id and client_secret, else
+    raises an OpenidException when unsuccessful
+    """
+    if client_id is None or client_id == "":
+        raise OpenidException(
+            "client_auth_error", "Unable to validate the referring client application."
+        )
+    else:
+        return client_id
 
 
 def validate_response_type(response_type: str) -> str:
@@ -64,14 +72,16 @@ def validate_response_type(response_type: str) -> str:
     response_type:
         required, assumed to be a lowercase string
     """
-    response_type_list = [item.strip() for item in response_type.split(" ") if item != ""]
+    response_type_list = [
+        item.strip() for item in response_type.split(" ") if item != ""
+    ]
     response_type_list.sort()
     response_type_check = " ".join(response_type_list)
     if response_type_check not in RESPONSE_TYPES_SUPPORTED:
         raise OpenidException(
             "auth_processing_error",
             f"Invalid response_type '{response_type}'. A call to /.well-known/openid-configuration will "
-            "provide information on supported response types"
+            "provide information on supported response types",
         )
     return response_type_check
 
@@ -96,14 +106,18 @@ def validate_response_mode(response_type: str, response_mode: str) -> str:
         if response_mode == "":
             response_mode = "query"
         else:
-            error_message = f"Invalid response_mode of {response_mode} for request_type "\
-                            f"{response_type}. response_mode 'query' expected."
+            error_message = (
+                f"Invalid response_mode of {response_mode} for request_type "
+                f"{response_type}. response_mode 'query' expected."
+            )
     elif "token" in response_type and response_mode not in ("fragment", "form_post"):
         if response_mode == "":
             response_mode = "fragment"
         else:
-            error_message = f"Invalid response_mode of {response_mode} for request_type "\
-                            f"{response_type}. response_mode 'fragment' expected."
+            error_message = (
+                f"Invalid response_mode of {response_mode} for request_type "
+                f"{response_type}. response_mode 'fragment' expected."
+            )
     # General response_mode validity check
     if response_mode not in RESPONSE_MODES_SUPPORTED:
         error_message = f"Unsupported response_mode of {response_mode}."
@@ -115,7 +129,7 @@ def validate_response_mode(response_type: str, response_mode: str) -> str:
 
 
 def validate_grant_type(grant_type: str) -> str:
-    """ Returns a tuple of (adjusted_grant_type, error_message)
+    """Returns a tuple of (adjusted_grant_type, error_message)
     Where the input grant_typ is in the forman of an urn e.g."urn:ietf:params:oauth:grant-type:jwt-bearer",
     grant type is updated to only the grant_type reference.
 
@@ -127,14 +141,18 @@ def validate_grant_type(grant_type: str) -> str:
         required str
     """
     error_message: str | None = None
-    if not isinstance(grant_type, str) or grant_type == "":
+    if grant_type is None or grant_type == "":
         error_message = "An empty input for grant_type is not supported"
     elif grant_type not in GRANT_TYPES_SUPPORTED:
         error_message = f"The grant_type of '{grant_type}' is not supported"
     elif grant_type.startswith("urn:ietf:params:oauth:grant-type:"):
         grant_type = grant_type.split(":")[-1].strip()
 
-    if error_message is None and grant_type not in ("device_code", "authorization_code", "password"):
+    if error_message is None and grant_type not in (
+        "device_code",
+        "authorization_code",
+        "password",
+    ):
         error_message = f"The grant_type of '{grant_type}' not as yet implemented"
 
     if error_message is not None:
@@ -144,17 +162,18 @@ def validate_grant_type(grant_type: str) -> str:
 
 
 def initiate_end_user_authentication(
-        response_type: str,
-        client_id: str,
-        scope: str,
-        resource: str,
-        response_mode: str,
-        redirect_uri: str,
-        state: str,
-        nonce: str,
-        prompt: str,
-        rcode: str,
-        code_challenge_method: str) -> Dict[str, Any]:
+    response_type: str,
+    client_id: str,
+    scope: str,
+    resource: str,
+    response_mode: str,
+    redirect_uri: str,
+    state: str,
+    nonce: str,
+    prompt: str,
+    rcode: str,
+    code_challenge_method: str,
+) -> Dict[str, Any]:
     """Returns a dictionary of values required to direct the end user through the required authentication flow
 
     OpenidException is raised for validation and processing errors
@@ -243,16 +262,18 @@ def initiate_end_user_authentication(
 
     response_type = validate_response_type(response_type)
     response_mode = validate_response_mode(response_type, response_mode)
-    if not isinstance(client_id, str) or client_id == "":
+    if client_id == "":
         raise OpenidException("auth_processing_error", "A valid client_id is required")
 
     # if not isinstance(scope, str) or scope == "":
     #     raise OpenidException("auth_processing_error", "A valid scope is required")
     scope = scope if scope else "openid"
 
-    action: str = f"?scope={scope}&response_type={response_type}&response_mode={response_mode}&client_id={client_id}" \
-                  f"&resource={resource}&redirect_uri={redirect_uri}&nonce={nonce}&state={state}&prompt={prompt}" \
-                  f"&code_challenge_method={code_challenge_method}"
+    action: str = (
+        f"?scope={scope}&response_type={response_type}&response_mode={response_mode}&client_id={client_id}"
+        f"&resource={resource}&redirect_uri={redirect_uri}&nonce={nonce}&state={state}&prompt={prompt}"
+        f"&code_challenge_method={code_challenge_method}"
+    )
 
     response: dict[str, Any] = {
         "action": action,
@@ -266,20 +287,20 @@ def initiate_end_user_authentication(
     return response
 
 
-
 def process_token_request(
-        grant_type: str,
-        client_id: str,
-        client_secret: str,
-        device_code: str,
-        code: str,
-        username: str,
-        user_secret: str,
-        nonce: str,
-        scope: str,
-        resource: str,
-        redirect_uri: str,
-        code_verifier: str) -> Dict[str, Any]:
+    grant_type: str,
+    client_id: str,
+    client_secret: str,
+    device_code: str,
+    code: str,
+    username: str,
+    user_secret: str,
+    nonce: str,
+    scope: str,
+    resource: str,
+    redirect_uri: str,
+    code_verifier: str,
+) -> Dict[str, Any]:
     """Returns details of the requested token or other: pending | unsuccessful | error responses
 
     OpenidException is raised for validation and processing errors
@@ -335,8 +356,6 @@ def process_token_request(
         was used in the authorization code grant request. For more information, see the PKCE RFC. This option
         applies to AD FS 2019 and later.
     """
-    _ = validate_client_id(client_id, client_secret)
-
     grant_type = validate_grant_type(grant_type)
 
     response: Dict[str, Any] | None = None
@@ -352,19 +371,18 @@ def process_token_request(
                 if device_request:
                     raise OpenidException(
                         "authorization_pending",
-                        "End user authentication relating to the user_code provided has not been completed."
+                        "End user authentication relating to the user_code provided has not been completed.",
                     )
                 else:
                     # this condition has not been implemented as yet
                     raise OpenidException(
                         "authorization_declined",
-                        "End user authentication relating to the user_code was not successful."
+                        "End user authentication relating to the user_code was not successful.",
                     )  # pragma: no cover
             else:
                 # TODO: research standard error codes
                 raise OpenidException(
-                    "bad_verification_code",
-                    "device code is not recognised"
+                    "bad_verification_code", "device code is not recognised"
                 )
         return response
 
@@ -397,6 +415,7 @@ def process_token_request(
         response = openid_lib.get_access_token_from_authorisation_code(code)
 
     elif grant_type == "password":
+        _ = validate_client_id(client_id, client_secret)
 
         response = openid_lib.authenticate_token(
             client_id=client_id,
@@ -404,26 +423,29 @@ def process_token_request(
             username=username,
             user_secret=user_secret,
             nonce=nonce,
-            scope=scope
+            scope=scope,
         )
 
     if response is None:
-        raise OpenidException("bad_token_request", f"Unable to retrieve token for grant '{grant_type}'")
+        raise OpenidException(
+            "bad_token_request", f"Unable to retrieve token for grant '{grant_type}'"
+        )
 
     return response
 
 
 def process_end_user_authentication(
-        response_type: str,
-        response_mode: str,
-        client_id: str,
-        client_secret: str,
-        scope: str,
-        redirect_uri: str,
-        nonce: str,
-        username: str,
-        user_secret: str,
-        **kwargs) -> Dict[str, Any]:
+    response_type: str,
+    response_mode: str,
+    client_id: str,
+    client_secret: str,
+    scope: str,
+    redirect_uri: str,
+    nonce: str,
+    username: str,
+    user_secret: str,
+    **kwargs: Optional[Any],
+) -> Dict[str, Any]:
     """Returns a dictionary of values required for a flow's next step after performing the required
     authentication flow step processing.
 
@@ -490,29 +512,33 @@ def process_end_user_authentication(
     response_type = validate_response_type(response_type)
     response_mode = validate_response_mode(response_type, response_mode)
 
-    if not isinstance(username, str) or username == "" or\
-       not isinstance(user_secret, str) or user_secret == "":
-        raise OpenidException("auth_processing_error", "A valid username and user_secret is required")
+    if username is None or username == "" or user_secret == "":
+        raise OpenidException(
+            "auth_processing_error", "A valid username and user_secret is required"
+        )
 
     scope = scope if scope else "openid"
 
-    resource: str | None = kwargs.get("resource")
-    code_challenge: str | None = kwargs.get("code_challenge")
+    resource: str = stringify(kwargs.get("resource"))
+    code_challenge: str = stringify(kwargs.get("code_challenge"))
     # TODO: Review device flow and determine correct code challenge validation
     # if "code" in response_type and (not isinstance(code_challenge, str) or code_challenge == ""):
     #     raise AuthenticationProcessError("A valid code_challenge is required for the device code flow")
-    if "code" in response_type and (not isinstance(redirect_uri, str) or redirect_uri == ""):
-        raise OpenidException("auth_processing_error", "A valid redirect_uri is required")
+    if "code" in response_type and redirect_uri == "":
+        raise OpenidException(
+            "auth_processing_error", "A valid redirect_uri is required"
+        )
 
     reply_parameters: Dict[str, Any]
 
     # Check for Hybrid Flow, raise an exception if the code_challenge has not been set
     if "code" in response_type:
+        if nonce == "":
+            raise OpenidException(
+                "auth_processing_error", "A valid nonce value is required"
+            )
 
-        if not isinstance(nonce, str) or nonce == "":
-            raise OpenidException("auth_processing_error", "A valid nonce value is required")
-
-        state: str | None = kwargs.get("state")
+        state: str = stringify(kwargs.get("state"))
 
         authorisation_code = openid_lib.authenticate_code(
             client_id=client_id,
@@ -531,8 +557,7 @@ def process_end_user_authentication(
         }
 
     else:  # then "token" is in response_type:
-
-        kmsi: str | None = kwargs.get("kmsi")
+        kmsi: str = stringify(kwargs.get("kmsi"))
 
         access_token = openid_lib.authenticate_token(
             client_id=client_id,
@@ -541,7 +566,7 @@ def process_end_user_authentication(
             user_secret=user_secret,
             nonce=nonce,
             scope=scope,
-            kmsi=kmsi
+            kmsi=kmsi,
         )
         reply_parameters = {
             "response_type": "token",
