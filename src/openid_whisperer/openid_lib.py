@@ -31,8 +31,9 @@ import jwt
 from jwt.utils import to_base64url_uint
 
 # Module configuration Information and default values
-from openid_whisperer.config import config
+from openid_whisperer.config import get_cached_config
 
+config = get_cached_config()
 EXPIRES_SECONDS: int = 600
 ALGORITHM: str = "RS256"
 KEY_ID: str = "idp-key-id"
