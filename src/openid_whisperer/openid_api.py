@@ -265,8 +265,6 @@ def initiate_end_user_authentication(
     if client_id == "":
         raise OpenidException("auth_processing_error", "A valid client_id is required")
 
-    # if not isinstance(scope, str) or scope == "":
-    #     raise OpenidException("auth_processing_error", "A valid scope is required")
     scope = scope if scope else "openid"
 
     action: str = (
@@ -406,11 +404,9 @@ def process_token_request(
         # check specifications for handling redirect_uri and compare with openid specs MS reference below:
         # https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
 
-        # if not isinstance(redirect_uri, str) or redirect_uri == "":
-        #     raise OpenidException("auth_processing_error", "A valid redirect_uri is required")
+        # TODO: check redirect_uri validation is required
 
-        # if not isinstance(code_verifier, str) or code_verifier == "":
-        #     raise OpenidException("auth_processing_error", "A valid code_verifier is required")
+        # TODO: check what todo with code_verifier:
 
         response = openid_lib.get_access_token_from_authorisation_code(code)
 

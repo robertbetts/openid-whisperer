@@ -283,8 +283,6 @@ def create_authorisation_code(
     authorisation_code: str | None = None
     if client_id and username:
         if code_challenge:
-            # user_codes: Dict[str, Any] = {}  # Indexed by user_code
-            # device_user_code: Dict[str, str] = {}  # Indexed by device_code
             device_code_request = device_code_requests.pop(code_challenge, None)
             if device_code_request is None:
                 raise Exception(f"no device code request found for {code_challenge}")

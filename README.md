@@ -12,6 +12,10 @@ test against OPenID Whisperer.
 * UserName@domain / Password credentials are not checked and assumed to be correct.
 * client_id, resource and scope profiles/permissions are echoed back as part of the aud claim. 
 
+Active development is done on both Windows 10 and macOS 13.4, testing is run against these environments 
+as well as Ubuntu 22.04
+
+
 ## Environment Setup
 1. Install Python, this project is developed with CPython ^3.11
 2. Upgrade pip 
