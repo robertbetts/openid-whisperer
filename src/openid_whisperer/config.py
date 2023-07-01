@@ -15,8 +15,12 @@ from cryptography.hazmat.primitives.asymmetric.types import (
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
-from openid_whisperer.utils.config_utils import load_environment_variables, default_config_type, get_bind_address, \
-    initialize_logging
+from openid_whisperer.utils.config_utils import (
+    load_environment_variables,
+    default_config_type,
+    get_bind_address,
+    initialize_logging,
+)
 
 logger = logging.getLogger(__name__)
 cached_config = None
@@ -45,14 +49,15 @@ class Config:
         for key, value in cls.default_config.items():
             _, default = value
             if not key.isidentifier():
-                raise ValueError("default attribute %s, is not a valid identifier name", key)
+                raise ValueError(
+                    "default attribute %s, is not a valid identifier name", key
+                )
             setattr(instance, key, default)
         return instance
 
     def __init__(
-            self,
-            defaults: default_config_type = {},
-            env_target: str | None = None) -> None:
+        self, defaults: default_config_type = {}, env_target: str | None = None
+    ) -> None:
         self.init_defaults = {}
         self.init_defaults.update(defaults)
         self.env_target: str | None = env_target
@@ -75,18 +80,22 @@ class Config:
                 try:
                     setattr(self, key, func(env_var))
                 except Exception as e:
-                    logging.warning("Unable to set config parameter %s, using default value %s"
-                                    "\nError: %s",
-                                    key.upper(),
-                                    default,
-                                    e)
+                    logging.warning(
+                        "Unable to set config parameter %s, using default value %s"
+                        "\nError: %s",
+                        key.upper(),
+                        default,
+                        e,
+                    )
             except Exception as e:
                 default = getattr(self, key)
-                logging.error("Configuration error while Unable to for process environment variable %s"
-                              "defaulting to %s \nError: %s",
-                              key,
-                              default,
-                              e)
+                logging.error(
+                    "Configuration error while Unable to for process environment variable %s"
+                    "defaulting to %s \nError: %s",
+                    key,
+                    default,
+                    e,
+                )
 
     def init_logging(self, log_level: str | None = None):
         log_level = log_level if log_level else self.log_level
@@ -94,8 +103,8 @@ class Config:
 
     def init_certs(self) -> None:
         """Loads from files, CA and Org private keys and certificates. filenames are defaulted from
-         the environment variables:
-            CA_KEY_FILENAME, CA_CERT_FILENAME, ORG_KEY_FILENAME, ORG_CERT_FILENAME
+        the environment variables:
+           CA_KEY_FILENAME, CA_CERT_FILENAME, ORG_KEY_FILENAME, ORG_CERT_FILENAME
         """
         ca_key: PrivateKeyTypes
         org_key: PrivateKeyTypes
@@ -104,7 +113,9 @@ class Config:
                 with open(self.org_key_filename, "rb") as org_key_file:
                     with open(self.org_cert_filename, "rb") as org_cert_file:
                         ca_key_password = (
-                            self.ca_key_password.encode() if self.ca_key_password else None
+                            self.ca_key_password.encode()
+                            if self.ca_key_password
+                            else None
                         )
                         ca_cert: x509.Certificate = x509.load_pem_x509_certificate(
                             ca_cert_file.read(), default_backend()
@@ -119,7 +130,9 @@ class Config:
                                 "Only RSA private keys supported"
                             )  # pragma: no cover
                         org_key_password = (
-                            self.org_key_password.encode() if self.org_key_password else None
+                            self.org_key_password.encode()
+                            if self.org_key_password
+                            else None
                         )
                         org_cert: x509.Certificate = x509.load_pem_x509_certificate(
                             org_cert_file.read(), default_backend()
@@ -141,8 +154,8 @@ class Config:
 
 
 def get_cached_config(*args, **kwargs) -> Config:
-    """ if an already cached config exists, then return an instance of that and if not then
-        initialise a new instance of the Config class.
+    """if an already cached config exists, then return an instance of that and if not then
+    initialise a new instance of the Config class.
     """
     global cached_config
     if cached_config is None:
@@ -165,4 +178,3 @@ FLASK_DEBUG: bool = bool(os.getenv("FLASK_DEBUG", "True").lower() == "true")
 # ORG_KEY_FILENAME: str = os.getenv("ORG_KEY_FILENAME", "certs/key.pem")
 # ORG_KEY_PASSWORD: str = os.getenv("ORG_KEY_PASSWORD", "")
 # ORG_CERT_FILENAME: str = os.getenv("ORG_CERT_FILENAME", "certs/cert.pem")
-
