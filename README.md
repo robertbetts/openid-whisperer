@@ -1,6 +1,9 @@
 # OpenID Whisperer - Identity Service
 OpenID Compliant Identity Service
 
+[![codecov](https://codecov.io/gh/robertbetts/openid-whisperer/branch/main/graph/badge.svg?token=DVSBZY794D)](https://codecov.io/gh/robertbetts/openid-whisperer)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 This project started life as a mock Microsoft ADFS service, it has since evolved into a compliant
 OpenID version 1 service. It covers most of the authentication flows required by applications with
 an OpenID / Oauth dependency. Recently the [MSAL](https://pypi.org/project/msal/) library was successfully
