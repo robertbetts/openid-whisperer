@@ -58,7 +58,7 @@ jobs:
       #    run test suite and output coverage file
       #----------------------------------------------
       - name: Test with coverage and pytest
-        run: poetry run coverage run -m pytest -cov-report=xml
+        run: poetry run coverage run -m pytest && poetry run coverage xml
         #----------------------------------------------
         #    Upload coverage file to codeconv.io
         #----------------------------------------------
