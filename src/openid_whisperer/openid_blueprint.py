@@ -13,16 +13,16 @@ from flask import (
 )
 from flask.typing import ResponseReturnValue
 
+from openid_whisperer.config import get_cached_config
 from openid_whisperer import openid_lib, openid_api
-from openid_whisperer.config import IDP_BASE_URL
 from openid_whisperer.openid_api import OpenidException, process_token_request
 
+config = get_cached_config()
 logger = logging.getLogger(__name__)
-openid_prefix: str = "/adfs"
 openid_blueprint: Blueprint = Blueprint(
     "openid",
     __name__,
-    url_prefix=openid_prefix,
+    url_prefix=config.id_service_prefix,
     template_folder="templates",
     static_folder="static",
 )
@@ -252,7 +252,11 @@ def devicecode() -> ResponseReturnValue:
         scope = request.form["scope"]
         resource = request.form.get("resource", "")
         response = openid_lib.devicecode_request(
-            IDP_BASE_URL, openid_prefix, client_id, scope, resource
+            config.id_provider_base_url,
+            config.id_service_prefix,
+            client_id,
+            scope,
+            resource,
         )
         status_code = 200
     except KeyError as e:
@@ -282,6 +286,10 @@ def keys() -> ResponseReturnValue:
 def openid_configuration() -> ResponseReturnValue:
     """returns OpenID Connect metadata"""
     return (
-        jsonify(openid_lib.get_openid_configuration(IDP_BASE_URL, openid_prefix)),
+        jsonify(
+            openid_lib.get_openid_configuration(
+                config.id_provider_base_url, config.id_service_prefix
+            )
+        ),
         200,
     )

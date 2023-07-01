@@ -9,6 +9,28 @@ from openid_whisperer.utils.config_utils import default_config_type, initialize_
 from openid_whisperer.config import Config, get_cached_config
 
 
+def test_messing_with_config_class():
+    with pytest.raises(ValueError):
+        config = Config(
+            defaults={"bad-property-name": (str, "property-value")}
+        )
+
+
+def test_config_type_renderer(caplog):
+    config = Config(
+        defaults={"int_property_name": (int, "bad-property-value")}
+    )
+    logger_name = "openid_whisperer.config"
+    expected_entry = (
+        logger_name,
+        30,
+        'Unable to set config parameter int_property_name, using default value '
+        'bad-property-value\n'
+        "Error: invalid literal for int() with base 10: 'bad-property-value'"
+    )
+    assert expected_entry in caplog.record_tuples
+
+
 def test_load_environment_variables(caplog):
     before_test = os.environ.get("ENVIRONMENT")
     try:

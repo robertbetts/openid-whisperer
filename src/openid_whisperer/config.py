@@ -1,9 +1,6 @@
 """ Configuration module for OpenID Whisperer
 """
 import logging
-from logging import Formatter as LogFormatter
-from typing import Tuple, Optional
-import sys
 import os
 from uuid import uuid4
 
@@ -36,6 +33,13 @@ class Config:
         "gateway_address": (str, "localhost:8100"),
         "bind_address": (get_bind_address, "0.0.0.0:8100,[::]:8100"),
         "log_level": (str, "DEBUG"),
+        "flask_debug": (bool, "false"),
+        "id_service_prefix": (str, "/adfs"),
+        "id_service_port": (int, "8100"),
+        "id_service_host": (str, "localhost"),
+        "id_service_bind": (str, "0.0.0.0"),
+        "id_service_port_gw": (int, "8100"),
+        "id_service_host_gw": (str, "localhost"),
         "ca_key_filename": (str, "certs/ca_key.pem"),
         "ca_key_password": (str, ""),
         "ca_cert_filename": (str, "certs/ca_cert.pem"),
@@ -46,52 +50,68 @@ class Config:
 
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
-        for key, value in cls.default_config.items():
+        init_config = {}
+        init_config.update(cls.default_config)
+        if "defaults" in kwargs and isinstance(kwargs["defaults"], dict):
+            init_config.update(kwargs["defaults"])
+        for key, value in init_config.items():
             _, default = value
             if not key.isidentifier():
                 raise ValueError(
-                    "default attribute %s, is not a valid identifier name", key
+                    "configuration property %s, is not a valid identifier name", key
                 )
             setattr(instance, key, default)
         return instance
 
     def __init__(
-        self, defaults: default_config_type = {}, env_target: str | None = None
+        self, defaults: default_config_type | None = None, env_target: str | None = None
     ) -> None:
+        defaults = {} if defaults is None else defaults
+        self.env_target: str | None = env_target
+        self.log_level: str = "INFO"
+        self.flask_debug: bool = False
+
+        self.id_service_prefix: str = "/adfs"
+        self.id_service_port: int = 8100
+        self.id_service_host: str = "localhost"
+        self.id_service_bind: str = "0.0.0.0"
+
+        self.ca_key_filename: str = "certs/ca_key.pem"
+        self.ca_key_password: str = ""
+        self.ca_cert_filename: str = "certs/ca_cert.pem"
+        self.org_key_filename: str = "certs/key.pem"
+        self.org_key_password: str = ""
+        self.org_cert_filename: str = "certs/cert.pem"
+
+        self.ca_key: rsa.RSAPrivateKey
+        self.ca_cert: x509.Certificate
+        self.org_key: rsa.RSAPrivateKey
+        self.org_cert: x509.Certificate
+
         self.init_defaults = {}
         self.init_defaults.update(defaults)
-        self.env_target: str | None = env_target
         self.load_config()
+
         self.init_logging()
         self.init_certs()
+
+    @property
+    def id_provider_base_url(self):
+        return f"https://{self.id_service_host}:{self.id_service_port}"
 
     def load_config(self):
         load_environment_variables(env_target=self.env_target)
         config_to_initialise: default_config_type = self.default_config.copy()
         config_to_initialise.update(self.init_defaults)
         for key, value in config_to_initialise.items():
+            func, default = value
+            env_var: str = os.environ.get(key.upper(), default)
             try:
-                if key not in self.default_config:
-                    logging.error("Invalid config parameter %s, ignoring", key)
-                    continue
-
-                func, default = value
-                env_var: str = os.environ.get(key.upper(), default)
-                try:
-                    setattr(self, key, func(env_var))
-                except Exception as e:
-                    logging.warning(
-                        "Unable to set config parameter %s, using default value %s"
-                        "\nError: %s",
-                        key.upper(),
-                        default,
-                        e,
-                    )
+                setattr(self, key, func(env_var))
             except Exception as e:
-                default = getattr(self, key)
-                logging.error(
-                    "Configuration error while Unable to for process environment variable %s"
-                    "defaulting to %s \nError: %s",
+                logger.warning(
+                    "Unable to set config parameter %s, using default value %s"
+                    "\nError: %s",
                     key,
                     default,
                     e,
@@ -147,10 +167,10 @@ class Config:
                                 "Only RSA private keys supported"
                             )  # pragma: no cover
 
-                        self.ca_key: rsa.RSAPrivateKey = ca_key
-                        self.ca_cert: x509.Certificate = ca_cert
-                        self.org_key: rsa.RSAPrivateKey = org_key
-                        self.org_cert: x509.Certificate = org_cert
+                        self.ca_key = ca_key
+                        self.ca_cert = ca_cert
+                        self.org_key = org_key
+                        self.org_cert = org_cert
 
 
 def get_cached_config(*args, **kwargs) -> Config:
@@ -161,20 +181,3 @@ def get_cached_config(*args, **kwargs) -> Config:
     if cached_config is None:
         cached_config = Config(*args, **kwargs)
     return cached_config
-
-
-ID_SERVICE_HOST_GW: str = os.getenv("ID_SERVICE_HOST_GW", "localhost")
-ID_SERVICE_PORT_GW: str = os.getenv("ID_SERVICE_PORT_GW", "8100")
-ID_SERVICE_HOST: str = os.getenv("ID_SERVICE_HOST", "localhost")
-ID_SERVICE_BINDING: str = os.getenv("ID_SERVICE_BINDING", "0.0.0.0")
-ID_SERVICE_PORT: int = int(os.getenv("ID_SERVICE_PORT", "5000"))
-IDP_BASE_URL: str = f"https://{ID_SERVICE_HOST}:{ID_SERVICE_PORT_GW}"
-IDP_BASE_URL_GW = f"https://{ID_SERVICE_HOST_GW}:{ID_SERVICE_PORT_GW}/adfs/"
-FLASK_DEBUG: bool = bool(os.getenv("FLASK_DEBUG", "True").lower() == "true")
-
-# CA_KEY_FILENAME: str = os.getenv("CA_KEY_FILENAME", "certs/root_ca_key.pem")
-# CA_KEY_PASSWORD: str = os.getenv("CA_CERT_PASSWORD", "")
-# CA_CERT_FILENAME: str = os.getenv("CA_CERT_FILENAME", "certs/root_ca_cert.pem")
-# ORG_KEY_FILENAME: str = os.getenv("ORG_KEY_FILENAME", "certs/key.pem")
-# ORG_KEY_PASSWORD: str = os.getenv("ORG_KEY_PASSWORD", "")
-# ORG_CERT_FILENAME: str = os.getenv("ORG_CERT_FILENAME", "certs/cert.pem")

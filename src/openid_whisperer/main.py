@@ -5,7 +5,6 @@ from openid_whisperer.cert_utils import get_ssl_context
 from openid_whisperer.openid_blueprint import openid_blueprint
 
 from openid_whisperer.config import get_cached_config
-from openid_whisperer.config import FLASK_DEBUG, ID_SERVICE_PORT, ID_SERVICE_BINDING
 
 
 def app() -> Flask:
@@ -28,9 +27,9 @@ def main() -> None:  # pragma: no cover
             issuer_certs=[config.ca_cert],
             verify=False,
         ),
-        host=ID_SERVICE_BINDING,
-        port=ID_SERVICE_PORT,
-        debug=FLASK_DEBUG,
+        host=config.id_service_bind,
+        port=config.id_service_port,
+        debug=config.flask_debug,
     )
 
 
