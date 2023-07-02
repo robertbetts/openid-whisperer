@@ -10,9 +10,9 @@ from openid_whisperer.config import get_cached_config
 def app() -> Flask:
     """returns WSGI compliant Object wrapper for openid_whisperer"""
     config = get_cached_config()
-    config.init_logging()
     flask_app = Flask(__name__)
     flask_app.register_blueprint(openid_blueprint)
+    config.init_logging()
     return flask_app
 
 

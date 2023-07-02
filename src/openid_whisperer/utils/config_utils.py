@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 
 default_config_type = Dict[str, Iterable[Tuple[Callable[[str], Any], str]]]
 
-DEFAULT_LOGGING_FORMAT = \
-    "[%(levelname)1.1s %(asctime)s.%(msecs)03d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
+DEFAULT_LOGGING_FORMAT = "[%(levelname)1.1s %(asctime)s.%(msecs)03d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
 
 logger = logging.getLogger(__name__)
 

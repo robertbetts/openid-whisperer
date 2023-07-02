@@ -39,6 +39,7 @@ def test_post_authorize_code_error(client):
     )
     secret = "very long dev reminder"
     data = {
+        "response_type": response_type,
         "grant_type": "password",
         "client_id": client_id,
         "resource": resource_uri,
@@ -69,6 +70,7 @@ def test_post_authorize_code_error(client):
     assert "auth_processing_error" in response.location
 
     response_type = "code"
+    data["response_type"] = response_type
     data["UserName"] = "user@domain"
     redirect_url = "http://test/api/handleAccessToken"
     nonce = ""
@@ -105,6 +107,7 @@ def test_post_authorize_token_error(client):
     domain_username = f"{username}@{domain}"
     secret = "very long dev reminder"
     data = {
+        "response_type": response_type,
         "grant_type": "password",
         "client_id": client_id,
         "resource": resource_uri,
@@ -113,15 +116,14 @@ def test_post_authorize_token_error(client):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 200
     result = json.loads(response.text)
     assert "error_code" in result
     assert "A valid username and user_secret is required" in result["error_description"]
+    assert response.status_code == 403
 
     data["UserName"] = ""
-
     response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 403
     result = json.loads(response.text)
     assert "error_code" in result
     assert "A valid username and user_secret is required" in result["error_description"]
@@ -131,6 +133,7 @@ def test_post_authorize_token_error(client):
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
         scope, response_type, client_id, resource_uri, redirect_url, nonce, state
     )
+    data["response_type"] = response_type
     data["UserName"] = domain_username
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 403
@@ -142,6 +145,7 @@ def test_post_authorize_token_error(client):
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
         scope, response_type, client_id, resource_uri, redirect_url, nonce, state
     )
+    data["response_type"] = response_type
     data["UserName"] = domain_username
     response = client.patch(auth_url, data=data, headers=headers)
     assert response.status_code == 405

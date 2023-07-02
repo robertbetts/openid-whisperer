@@ -20,7 +20,7 @@ def test_config_type_renderer(caplog):
     config = Config(
         defaults={"int_property_name": (int, "bad-property-value")}
     )
-    logger_name = "openid_whisperer.config"
+    logger_name = "root"
     expected_entry = (
         logger_name,
         30,
@@ -89,7 +89,7 @@ def test_get_config():
 def test_init_config():
     empty_defaults: default_config_type = {}
     config = Config(defaults=empty_defaults, env_target="testing")
-    assert config.bind_address == ["0.0.0.0:8100", "[::]:8100"]
+    assert config.bind_address == ["0.0.0.0:5000", "[::]:5000"]
     assert config.gateway_address == "localhost:8100"
 
     assert get_bind_address("bad-bind-address") == []

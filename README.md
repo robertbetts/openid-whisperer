@@ -16,6 +16,12 @@ Active development is done on both Windows 10 and macOS 13.4, testing is run aga
 as well as Ubuntu 22.04
 
 
+## Microsoft Authentication Library MSAL
+This is used as 3rd party testing kit to verify the implemented authentication flows. The 
+current MSAL code examples run through:
+* device_code_flow.py
+* username_and_password_example.py
+
 ## Environment Setup
 1. Install Python, this project is developed with CPython ^3.11
 2. Upgrade pip 
@@ -79,4 +85,10 @@ poetry run python -m mock_api_service
 Run Mock API Service Client (from project root)
 ```
 poetry run python -m mock_api_service.mock_api_client 
+```
+
+Build and Run Docker Container
+```
+docker build -t opendid-whisperer:0.1.0 .
+docker run --name=openid-whisperer -p5005:5000  -eID_SERVICE_PORT_GW=5005 opendid-whisperer:0.1.0
 ```

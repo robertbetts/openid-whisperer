@@ -1,6 +1,6 @@
 import pytest
-from openid_whisperer.openid_api import validate_response_type, validate_response_mode, OpenidException, \
-    validate_client_id, validate_grant_type
+from openid_whisperer.openid_api import validate_response_type, validate_response_mode, validate_client_id, validate_grant_type
+from openid_whisperer.openid_lib import OpenidException
 
 
 def test_valid_response_types():
@@ -64,7 +64,7 @@ def test_validate_client_id():
     client_id: str = None
     client_secret: str | None = None
     try:
-        validate_client_id(client_id, client_secret)
+        validate_client_id(client_id)
     except OpenidException as e:
         assert e.error_description == "Unable to validate the referring client application."
 

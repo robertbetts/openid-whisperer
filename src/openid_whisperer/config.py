@@ -19,7 +19,6 @@ from openid_whisperer.utils.config_utils import (
     initialize_logging,
 )
 
-logger = logging.getLogger(__name__)
 cached_config = None
 
 
@@ -31,11 +30,12 @@ class Config:
     default_config: default_config_type = {
         "instance_id": (str, uuid4().hex),
         "gateway_address": (str, "localhost:8100"),
-        "bind_address": (get_bind_address, "0.0.0.0:8100,[::]:8100"),
-        "log_level": (str, "DEBUG"),
-        "flask_debug": (bool, "false"),
+        "bind_address": (get_bind_address, "0.0.0.0:5000,[::]:5000"),
+        "log_level": (str, "info"),
+        "flask_debug": (bool, "False"),
+        "validate_certs": (bool, "False"),
         "id_service_prefix": (str, "/adfs"),
-        "id_service_port": (int, "8100"),
+        "id_service_port": (int, "5000"),
         "id_service_host": (str, "localhost"),
         "id_service_bind": (str, "0.0.0.0"),
         "id_service_port_gw": (int, "8100"),
@@ -68,13 +68,16 @@ class Config:
     ) -> None:
         defaults = {} if defaults is None else defaults
         self.env_target: str | None = env_target
-        self.log_level: str = "INFO"
+        self.log_level: str = "info"
         self.flask_debug: bool = False
+        self.validate_certs = False
 
         self.id_service_prefix: str = "/adfs"
         self.id_service_port: int = 8100
         self.id_service_host: str = "localhost"
         self.id_service_bind: str = "0.0.0.0"
+        self.id_service_port_gw = "5000"
+        self.id_service_host_gw = "localhost"
 
         self.ca_key_filename: str = "certs/ca_key.pem"
         self.ca_key_password: str = ""
@@ -97,7 +100,13 @@ class Config:
 
     @property
     def id_provider_base_url(self):
+        """This url must be accessible to the client interacting with the identity provider"""
         return f"https://{self.id_service_host}:{self.id_service_port}"
+
+    @property
+    def id_provider_base_url_external(self):
+        """This url must be accessible to the end user interacting with the identity provider"""
+        return f"https://{self.id_service_host_gw}:{self.id_service_port_gw}"
 
     def load_config(self):
         load_environment_variables(env_target=self.env_target)
@@ -107,9 +116,11 @@ class Config:
             func, default = value
             env_var: str = os.environ.get(key.upper(), default)
             try:
-                setattr(self, key, func(env_var))
+                key_value = func(env_var)
+                setattr(self, key, key_value)
+                logging.critical(f"{key.upper()}: {key_value}")
             except Exception as e:
-                logger.warning(
+                logging.warning(
                     "Unable to set config parameter %s, using default value %s"
                     "\nError: %s",
                     key,
@@ -119,7 +130,7 @@ class Config:
 
     def init_logging(self, log_level: str | None = None):
         log_level = log_level if log_level else self.log_level
-        initialize_logging(log_level=log_level)
+        initialize_logging(log_level=log_level, logger_name="openid_whisperer")
 
     def init_certs(self) -> None:
         """Loads from files, CA and Org private keys and certificates. filenames are defaulted from
