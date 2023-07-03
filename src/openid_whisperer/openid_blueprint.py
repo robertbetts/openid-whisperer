@@ -304,7 +304,9 @@ def devicecode() -> ResponseReturnValue:
     """
     try:
         client_id = request.form["client_id"]
+        """ this is a reminder
         client_secret = request.form.get("client_secret")
+        """
         scope = request.form["scope"]
         resource = request.form.get("resource", "")
         # TODO: Check that the verification_uri returned in the response, is accessible to the the end user

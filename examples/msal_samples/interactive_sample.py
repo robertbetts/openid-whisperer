@@ -45,7 +45,7 @@ app = msal.PublicClientApplication(
     authority=config["authority"],
     validate_authority=False,
     verify=False,
-    #allow_broker=True,  # If opted in, you will be guided to meet the prerequisites, when applicable
+    # allow_broker=True,  # If opted in, you will be guided to meet the prerequisites, when applicable
     # See also: https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-desktop-acquire-token-wam#wam-value-proposition
     # token_cache=...  # Default cache is in memory only.
     # You can learn how to use SerializableTokenCache from
@@ -72,16 +72,15 @@ if not result:
     print("A local browser window will be open for you to sign in. CTRL+C to cancel.")
     result = app.acquire_token_interactive(  # Only works if your app is registered with redirect_uri as http://localhost
         config["scope"],
-        #parent_window_handle=...,  # If broker is enabled, you will be guided to provide a window handle
+        # parent_window_handle=...,  # If broker is enabled, you will be guided to provide a window handle
         login_hint=config.get("username"),  # Optional.
         # If you know the username ahead of time, this parameter can pre-fill
         # the username (or email address) field of the sign-in page for the user,
         # Often, apps use this parameter during reauthentication,
         # after already extracting the username from an earlier sign-in
         # by using the preferred_username claim from returned id_token_claims.
-
-        #prompt=msal.Prompt.SELECT_ACCOUNT,  # Or simply "select_account". Optional. It forces to show account selector page
-        #prompt=msal.Prompt.CREATE,  # Or simply "create". Optional. It brings user to a self-service sign-up flow.
+        # prompt=msal.Prompt.SELECT_ACCOUNT,  # Or simply "select_account". Optional. It forces to show account selector page
+        # prompt=msal.Prompt.CREATE,  # Or simply "create". Optional. It brings user to a self-service sign-up flow.
         # Prerequisite: https://docs.microsoft.com/en-us/azure/active-directory/external-identities/self-service-sign-up-user-flow
     )
 
@@ -89,7 +88,8 @@ if "access_token" in result:
     # Calling graph using the access token
     graph_response = requests.get(  # Use token to call downstream service
         config["endpoint"],
-        headers={'Authorization': 'Bearer ' + result['access_token']},)
+        headers={"Authorization": "Bearer " + result["access_token"]},
+    )
     print("Graph API call result: %s ..." % graph_response.text[:100])
 else:
     print(result.get("error"))

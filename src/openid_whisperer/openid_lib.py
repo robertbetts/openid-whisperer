@@ -290,7 +290,7 @@ def create_authorisation_code(
                     f"Invalid user code {code_challenge}",
                 )
             authorisation_code = device_code_request["device_code"]
-            # TODO: Check validity and expiry of device code request
+            # TODO: Validity and expiry check of device code request
         else:
             authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
 

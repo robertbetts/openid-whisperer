@@ -31,7 +31,7 @@ environments as well as under Ubuntu 22.04 through GitHub Actions.
 ```commandline
 python -m pip --upgrade pip
 ```
-3. Install Poetry, this is the package manager for this project. Currently using 1.5.1
+3. Install Poetry, this is the package manager for this project. Currently, using 1.5.1
 ```
 python -m pip install poetry
 ```

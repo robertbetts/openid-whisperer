@@ -29,26 +29,30 @@ import msal
 
 
 def submit_credentials_with_challenge_code(config, challenge_info):
-
     data = {
         "response_type": "code",
         "client_id": config["client_id"],
         "UserName": config["username"],
         "Password": config["password"],
         "code_challenge_method": "plain",
-        "CodeChallenge": challenge_info["user_code"]
+        "CodeChallenge": challenge_info["user_code"],
     }
 
     query = urlparse(challenge_info["verification_uri"]).query
-    query_items: List[tuple[str, str]] = \
-        [(item.split("=", 1)[0], item.split("=", 1)[1]) for item in [part for part in query.split("&")]]
+    query_items: List[tuple[str, str]] = [
+        (item.split("=", 1)[0], item.split("=", 1)[1])
+        for item in [part for part in query.split("&")]
+    ]
     query_params = dict(query_items)
     logging.info(pformat(query_params))
 
     auth_url = challenge_info["verification_uri"]
     logging.info(auth_url)
 
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
     response = requests.post(auth_url, data=data, headers=headers, verify=False)
     logging.info(response.status_code)
     if response.status_code != 200:
@@ -106,14 +110,14 @@ if not result:
     flow = app.initiate_device_flow(scopes=config["scope"])
     if "user_code" not in flow:
         raise ValueError(
-            "Fail to create device flow. Err: %s" % json.dumps(flow, indent=4))
+            "Fail to create device flow. Err: %s" % json.dumps(flow, indent=4)
+        )
 
     print(flow["message"])
     sys.stdout.flush()  # Some terminal needs this to ensure the message is shown
 
     # Short cust to emulate what the user would do
     submit_credentials_with_challenge_code(config, flow)
-
 
     # Ideally you should wait here, in order to save some unnecessary polling
     # input("Press Enter after signing in from another device to proceed, CTRL+C to abort.")
@@ -128,7 +132,7 @@ if "access_token" in result:
     # Calling graph using the access token
     graph_data = requests.get(  # Use token to call downstream service
         config["endpoint"],
-        headers={'Authorization': 'Bearer ' + result['access_token']},
+        headers={"Authorization": "Bearer " + result["access_token"]},
         verify=False,
     ).json()
     print("API call result: %s" % json.dumps(graph_data, indent=2))

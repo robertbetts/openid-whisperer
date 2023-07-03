@@ -4,29 +4,29 @@ import os
 import pytest
 
 import openid_whisperer.config
-from openid_whisperer.utils.config_utils import default_config_type, initialize_logging, load_environment_variables, \
-    get_bind_address
+from openid_whisperer.utils.config_utils import (
+    default_config_type,
+    initialize_logging,
+    load_environment_variables,
+    get_bind_address,
+)
 from openid_whisperer.config import Config, get_cached_config
 
 
 def test_messing_with_config_class():
     with pytest.raises(ValueError):
-        config = Config(
-            defaults={"bad-property-name": (str, "property-value")}
-        )
+        config = Config(defaults={"bad-property-name": (str, "property-value")})
 
 
 def test_config_type_renderer(caplog):
-    config = Config(
-        defaults={"int_property_name": (int, "bad-property-value")}
-    )
+    config = Config(defaults={"int_property_name": (int, "bad-property-value")})
     logger_name = "root"
     expected_entry = (
         logger_name,
         30,
-        'Unable to set config parameter int_property_name, using default value '
-        'bad-property-value\n'
-        "Error: invalid literal for int() with base 10: 'bad-property-value'"
+        "Unable to set config parameter int_property_name, using default value "
+        "bad-property-value\n"
+        "Error: invalid literal for int() with base 10: 'bad-property-value'",
     )
     assert expected_entry in caplog.record_tuples
 
@@ -40,36 +40,51 @@ def test_load_environment_variables(caplog):
         caplog.clear()
         load_environment_variables()
         assert os.environ["ENVIRONMENT"] == "DEV"
-        assert (logger_name, logging.WARNING, "Defaulting target environment variable ENVIRONMENT to DEV") \
-               in caplog.record_tuples
+        assert (
+            logger_name,
+            logging.WARNING,
+            "Defaulting target environment variable ENVIRONMENT to DEV",
+        ) in caplog.record_tuples
 
         os.environ["ENVIRONMENT"] = ""
         caplog.clear()
         load_environment_variables(env_target="TEST")
         assert os.environ["ENVIRONMENT"] == "TEST"
-        assert (logger_name, logging.WARNING, "Defaulting os environment variable ENVIRONMENT to TEST") \
-               in caplog.record_tuples
+        assert (
+            logger_name,
+            logging.WARNING,
+            "Defaulting os environment variable ENVIRONMENT to TEST",
+        ) in caplog.record_tuples
 
         os.environ["ENVIRONMENT"] = "DEV"
         caplog.clear()
         load_environment_variables()
         assert os.environ["ENVIRONMENT"] == "DEV"
-        assert (logger_name, logging.WARNING, "Using target environment from variable ENVIRONMENT, DEV") \
-               in caplog.record_tuples
+        assert (
+            logger_name,
+            logging.WARNING,
+            "Using target environment from variable ENVIRONMENT, DEV",
+        ) in caplog.record_tuples
 
         os.environ["ENVIRONMENT"] = "DEV"
         caplog.clear()
         load_environment_variables("TEST")
         assert os.environ["ENVIRONMENT"] == "TEST"
-        assert (logger_name, logging.WARNING, "Overriding os environment variable ENVIRONMENT from DEV to TEST") \
-               in caplog.record_tuples
+        assert (
+            logger_name,
+            logging.WARNING,
+            "Overriding os environment variable ENVIRONMENT from DEV to TEST",
+        ) in caplog.record_tuples
 
         os.environ["ENVIRONMENT"] = "TEST"
         caplog.clear()
         load_environment_variables("TEST")
         assert os.environ["ENVIRONMENT"] == "TEST"
-        assert (logger_name, logging.INFO, "Target environment is TEST") \
-               in caplog.record_tuples
+        assert (
+            logger_name,
+            logging.INFO,
+            "Target environment is TEST",
+        ) in caplog.record_tuples
 
     except Exception:  # pragma: no cover
         raise  # pragma: no cover
@@ -96,7 +111,5 @@ def test_init_config():
 
 
 def test_initialize_logging():
-    """ happy just to run through the code, trying to
-    """
+    """happy just to run through the code, trying to"""
     initialize_logging(log_level="DEBUG")
-

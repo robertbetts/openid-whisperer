@@ -47,7 +47,8 @@ config = {
 
 # Create a preferably long-lived app instance which maintains a token cache.
 app = msal.ClientApplication(
-    config["client_id"], authority=config["authority"],
+    config["client_id"],
+    authority=config["authority"],
     client_credential=config.get("client_secret"),
     validate_authority=False,
     verify=False,
@@ -71,13 +72,14 @@ if not result:
     # See this page for constraints of Username Password Flow.
     # https://github.com/AzureAD/microsoft-authentication-library-for-python/wiki/Username-Password-Authentication
     result = app.acquire_token_by_username_password(
-        config["username"], config["password"], scopes=config["scope"])
+        config["username"], config["password"], scopes=config["scope"]
+    )
 
 if "access_token" in result:
     # Calling graph using the access token
     graph_data = requests.get(  # Use token to call downstream service
         config["endpoint"],
-        headers={'Authorization': 'Bearer ' + result['access_token']},
+        headers={"Authorization": "Bearer " + result["access_token"]},
         verify=False,
     ).json()
     print("API call result: %s" % json.dumps(graph_data, indent=2))
@@ -85,6 +87,10 @@ else:
     print(result.get("error"))
     print(result.get("error_description"))
     print(result.get("correlation_id"))  # You may need this when reporting a bug
-    if 65001 in result.get("error_codes", []):  # Not mean to be coded programatically, but...
+    if 65001 in result.get(
+        "error_codes", []
+    ):  # Not mean to be coded programatically, but...
         # AAD requires user consent for U/P flow
-        print("Visit this to consent:", app.get_authorization_request_url(config["scope"]))
+        print(
+            "Visit this to consent:", app.get_authorization_request_url(config["scope"])
+        )

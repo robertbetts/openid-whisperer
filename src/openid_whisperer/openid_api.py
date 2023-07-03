@@ -9,6 +9,7 @@ class AuthTemplateInput(TypedDict):
     termination_reply: str
     action: str
     client_id: str
+    scope: str
     redirect_uri: str
     response_mode: str
     response_type: str
@@ -270,6 +271,8 @@ def initiate_end_user_authentication(
         code_challenge method.
     """
 
+    _ = (state, nonce, rcode)  # interface variables provided for future features
+
     response_type = validate_response_type(response_type)
     response_mode = validate_response_mode(response_type, response_mode)
     if client_id == "":
@@ -281,7 +284,8 @@ def initiate_end_user_authentication(
     scope = scope if scope else ""
     if resource not in scope:
         scope = f"{scope} {resource}"
-        resource = ""
+        # Do not reference resource again in this function, use scope
+
     if "openid" not in scope:
         scope = f"openid {scope}"
 
@@ -304,6 +308,7 @@ def initiate_end_user_authentication(
         "termination_reply": "",
         "action": action,
         "client_id": client_id,
+        "scope": scope,
         "redirect_uri": redirect_uri,
         "response_mode": response_mode,
         "response_type": response_type,
@@ -370,7 +375,7 @@ def process_end_user_authentication(
         required str, authentication secret to aid in verifying the asserted user
     **kwargs:
         resource:
-            optional str, permissioned resource identifier. when provided is added to the scope claims. This
+            optional str, permission resource identifier. when provided is added to the scope claims. This
             input provided as backwards compatibility and is superseded by the use of scope.
         state:
             optional str, client provided value included in the authentication request that must be returned
@@ -388,6 +393,9 @@ def process_end_user_authentication(
             if sent, the code_verifier must be also sent this code on the token call. Required when client
             must do PKCE (RFC7636).
     """
+
+    _ = client_secret, response_mode  # interface variables provided for future features
+
     if not validate_client_id(client_id):
         # This is a cursory validation at present and this condition will not fail unless
         # client_id is None or empty or client_secret is None.
@@ -425,7 +433,10 @@ def process_end_user_authentication(
             raise OpenidException(
                 "auth_processing_error", "A valid nonce value is required"
             )
+        """ 
+        # TODO: Response mode should be checked as it can influence a code response type redirect
         response_mode = validate_response_mode(response_type, response_mode)
+        """
 
     scope = scope if scope else "openid"
     resource: str = stringify(kwargs.get("resource"))
@@ -540,6 +551,13 @@ def process_token_request(
         was used in the authorization code grant request. For more information, see the PKCE RFC. This option
         applies to AD FS 2019 and later.
     """
+
+    _ = (
+        client_secret,
+        redirect_uri,
+        code_verifier,
+    )  # interface variables provided for future features
+
     grant_type = validate_grant_type(grant_type)
 
     response: Dict[str, Any] | None = None

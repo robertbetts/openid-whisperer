@@ -33,12 +33,12 @@
             if (!this.canDisplayError){
                 throw new Error ('Error element not present');
             }
-            if (this.errLabel && this.errLabel.innerHTML) {
+            if (this.errLabel?.innerHTML) {
                 this.errDisplay.style.display = '';
                 var cause = this.errLabel.getAttribute('for');
                 if (cause) {
                     var causeNode = document.getElementById(cause);
-                    if (causeNode && causeNode.value) {
+                    if (causeNode?.value) {
                         causeNode.focus();
                         this.hasFocus = true;
                     }
@@ -228,7 +228,7 @@
                             </form>
 
                             <div id="authOptions">
-                                <form id="options" method="post" action="{{action}}}">
+                                <form id="options" method="post" action="{{ action }}}">
                                     <script type="text/javascript">
                                         function SelectOption(option) {
                                             var w = document.getElementById('waitingWheelDiv');
@@ -442,6 +442,7 @@
                                 //<![CDATA[
 
                                 function Login() {
+                                    // This is intentional
                                 }
 
                                 Login.userNameInput = 'userNameInput';
@@ -458,14 +459,14 @@
                                 }();
 
                                 Login.submitLoginRequest = function () {
-                                    var u = new InputUtil();
-                                    var e = new LoginErrors();
+                                    const u = new InputUtil();
+                                    const e = new LoginErrors();
 
-                                    var userName = document.getElementById(Login.userNameInput);
-                                    var password = document.getElementById(Login.passwordInput);
-                                    var codeChallenge = document.getElementById(Login.codeChallengeInput);
+                                    const userName = document.getElementById(Login.userNameInput);
+                                    const password = document.getElementById(Login.passwordInput);
+                                    const codeChallenge = document.getElementById(Login.codeChallengeInput);
 
-                                    if (!userName.value || !userName.value.match('[@\\\\]')) {
+                                    if (!userName.value?.match('[@\\\\]')) {
                                         u.setError(userName, e.userNameFormatError);
                                         return false;
                                     }
@@ -480,17 +481,18 @@
                                         return false;
                                     }
 
-                                    if (codeChallenge && !codeChallenge.value) {
+                                    if (!codeChallenge?.value) {
                                         u.setError(password, e.codeChallengeEmpty);
                                         return false;
                                     }
 
                                     document.forms['loginForm'].submit();
-                                    return false;
+                                    //return false;
                                 };
 
                                 InputUtil.makePlaceholder(Login.userNameInput);
                                 InputUtil.makePlaceholder(Login.passwordInput);
+
                                 //]]>
                             </script>
                         </div>

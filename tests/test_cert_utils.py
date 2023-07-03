@@ -20,7 +20,8 @@ def test_certificate_dump(config):
             private_key=config.org_key,
             certificate=config.org_cert,
             ca_certificate=config.ca_cert,
-            location=temp_dir_name)
+            location=temp_dir_name,
+        )
         assert os.path.exists(os.path.join(temp_dir_name, "cert.pem"))
         assert os.path.exists(os.path.join(temp_dir_name, "key.pem"))
         assert os.path.exists(os.path.join(temp_dir_name, "cert-chain.pem"))
@@ -30,7 +31,8 @@ def test_certificate_dump(config):
             private_key=config.org_key,
             certificate=config.org_cert,
             ca_certificate=config.ca_cert,
-            location=temp_dir_name)
+            location=temp_dir_name,
+        )
 
         # Test file overwriting
         cert_utils.dump_cert_and_ca_bundle(
@@ -50,7 +52,10 @@ def test_generate_key_and_certificate():
     # logging.info(f"issuer: {issuer}")
     # logging.info(f"subject: {subject}")
     assert issuer == subject
-    assert issuer == "CN=ID CA,O=Identity Certification Authority,L=Glasgow,ST=Scotland,C=UK"
+    assert (
+        issuer
+        == "CN=ID CA,O=Identity Certification Authority,L=Glasgow,ST=Scotland,C=UK"
+    )
 
     # Test Org
     hostnames = "app-host, openid-host, 10.44.55.66"
@@ -59,15 +64,19 @@ def test_generate_key_and_certificate():
     subject = certs[1].subject.rfc4514_string()
     # logging.info(f"issuer: {issuer}")
     # logging.info(f"subject: {subject}")
-    assert issuer == "CN=ID CA,O=Identity Certification Authority,L=Glasgow,ST=Scotland,C=UK"
-    assert subject == "CN=Service Provider,O=Service Provider,L=Glasgow,ST=Scotland,C=UK"
+    assert (
+        issuer
+        == "CN=ID CA,O=Identity Certification Authority,L=Glasgow,ST=Scotland,C=UK"
+    )
+    assert (
+        subject == "CN=Service Provider,O=Service Provider,L=Glasgow,ST=Scotland,C=UK"
+    )
 
     # Test certificate Validation
     cert_utils.check_sha256_certificate(certs[1], ca_certs[1])
     with pytest.raises(InvalidSignature):
         invalid_ca_certs = cert_utils.generate_ca_key_and_certificate()
         cert_utils.check_sha256_certificate(certs[1], invalid_ca_certs[1])
-
 
     # Test Hostname inputs
     hostnames = ["app-host", "10.44.55.66"]

@@ -14,6 +14,10 @@ import requests
 import jwt
 
 
+class OpenidClientException(Exception):
+    ...
+
+
 def replace_base_netloc(url1: str, url2: str) -> str:
     """Combine the network location of url1 with scheme, path, query and fragment of url2"""
     parts1 = urlsplit(url1)
@@ -44,7 +48,7 @@ class IdentityConfig(UserDict):
             self.update(config_data)
         else:
             logging.error("Failed identity provider endpoint {}".format(endpoint))
-            raise Exception(
+            raise OpenidClientException(
                 "Unable to connect to the identity provider\n{}".format(response.text)
             )
 
@@ -96,8 +100,6 @@ class OpenIDClient:
         audience is mandatory token check, as a minimum the aud claim will always contain the OpenID client_id. Where
         resource has been specified, this will be included in the aud claim.
         Where the audience parameter is None, the audience is assigned [self.client_id, self.resource]
-
-
         """
         at_list = access_token.split(".")
         # Adjust the left padding to avoid the base64 padding error
@@ -174,14 +176,15 @@ class OpenIDClient:
                 token_errors.append((access_token, e))
 
         err = None
-        if token_errors:
-            err = token_errors[0][1]
-            for error in token_errors:
-                logging.error("%s", error[1])
-        if key_errors:
-            err = key_errors[0][1] if err is None else err
-            for error in key_errors:
-                logging.error("keyError: %s", error[1])
+
+        for error in token_errors:
+            err = error[1] if err is None else err
+            logging.error("%s", error[1])
+
+        for error in key_errors:
+            err = error[1] if err is None else err
+            logging.error("keyError: %s", error[1])
+
         if err:
             raise err
 
@@ -214,6 +217,7 @@ class OpenIDClient:
         use_gateway: bool = False,
     ) -> Dict[str, Any]:
         """make a rest call to an identity service for the issuance of a valid jwt"""
+        _ = mfa  # providing interface support for the function in advance of the feature
         request_data = {
             "grant_type": "password",
             "client_id": self.client_id,

@@ -4,8 +4,7 @@ import secrets
 
 
 def test_get_authorize_error(client):
-    """ Test missing query parameter client_id
-    """
+    """Test missing query parameter client_id"""
     scope = "openid profile"
     response_type = "code"
     # client_id = "ID_12345"
@@ -23,8 +22,8 @@ def test_get_authorize_error(client):
 
 
 def test_post_authorize_code_error(client):
-    """ 1) Test missing form parameter UserName
-        2) Test invalid credentials
+    """1) Test missing form parameter UserName
+    2) Test invalid credentials
     """
     scope = "openid profile"
     response_type = "code"
@@ -45,7 +44,10 @@ def test_post_authorize_code_error(client):
         "resource": resource_uri,
         "Password": secret,
     }
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 302
     assert "error_code" in response.location
@@ -86,10 +88,10 @@ def test_post_authorize_code_error(client):
 
 
 def test_post_authorize_token_error(client):
-    """ 1) Test missing form parameter UserName
-        2) Test invalid credentials
-        3) Test invalid response_type input
-        4) Test invalid request method
+    """1) Test missing form parameter UserName
+    2) Test invalid credentials
+    3) Test invalid response_type input
+    4) Test invalid request method
     """
     scope = "openid profile"
     response_type = "token id_token"
@@ -114,7 +116,10 @@ def test_post_authorize_token_error(client):
         # "UserName": domain_username,
         "Password": secret,
     }
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
     response = client.post(auth_url, data=data, headers=headers)
     result = json.loads(response.text)
     assert "error_code" in result
@@ -152,19 +157,25 @@ def test_post_authorize_token_error(client):
 
 
 def test_post_get_token_error(client):
-    """ 1) Test invalid grant_type
-        2) when grant_type is password with invalid credentials
+    """1) Test invalid grant_type
+    2) when grant_type is password with invalid credentials
     """
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "invalid",
     }
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     result = json.loads(response.text)
     assert result["error"] == "auth_processing_error"
-    assert result["error_description"] == f"The grant_type of '{data['grant_type']}' is not supported"
+    assert (
+        result["error_description"]
+        == f"The grant_type of '{data['grant_type']}' is not supported"
+    )
 
     scope = "openid profile"
     client_id = "ID_12345"
@@ -182,9 +193,14 @@ def test_post_get_token_error(client):
         "client_id": client_id,
         "resource": resource_uri,
     }
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     result = json.loads(response.text)
     assert result["error"] == "bad_token_request"
-    assert result["error_description"] == "Unable to retrieve token for grant 'password'"
+    assert (
+        result["error_description"] == "Unable to retrieve token for grant 'password'"
+    )

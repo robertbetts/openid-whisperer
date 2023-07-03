@@ -22,7 +22,7 @@ body
 #noScript { margin:16px; color:Black; }
 
 :lang(en-GB){quotes:'\2018' '\2019' '\201C' '\201D';}
-:lang(zh){font-family:å¾®è½¯é›…é»‘;}
+:lang(zh){font-family: Helvetica, Arial, Verdana, Tahoma, sans-serif;}
 
 @-ms-viewport { width: device-width; }
 @-moz-viewport { width: device-width; }
