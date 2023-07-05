@@ -89,6 +89,7 @@ if "access_token" in result:
     graph_response = requests.get(  # Use token to call downstream service
         config["endpoint"],
         headers={"Authorization": "Bearer " + result["access_token"]},
+        verify=False,
     )
     print("Graph API call result: %s ..." % graph_response.text[:100])
 else:
