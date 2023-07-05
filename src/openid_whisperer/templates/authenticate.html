@@ -220,10 +220,15 @@
                                 </div>
                                 <input id="optionClientId" type="hidden" name="client_id" value="{{ client_id }}"/>
                                 <input id="optionRedirectUri" type="hidden" name="redirect_uri" value="{{ redirect_uri }}"/>
+                                <input id="optionNonce" type="hidden" name="nonce" value="{{ nonce }}"/>
+                                <input id="optionState" type="hidden" name="state" value="{{ state }}"/>
+                                {% if requires_pkce %}
+                                <input id="optionCodeChallenge" type="hidden" name="code_challenge" value="{{ code_challenge }}"/>
+                                {% endif %}
+                                <input id="optionCodeChallengeMethod" type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}"/>
                                 <input id="optionResponseMode" type="hidden" name="response_mode" value="{{ response_mode }}"/>
                                 <input id="optionResponseType" type="hidden" name="response_type" value="{{ response_type }}"/>
                                 <input id="optionPrompt" type="hidden" name="prompt" value="{{ prompt }}"/>
-                                <input id="optionCodeChallengeMethod" type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}"/>
                                 <input id="optionForms" type="hidden" name="AuthMethod" value="FormsAuthentication"/>
                             </form>
 
@@ -481,7 +486,7 @@
                                         return false;
                                     }
 
-                                    if (!codeChallenge?.value) {
+                                    if (codeChallenge && !codeChallenge.value) {
                                         u.setError(password, e.codeChallengeEmpty);
                                         return false;
                                     }

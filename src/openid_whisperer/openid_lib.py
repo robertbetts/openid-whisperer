@@ -32,6 +32,22 @@ from jwt.utils import to_base64url_uint
 
 # Module configuration Information and default values
 from openid_whisperer.config import get_cached_config
+from openid_whisperer.openid_lib_types import DeviceCodeRequestResponse
+
+
+class OpenidException(Exception):
+    def __init__(self, error_code: str, error_description: str):
+        Exception.__init__(self, f"{error_code}: {error_description}")
+        self.error_code: str = error_code
+        self.error_description: str = error_description
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "error": self.error_code,
+            "error_code": self.error_code,
+            "error_description": self.error_description,
+        }
+
 
 config = get_cached_config()
 EXPIRES_SECONDS: int = 600
@@ -272,7 +288,9 @@ def create_authorisation_code(
     username: str,
     nonce: str,
     scope: str,
+    code_challenge_method: str | None = None,
     code_challenge: str | None = None,
+    user_code: str | None = None,
     expiry_timeout: int = 600,
 ) -> Optional[str]:
     """Create an authorisation code to pass back to the authorisation requester client_id
@@ -280,14 +298,15 @@ def create_authorisation_code(
 
     When a value for code_challenge is entered, then we assume device code authentication flow.
     """
+    # TODO: Complete PKCE and S256 on code_challenge and user_code
     authorisation_code: str | None = None
     if client_id and username:
-        if code_challenge:
-            device_code_request = device_code_requests.pop(code_challenge, None)
+        if user_code:
+            device_code_request = device_code_requests.pop(user_code, None)
             if device_code_request is None:
                 raise OpenidException(
                     "code_challenge_error",
-                    f"Invalid user code {code_challenge}",
+                    f"Invalid user code {user_code}",
                 )
             authorisation_code = device_code_request["device_code"]
             # TODO: Validity and expiry check of device code request
@@ -314,7 +333,7 @@ def devicecode_request(
     client_id: str,
     scope: str,
     resource: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> DeviceCodeRequestResponse:
     """Generate a time limited user code, that can be authenticated against in order to create
     a valid token
 
@@ -328,10 +347,13 @@ def devicecode_request(
 
     # code the user will have to enter when authorising
     # if a user code exists, then generate a new code
+    user_code: str
     while True:
         user_code = "".join(secrets.choice(string.digits) for _ in range(8))
         if user_code not in device_code_requests:
             break
+
+    device_code = hashlib.sha256(user_code.encode('ascii')).hexdigest()
 
     expires_in = datetime.utcnow() + timedelta(minutes=15)
     response_type = "code"
@@ -435,7 +457,9 @@ def authenticate_code(
     user_secret: str,
     nonce: str,
     scope: str,
+    code_challenge_method: str | None = None,
     code_challenge: str | None = None,
+    user_code: str | None = None,
     kmsi: str | None = None,
     mfa_code: str | None = None,
 ) -> Optional[str]:
@@ -447,20 +471,14 @@ def authenticate_code(
     response: str | None = None
     if authenticate(client_id, resource, username, user_secret, mfa_code):
         response = create_authorisation_code(
-            client_id, resource, username, nonce, scope, code_challenge
+            client_id,
+            resource,
+            username,
+            nonce,
+            scope,
+            code_challenge_method,
+            code_challenge,
+            user_code,
         )
+
     return response
-
-
-class OpenidException(Exception):
-    def __init__(self, error_code: str, error_description: str):
-        Exception.__init__(self, f"{error_code}: {error_description}")
-        self.error_code: str = error_code
-        self.error_description: str = error_description
-
-    def to_dict(self) -> Dict[str, str]:
-        return {
-            "error": self.error_code,
-            "error_code": self.error_code,
-            "error_description": self.error_description,
-        }

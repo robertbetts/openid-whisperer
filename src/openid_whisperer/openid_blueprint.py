@@ -65,8 +65,10 @@ def authorize_get() -> ResponseReturnValue:
     prompt: str = request.args.get("prompt", "")
 
     # If a value for code_challenge_method is present, then assumed that this request
-    # forms part of a device code authorisation flow. redirect_uri is expected to be empty.
+    # forms part of a device code authorisation flow.
     code_challenge_method: str = request.args.get("code_challenge_method", "")
+    # ths a value for the code_challenge is present, this is a PKCE
+    code_challenge: str = request.args.get("code_challenge", "")
 
     """
     # Query parameters supplied my MSAL for Azure interactive flow
@@ -89,6 +91,7 @@ def authorize_get() -> ResponseReturnValue:
                 prompt=prompt,
                 rcode=resource,
                 code_challenge_method=code_challenge_method,
+                code_challenge=code_challenge,
             )
         )
         authorize_get_resp = make_response(
@@ -121,10 +124,11 @@ def authorize_post() -> ResponseReturnValue:
     prompt: str = request.form.get("prompt", "")
     username = request.form.get("UserName")
     user_secret = request.form.get("Password")
+    user_code = request.form.get("UserCode")
     mfa = request.form.get("Mfa")
     kmsi = request.form.get("Kmsi")
     code_challenge_method: str = request.form.get("code_challenge_method", "")
-    code_challenge: str = request.form.get("CodeChallenge", "")
+    code_challenge: str = request.form.get("code_challenge", "")
 
     try:
         openid_response = openid_api.process_end_user_authentication(
@@ -142,13 +146,14 @@ def authorize_post() -> ResponseReturnValue:
             mfa=mfa,
             kmsi=kmsi,
             prompt=prompt,
+            user_code=user_code,
             code_challenge_method=code_challenge_method,
             code_challenge=code_challenge,
         )
     except OpenidException as e:
         openid_response = e.to_dict()
 
-    if code_challenge_method != "":
+    if code_challenge_method != "" and redirect_uri == "":
         if "error_code" in openid_response:
             termination_reply = openid_response["error_description"]
             status_code = 403
@@ -176,6 +181,9 @@ def authorize_post() -> ResponseReturnValue:
             render_template("authenticate.html", **template_parameters)
         )
         return authorize_get_resp, status_code
+
+    if code_challenge_method != "":
+        return redirect(redirect_uri, code=302)
 
     elif "code" in response_type:
         query_start = "&" if "?" in redirect_uri else "?"
@@ -248,24 +256,28 @@ def token() -> ResponseReturnValue:
     scope: str = request.form.get("scope", "")
     resource: str = request.form.get("resource", "")
 
+    process_token_request_inputs = {
+        "grant_type": grant_type,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "device_code": device_code,
+        "code": code,
+        "username": username,
+        "user_secret": user_secret,
+        "nonce": nonce,
+        "scope": scope,
+        "resource": resource,
+        "redirect_uri": redirect_uri,
+        "code_verifier": code_verifier,
+    }
+
     try:
-        response = process_token_request(
-            grant_type=grant_type,
-            client_id=client_id,
-            client_secret=client_secret,
-            device_code=device_code,
-            code=code,
-            username=username,
-            user_secret=user_secret,
-            nonce=nonce,
-            scope=scope,
-            resource=resource,
-            redirect_uri=redirect_uri,
-            code_verifier=code_verifier,
-        )
+        response = process_token_request(**process_token_request_inputs)
         status_code = 200
     except OpenidException as e:
         response = e.to_dict()
+        logging.debug(process_token_request_inputs)
+        logging.debug(response)
         status_code = 403
 
     return jsonify(response), status_code
