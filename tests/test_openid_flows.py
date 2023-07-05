@@ -208,5 +208,3 @@ def test_fetch_token_with_password_flow(client):
     }
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 200
-
-

@@ -479,7 +479,7 @@ def process_end_user_authentication(
             nonce=nonce,
             scope=scope,
             code_challenge_method=code_challenge_method,
-            code_challenge=user_code,
+            code_challenge=code_challenge,
             user_code=user_code,
         )
         return {

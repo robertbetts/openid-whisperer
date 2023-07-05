@@ -31,9 +31,8 @@ def test_authorisation_code():
 
     access_token = get_access_token_from_authorisation_code(authorisation_code)
     assert access_token is not None
-    claims = validate_access_token(
-        access_token=access_token["access_token"], audience=resource, issuer=ISSUER
-    )
+    algorithms = ["RS256"]
+    claims = validate_access_token(access_token=access_token["access_token"], algorithms=algorithms, audience=resource, issuer=ISSUER)
     assert (
         claims["aud"] == [resource, client_id]
         and claims["iss"] == ISSUER
@@ -61,9 +60,8 @@ def test_authenticate_token():
         scope=scope,
     )
     assert access_token is not None
-    claims = validate_access_token(
-        access_token=access_token["access_token"], audience=resource, issuer=ISSUER
-    )
+    algorithms = ["RS256"]
+    claims = validate_access_token(access_token=access_token["access_token"], algorithms=algorithms, audience=resource, issuer=ISSUER)
     assert (
         claims["aud"] == [resource, client_id]
         and claims["iss"] == ISSUER

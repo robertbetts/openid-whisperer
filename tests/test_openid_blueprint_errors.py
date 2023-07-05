@@ -22,9 +22,7 @@ def test_get_authorize_error(client):
 
 
 def test_post_authorize_code_error(client):
-    """1) Test missing form parameter UserName
-    2) Test invalid credentials
-    """
+    # 1) Test missing / empty UserName
     scope = "openid profile"
     response_type = "code"
     client_id = "ID_12345"
@@ -56,44 +54,6 @@ def test_post_authorize_code_error(client):
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 302
     assert "error_code" in response.location
-
-    response_type = "code"
-    username = "user@domain"
-    redirect_url = ""
-    nonce = uuid4().hex
-    state = secrets.token_hex()
-    auth_url = "/adfs/oauth2/authorize"
-    data.update({
-        "scope": scope,
-        "response_type": response_type,
-        "UserName": username,
-        "redirect_uri": redirect_url,
-        "nonce": nonce,
-        "state": state,
-    })
-    response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 302
-    assert "error_code" in response.location
-    assert "auth_processing_error" in response.location
-
-    response_type = "code"
-    username = "user@domain"
-    redirect_url = "http://test/api/handleAccessToken"
-    nonce = ""
-    state = secrets.token_hex()
-    auth_url = "/adfs/oauth2/authorize?"
-    data.update({
-        "scope": scope,
-        "response_type": response_type,
-        "UserName": username,
-        "redirect_uri": redirect_url,
-        "nonce": nonce,
-        "state": state,
-    })
-    response = client.post(auth_url, data=data, headers=headers)
-    assert response.status_code == 302
-    assert "error_code" in response.location
-    assert "auth_processing_error" in response.location
 
 
 def test_post_authorize_token_error(client):

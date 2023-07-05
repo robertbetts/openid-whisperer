@@ -3,7 +3,7 @@ import os
 from cryptography.exceptions import InvalidSignature
 import pytest
 
-from openid_whisperer import cert_utils
+from openid_whisperer.utils import cert_utils
 
 
 def test_ssl_context(config):

@@ -333,6 +333,10 @@ def devicecode_request(
     client_id: str,
     scope: str,
     resource: Optional[str] = None,
+    nonce: Optional[str] = None,
+    response_type: Optional[str] = None,
+    code_challenge_method: Optional[str] = None,
+    prompt: Optional[str] = None,
 ) -> DeviceCodeRequestResponse:
     """Generate a time limited user code, that can be authenticated against in order to create
     a valid token
@@ -342,9 +346,6 @@ def devicecode_request(
     a single HTTP GET request.
     """
 
-    # code that will be used to retrieve the token
-    device_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
-
     # code the user will have to enter when authorising
     # if a user code exists, then generate a new code
     user_code: str
@@ -353,20 +354,26 @@ def devicecode_request(
         if user_code not in device_code_requests:
             break
 
-    device_code = hashlib.sha256(user_code.encode('ascii')).hexdigest()
+    device_code = hashlib.sha256(user_code.encode("ascii")).hexdigest()
 
     expires_in = datetime.utcnow() + timedelta(minutes=15)
-    response_type = "code"
-    code_challenge_method = "plain"
-    prompt = "login"
+
+    # Defaults for device code end user inputs
+    nonce = nonce if nonce else ""
+    response_type = response_type if response_type else "code"
+    code_challenge_method = code_challenge_method if code_challenge_method else "plain"
+    prompt = prompt if prompt else "login"
+
     auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
     auth_link = (
         f"{auth_link}?response_type={response_type}&client_id={client_id}&scope={scope}"
         f"&resource={resource}&prompt={prompt}&code_challenge_method={code_challenge_method}"
+        f"&nonce={nonce}"
     )
     auth_link_complete = f"{auth_link}&user_code={user_code}"
 
     response = {
+        "code_challenge_method": code_challenge_method,
         "device_code": device_code,
         "user_code": user_code,
         "verification_uri": auth_link,
@@ -463,22 +470,30 @@ def authenticate_code(
     kmsi: str | None = None,
     mfa_code: str | None = None,
 ) -> Optional[str]:
-    """Returns an authentication code after authenticating against client_id, username,
-    resource, user_secret and mfa_code to
-    if authentication fails then return None
+    """Returns an authentication code after authenticating an end user and validating a user_code or code_challenge
+    if authentication or validation fail, an OpenidException is raised
     """
     _ = kmsi
     response: str | None = None
-    if authenticate(client_id, resource, username, user_secret, mfa_code):
-        response = create_authorisation_code(
-            client_id,
-            resource,
-            username,
-            nonce,
-            scope,
-            code_challenge_method,
-            code_challenge,
-            user_code,
+    if not authenticate(client_id, resource, username, user_secret, mfa_code):
+        raise OpenidException(
+            "authentication_error",
+            "Unable to authenticate the end user, while processing code challenge",
+        )
+
+    response = create_authorisation_code(
+        client_id,
+        resource,
+        username,
+        nonce,
+        scope,
+        code_challenge_method,
+        code_challenge,
+        user_code,
+    )
+    if response is None:
+        raise OpenidException(
+            "authorization_error", "error validating the code challenge"
         )
 
     return response

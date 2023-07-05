@@ -124,7 +124,7 @@ def authorize_post() -> ResponseReturnValue:
     prompt: str = request.form.get("prompt", "")
     username = request.form.get("UserName")
     user_secret = request.form.get("Password")
-    user_code = request.form.get("UserCode")
+    user_code = request.form.get("CodeChallenge")
     mfa = request.form.get("Mfa")
     kmsi = request.form.get("Kmsi")
     code_challenge_method: str = request.form.get("code_challenge_method", "")

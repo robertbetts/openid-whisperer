@@ -7,6 +7,10 @@ class DevicecodeRequestInput(TypedDict):
     client_id: str
     scope: str
     resource: Optional[str]
+    nonce: str
+    response_type: Optional[str]
+    code_challenge_method: Optional[str]
+    prompt: Optional[str]
 
 
 class DeviceCodeRequestResponse(TypedDict):

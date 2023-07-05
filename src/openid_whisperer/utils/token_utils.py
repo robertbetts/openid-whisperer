@@ -2,7 +2,7 @@ import base64
 import hashlib
 import json
 import math
-from typing import Dict, Any, List
+from typing import Dict, Any, List, overload, Optional
 
 import jwt
 from cryptography import x509
@@ -11,12 +11,34 @@ from cryptography.hazmat.backends import default_backend
 from openid_whisperer.openid_lib import get_keys
 
 
+@overload
 def urlsafe_b64decode(s: str) -> bytes:
-    s += b"=" * (-len(s) % 4)
+    pass
+
+
+@overload
+def urlsafe_b64decode(s: bytes) -> bytes:
+    pass
+
+
+def urlsafe_b64decode(s):
+    s = s.decode if isinstance(s, bytes) else s
+    s += "b" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s)
 
 
+@overload
 def urlsafe_b64encode(s: str) -> bytes:
+    pass
+
+
+@overload
+def urlsafe_b64encode(s: bytes) -> bytes:
+    pass
+
+
+def urlsafe_b64encode(s):
+    s = s if isinstance(s, bytes) else s.encode()
     return base64.urlsafe_b64encode(s).rstrip(b"=")
 
 
@@ -31,16 +53,18 @@ def validate_s256_code_challenge(code_verifier: str, code_challenge: str) -> boo
     return generate_s256_code_challenge(code_verifier) == code_challenge
 
 
-def validate_access_token(access_token: str, audience: str, issuer: str, algorithms: List[str]) -> bool:
-    """ Returns True or False depending on the validity of the input access_token.
+def validate_access_token(access_token: str, algorithms: List[str],
+                          audience: Optional[List[str]] = None, issuer: Optional[str] = None) -> Any:
+    """Returns True or False depending on the validity of the input access_token.
 
     :param access_token: encoded token string
     :param audience: the scope / permission claims required to be present in the token
     :param issuer: the name of the token signature signer to validate
     :param algorithms: token signature encryption methods
-    :return: bool, whether a valid access token
+    :return: Dict
     """
     at_list = access_token.split(".")
+
     # Adjust the left padding to avoid the base64 padding error
     token_header = at_list[0].ljust(int(math.ceil(len(at_list[0]) / 4)) * 4, "=")
     header = json.loads(base64.b64decode(token_header).decode("utf-8"))
@@ -52,7 +76,9 @@ def validate_access_token(access_token: str, audience: str, issuer: str, algorit
     for key in get_keys()["keys"]:
         x5t = key["x5t"]
         x5c = key["x5c"][0]
-        temp_cer = x5c.replace("\/", "/")  # TODO: investigate why this fails certain code / lint checks
+        temp_cer = x5c.replace(
+            "\/", "/"
+        )  # TODO: investigate why this fails certain code / lint checks
         ret_char = "\r\n"
         cer_len = len(temp_cer)
         count = 64

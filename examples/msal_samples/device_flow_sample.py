@@ -53,9 +53,9 @@ def submit_credentials_with_challenge_code(config, challenge_info):
         "resource": query_params["resource"],
         "UserName": config["username"],
         "Password": config["password"],
+        "CodeChallenge": challenge_info["user_code"],
         "code_challenge_method": query_params["code_challenge_method"],
         "code_challenge": challenge_info.get("code_challenge", ""),
-        "user_code": challenge_info["user_code"],
     }
     response = requests.post(auth_url, data=data, headers=headers, verify=False)
     logging.info(response.status_code)

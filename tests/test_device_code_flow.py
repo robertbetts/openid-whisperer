@@ -1,7 +1,9 @@
 import json
 
 
-def end_user_authorise_post(client, user_code, response_type, client_id, scope, resource, username, password):
+def end_user_authorise_post(
+    client, user_code, response_type, client_id, scope, resource, username, password
+):
     data = {
         "response_type": response_type,
         "client_id": client_id,
@@ -9,8 +11,8 @@ def end_user_authorise_post(client, user_code, response_type, client_id, scope, 
         "resource": resource,
         "UserName": username,
         "Password": password,
-        "code_challenge_method": "plan",
         "CodeChallenge": user_code,
+        "code_challenge_method": "plan",
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -20,17 +22,13 @@ def end_user_authorise_post(client, user_code, response_type, client_id, scope, 
     return response
 
 
-def test_device_code_flow(app):
-
+def test_device_code_flow(app, input_scenario_one):
     client = app.test_client()
 
-    client_id = "ID_12345"
-    scope = f"openid profile offline_access"
-    resource = "TEST:URI:RS-104134-21171-test-api"
     data = {
-        "client_id": client_id,
-        "scope": scope,
-        "resource": resource,
+        "client_id": input_scenario_one["client_id"],
+        "scope": input_scenario_one["scope"],
+        "resource": input_scenario_one["resource"],
     }
     devicecode_url = "/adfs/oauth2/devicecode"
     headers = {
@@ -45,7 +43,7 @@ def test_device_code_flow(app):
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": client_id,
+        "client_id": input_scenario_one["client_id"],
         "device_code": "BadCode",
     }
     headers = {
@@ -59,14 +57,10 @@ def test_device_code_flow(app):
 
     # Test pending token
     response_type = "code"
-    domain = "my-domain"
-    user = "my-name"
-    username = f"{user}@{domain}"
-    password = "very long dev reminder"
     auth_end_point = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": client_id,
+        "client_id": input_scenario_one["client_id"],
         "device_code": devicecode_response["device_code"],
     }
     headers = {
@@ -83,11 +77,11 @@ def test_device_code_flow(app):
         client,
         user_code=devicecode_response["user_code"],
         response_type=response_type,
-        client_id=client_id,
-        username=username,
-        password=password,
-        resource=resource,
-        scope=scope,
+        client_id=input_scenario_one["client_id"],
+        username=input_scenario_one["username"],
+        password=input_scenario_one["password"],
+        resource=input_scenario_one["resource"],
+        scope=input_scenario_one["scope"],
     )
     assert "Success, you have validated the user code provided to you." in response.text
     assert "text/html" in response.content_type
@@ -95,14 +89,14 @@ def test_device_code_flow(app):
 
     # Now inspect the contents of the authlib_cache to validate backend token state
     from openid_whisperer import openid_lib
-    print("wait here")
 
+    print("wait here")
 
     # Test valid token
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": client_id,
+        "client_id": input_scenario_one["client_id"],
         "device_code": devicecode_response["device_code"],
     }
     headers = {
@@ -117,20 +111,15 @@ def test_device_code_flow(app):
 
     # second authorise try must fail
     response_type = "code"
-    domain = "my-domain"
-    user = "my-name"
-    username = f"{user}@{domain}"
-    password = "very long dev reminder"
     auth_end_point = "adfs/oauth2/authorize"
     response = end_user_authorise_post(
         client=client,
         user_code=devicecode_response["user_code"],
         response_type=response_type,
-        client_id=client_id,
-        username=username,
-        password=password,
-        resource=resource,
-        scope=scope,
-        auth_end_point=auth_end_point,
+        client_id=input_scenario_one["client_id"],
+        username=input_scenario_one["username"],
+        password=input_scenario_one["password"],
+        resource=input_scenario_one["resource"],
+        scope=input_scenario_one["scope"],
     )
     assert response.status_code == 403
