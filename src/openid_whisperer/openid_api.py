@@ -458,15 +458,15 @@ def process_end_user_authentication(
 
     reply_parameters: Dict[str, Any]
 
-    if code_challenge != "" and code_challenge_method != "":
-        state: str = stringify(kwargs.get("state"))
-        authorisation_code = ""  # TODO: do plain or s256 check
-        return {
-            "response_type": "code",
-            "authorisation_code": authorisation_code,
-            "redirect_uri": redirect_uri,
-            "state": state,
-        }
+    # if code_challenge != "" and code_challenge_method != "":
+    #     state: str = stringify(kwargs.get("state"))
+    #     authorisation_code = ""  # TODO: do plain or s256 check
+    #     return {
+    #         "response_type": "code",
+    #         "authorisation_code": authorisation_code,
+    #         "redirect_uri": redirect_uri,
+    #         "state": state,
+    #     }
 
     if "code" in response_type:
         state: str = stringify(kwargs.get("state"))

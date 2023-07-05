@@ -182,10 +182,7 @@ def authorize_post() -> ResponseReturnValue:
         )
         return authorize_get_resp, status_code
 
-    if code_challenge_method != "":
-        return redirect(redirect_uri, code=302)
-
-    elif "code" in response_type:
+    if "code" in response_type:
         query_start = "&" if "?" in redirect_uri else "?"
 
         if "error_code" in openid_response:
@@ -197,6 +194,7 @@ def authorize_post() -> ResponseReturnValue:
             redirect_uri = (
                 f"{redirect_uri}{query_start}code={authorisation_code}&state={state}"
             )
+            logging.debug("redirect_uri: %s", redirect_uri)
 
         # TODO: Research handling cases where redirect should be replaced by a form_post
         return redirect(redirect_uri, code=302)

@@ -62,10 +62,12 @@ UNIT_TESTING: bool = False
 # Module authentication flow state tracking
 authorisation_codes: Dict[str, Any] = {}
 access_tokens: Dict[str, Any] = {}
+code_challenges: Dict[str, Any] = {}  # Any: (code_challenge, code_challenge_method)
 
 # Module device_code flow state tracking
 device_code_requests: Dict[str, Any] = {}  # Indexed by user_code
 device_user_codes: Dict[str, str] = {}  # Indexed by device_code
+
 
 scopes_supported = [
     "user_impersonation",
@@ -309,11 +311,17 @@ def create_authorisation_code(
                     f"Invalid user code {user_code}",
                 )
             authorisation_code = device_code_request["device_code"]
+            logging.debug("authorisation_code from device user code: %s", user_code)
             # TODO: Validity and expiry check of device code request
         else:
             authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
 
         if authorisation_code is not None:
+            if code_challenge_method != "":
+                code_challenge = code_challenge if code_challenge else user_code
+                code_challenges[authorisation_code] = (code_challenge_method, code_challenge)
+                logging.debug("Stored code challenge: %s, %s", code_challenge_method, code_challenge)
+
             expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
             authorisation_codes[authorisation_code] = {
                 "authorisation_code": authorisation_code,

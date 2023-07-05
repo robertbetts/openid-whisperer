@@ -68,6 +68,7 @@ ignore-paths = "tests"
 python = "^3.11"
 pyjwt = "^2.6.0"
 requests = {extras = ["security"], version = "^2.31.0"}
+types-requests = "^2.31.0.1"
 cryptography = "^41.0.1"
 pyyaml = "^6.0"
 flask = {extras = ["async"], version = "^2.2.3"}
@@ -78,7 +79,6 @@ python-dotenv = "^1.0.0"
 poetry = "^1.5.1"
 pytest = "^7.3.1"
 certifi = "^2022.12.7"
-types-requests = "^2.31.0.1"
 coverage = {extras = ["toml"], version = "^7.2.7"}
 pytest-dotenv = "^0.5.2"
 black = "^23.3.0"

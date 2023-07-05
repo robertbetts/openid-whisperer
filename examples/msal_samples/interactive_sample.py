@@ -45,7 +45,7 @@ app = msal.PublicClientApplication(
     authority=config["authority"],
     validate_authority=False,
     verify=False,
-    allow_broker=True,  # If opted in, you will be guided to meet the prerequisites, when applicable
+    allow_broker=False,  # If opted in, you will be guided to meet the prerequisites, when applicable
     # See also: https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-desktop-acquire-token-wam#wam-value-proposition
     # token_cache=...  # Default cache is in memory only.
     # You can learn how to use SerializableTokenCache from
