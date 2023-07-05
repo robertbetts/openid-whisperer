@@ -1,7 +1,8 @@
 import pytest
 
 from openid_whisperer import main
-from openid_whisperer.config import config as whisperer_config
+from openid_whisperer.config import get_cached_config
+
 
 @pytest.fixture
 def app():
@@ -11,7 +12,7 @@ def app():
 
 @pytest.fixture
 def config():
-    yield whisperer_config
+    yield get_cached_config()
 
 
 @pytest.fixture

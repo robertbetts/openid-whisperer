@@ -16,7 +16,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
-from urllib.parse import urljoin, quote
+from urllib.parse import urljoin
 from uuid import uuid4
 from typing import Dict, Any, Optional, List
 import string
@@ -31,8 +31,9 @@ import jwt
 from jwt.utils import to_base64url_uint
 
 # Module configuration Information and default values
-from openid_whisperer.config import config
+from openid_whisperer.config import get_cached_config
 
+config = get_cached_config()
 EXPIRES_SECONDS: int = 600
 ALGORITHM: str = "RS256"
 KEY_ID: str = "idp-key-id"
@@ -282,14 +283,14 @@ def create_authorisation_code(
     authorisation_code: str | None = None
     if client_id and username:
         if code_challenge:
-            # user_codes: Dict[str, Any] = {}  # Indexed by user_code
-            # device_user_code: Dict[str, str] = {}  # Indexed by device_code
             device_code_request = device_code_requests.pop(code_challenge, None)
             if device_code_request is None:
-                raise Exception(f"no device code request found for {code_challenge}")
-
+                raise OpenidException(
+                    "code_challenge_error",
+                    f"Invalid user code {code_challenge}",
+                )
             authorisation_code = device_code_request["device_code"]
-            # TODO: Check validity and expiry
+            # TODO: Validity and expiry check of device code request
         else:
             authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
 
@@ -316,6 +317,10 @@ def devicecode_request(
 ) -> Dict[str, Any]:
     """Generate a time limited user code, that can be authenticated against in order to create
     a valid token
+
+    FYI, verification_uri_complete is returned by this function, however there is no
+    current support for validating user_codes and authenticating the end user through
+    a single HTTP GET request.
     """
 
     # code that will be used to retrieve the token
@@ -330,16 +335,20 @@ def devicecode_request(
 
     expires_in = datetime.utcnow() + timedelta(minutes=15)
     response_type = "code"
+    code_challenge_method = "plain"
+    prompt = "login"
     auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
-    auth_link += "?scope={}&response_type={}&client_id={}&resource={}".format(
-        scope, response_type, client_id, resource
+    auth_link = (
+        f"{auth_link}?response_type={response_type}&client_id={client_id}&scope={scope}"
+        f"&resource={resource}&prompt={prompt}&code_challenge_method={code_challenge_method}"
     )
-    auth_link += "&prompt=login&code_challenge_method=plain"
+    auth_link_complete = f"{auth_link}&user_code={user_code}"
 
     response = {
         "device_code": device_code,
         "user_code": user_code,
-        "verification_uri": quote(auth_link),
+        "verification_uri": auth_link,
+        "verification_uri_complete": auth_link_complete,
         "expires_in": int(expires_in.timestamp()),
         "interval": 5,
         "message": f"Enter the following code: {user_code} at this link, {auth_link}",
@@ -441,3 +450,17 @@ def authenticate_code(
             client_id, resource, username, nonce, scope, code_challenge
         )
     return response
+
+
+class OpenidException(Exception):
+    def __init__(self, error_code: str, error_description: str):
+        Exception.__init__(self, f"{error_code}: {error_description}")
+        self.error_code: str = error_code
+        self.error_description: str = error_description
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "error": self.error_code,
+            "error_code": self.error_code,
+            "error_description": self.error_description,
+        }

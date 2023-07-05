@@ -37,6 +37,10 @@ ORGANIZATION_NAME: str = "Service Provider"
 COMMON_NAME: str = "Service Provider"
 
 
+class CertUtilsException(Exception):
+    ...
+
+
 def generate_ca_key_and_certificate(
     country_name: str = COUNTRY_NAME,
     state_name: str = STATE_OR_PROVINCE_NAME,
@@ -120,7 +124,7 @@ def make_and_sign_new_org_csr(
     certificate_serial_number: int = x509.random_serial_number()
     issuer_public_key: PublicKeyTypes = ca_cert.public_key()
     if not isinstance(issuer_public_key, rsa.RSAPublicKey):
-        raise Exception(
+        raise CertUtilsException(
             f"Invalid ca_cert public key type {type(issuer_public_key)}"
         )  # pragma: no cover
     org_public_key: CertificatePublicKeyTypes = org_key.public_key()
@@ -209,7 +213,7 @@ def check_sha256_certificate(
     """
     public_key = issuer_certificate.public_key()
     if not isinstance(public_key, rsa.RSAPublicKey):
-        raise Exception("Only RSA keys supported")  # pragma: no cover
+        raise CertUtilsException("Only RSA keys supported")  # pragma: no cover
     padding_input = padding.PKCS1v15()
     public_key.verify(
         signature=certificate.signature,

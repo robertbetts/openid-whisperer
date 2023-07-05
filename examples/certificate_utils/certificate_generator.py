@@ -8,8 +8,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from openid_whisperer.cert_utils import generate_ca_key_and_certificate, generate_org_key_and_certificate, \
-    dump_cert_and_ca_bundle, check_sha256_certificate
+from openid_whisperer.cert_utils import (
+    generate_ca_key_and_certificate,
+    generate_org_key_and_certificate,
+    dump_cert_and_ca_bundle,
+    check_sha256_certificate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +23,21 @@ class PatternExistsError(Exception):
 
 
 def any_patterns_exist(index: int, patterns: List[str]) -> bool:
-    """ Return True if any file path evaluated by applying the index to each
-        pattern exists.
-        Every pattern is expected to have one and only one %s
+    """Return True if any file path evaluated by applying the index to each
+    pattern exists.
+    Every pattern is expected to have one and only one %s
     """
     return any([os.path.exists(item % index) for item in patterns])
 
 
 def all_paths_do_not_exist(paths: List[str]) -> bool:
-    """ Return True if all the paths do not exist
-    """
+    """Return True if all the paths do not exist"""
     return all([not os.path.exists(item) for item in paths])
 
 
-def next_path(path_patterns: str | List[str], appendix: Optional[str] = "-%s") -> List[str]:
+def next_path(
+    path_patterns: str | List[str], appendix: Optional[str] = "-%s"
+) -> List[str]:
     """
     Tweaked the original example to name files in batches with the same pattern appendix
 
@@ -58,10 +63,9 @@ def next_path(path_patterns: str | List[str], appendix: Optional[str] = "-%s") -
         return path_patterns
     else:
         if "%s" not in appendix:
-            error_message: str = \
-                "Unable to find a set of unique paths that don't exits with an appendix does not contain '%s'"
+            error_message: str = "Unable to find a set of unique paths that don't exits with an appendix does not contain '%s'"
             logger.error(error_message)
-            raise(PatternExistsError(error_message))
+            raise (PatternExistsError(error_message))
 
     patterns_with_prefix: List[str] = []
     for path_pattern in path_patterns:
@@ -85,14 +89,14 @@ def next_path(path_patterns: str | List[str], appendix: Optional[str] = "-%s") -
 
 
 def creat_sample_cert_files(
-        organization_name=None,
-        common_name=None,
-        host_names=None,
-        ca_key=None,
-        ca_cert=None,
-        org_key=None,
-        overwrite_existing_files: bool = False):
-
+    organization_name=None,
+    common_name=None,
+    host_names=None,
+    ca_key=None,
+    ca_cert=None,
+    org_key=None,
+    overwrite_existing_files: bool = False,
+):
     if ca_key is None:
         ca_key, ca_cert = generate_ca_key_and_certificate()
         dump_cert_and_ca_bundle(
@@ -111,7 +115,8 @@ def creat_sample_cert_files(
         org_key=org_key,
         organization_name=organization_name,
         common_name=common_name,
-        host_names=host_names)
+        host_names=host_names,
+    )
 
     assert check_sha256_certificate(org_cert, ca_cert)
 
@@ -126,7 +131,9 @@ def creat_sample_cert_files(
     chain_pattern = "org_cert-chain.pem"
     chain_pattern = os.path.join(location, chain_pattern)
 
-    key_filename, cert_filename, chain_filename = next_path([key_pattern, cert_pattern, chain_pattern])
+    key_filename, cert_filename, chain_filename = next_path(
+        [key_pattern, cert_pattern, chain_pattern]
+    )
 
     dump_cert_and_ca_bundle(
         ca_certificate=ca_cert,
@@ -136,36 +143,37 @@ def creat_sample_cert_files(
         primary_key_filename=key_filename,
         cert_filename=cert_filename,
         ca_chain_filename=chain_filename,
-        overwrite_existing_files=overwrite_existing_files
+        overwrite_existing_files=overwrite_existing_files,
     )
 
 
 def gen_ord_certs_from_ca(
-        ca_key_filename: str,
-        ca_cert_filename: str,
-        org_key_filename: Optional[str] = None,
-        host_names: Optional[str] = None,
-        organization_name: Optional[str] = None,
-        common_name: Optional[str] = None,
-        key_password: Optional[str] = None,
-        overwrite_existing_files: bool = False,
-        ):
+    ca_key_filename: str,
+    ca_cert_filename: str,
+    org_key_filename: Optional[str] = None,
+    host_names: Optional[str] = None,
+    organization_name: Optional[str] = None,
+    common_name: Optional[str] = None,
+    key_password: Optional[str] = None,
+    overwrite_existing_files: bool = False,
+):
     with open(ca_key_filename, "rb") as ca_key_file:
         with open(ca_cert_filename, "rb") as ca_cert_file:
-
             ca_key: rsa.RSAPrivateKey = serialization.load_pem_private_key(
                 data=ca_key_file.read(),
                 password=key_password,
                 backend=default_backend(),
             )
-            ca_cert: x509.Certificate = x509.load_pem_x509_certificate(ca_cert_file.read(), default_backend())
+            ca_cert: x509.Certificate = x509.load_pem_x509_certificate(
+                ca_cert_file.read(), default_backend()
+            )
             org_key: rsa.RSAPrivateKey | None = None
             if org_key_filename:
                 with open(org_key_filename, "rb") as org_key_file:
                     org_key = serialization.load_pem_private_key(
                         data=org_key_file.read(),
                         backend=default_backend(),
-                        password=key_password
+                        password=key_password,
                     )
             creat_sample_cert_files(
                 organization_name=organization_name,
@@ -174,13 +182,13 @@ def gen_ord_certs_from_ca(
                 ca_key=ca_key,
                 ca_cert=ca_cert,
                 org_key=org_key,
-                overwrite_existing_files=overwrite_existing_files
+                overwrite_existing_files=overwrite_existing_files,
             )
 
 
 def main():
-    """ Utility for creating self-signed CA and SSL certificates.
-        NOTE: Do not uncomment the root_ca_* parameters below, use as is
+    """Utility for creating self-signed CA and SSL certificates.
+    NOTE: Do not uncomment the root_ca_* parameters below, use as is
     """
     ca_key_filename: str = "root_ca_key.pem"
     ca_cert_filename: str = "root_ca_cert.pem"

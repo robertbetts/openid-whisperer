@@ -8,20 +8,17 @@
     <meta http-equiv="pragma" content="no-cache"/>
     <meta http-equiv="expires" content="-1"/>
 
-    <title>Glen Whisperer Identity Provider</title>
+    <title>OpenID-Whisperer</title>
     <script type='text/javascript'>
         //<![CDATA[
         function LoginErrors(){
             this.userNameFormatError = 'Enter your user ID in the format \u0026quot;domain\\user\u0026quot; or \u0026quot;user@domain\u0026quot;.';
             this.passwordEmpty = 'Enter your password.';
             this.passwordTooLong = 'Password is too long (\u0026gt; 128 characters).';
+            this.codeChallengeEmpty = 'Enter your user code';
         };
         var maxPasswordLength = 128;
-        //]]>
-    </script>
 
-    <script type='text/javascript'>
-        //<![CDATA[
         function InputUtil(errTextElementID, errDisplayElementID) {
             if (!errTextElementID)  errTextElementID = 'errorText';
             if (!errDisplayElementID)  errDisplayElementID = 'error';
@@ -36,12 +33,12 @@
             if (!this.canDisplayError){
                 throw new Error ('Error element not present');
             }
-            if (this.errLabel && this.errLabel.innerHTML) {
+            if (this.errLabel?.innerHTML) {
                 this.errDisplay.style.display = '';
                 var cause = this.errLabel.getAttribute('for');
                 if (cause) {
                     var causeNode = document.getElementById(cause);
-                    if (causeNode && causeNode.value) {
+                    if (causeNode?.value) {
                         causeNode.focus();
                         this.hasFocus = true;
                     }
@@ -156,65 +153,82 @@
 </head>
 <body dir="ltr" class="body">
 <div id="noScript" style="position:static; width:100%; height:100%; z-index:100">
-    <h1>JavaScript required</h1>
-    <p>JavaScript is required. This web browser does not support JavaScript or JavaScript in this web browser is not enabled.</p>
+    <h1>JavaScript is required</h1>
+    <p>This web browser does not support JavaScript or JavaScript in this web browser is not enabled.</p>
     <p>To find out if your web browser supports JavaScript or to enable JavaScript, see web browser help.</p>
 </div>
 <script type="text/javascript" language="JavaScript">
     document.getElementById("noScript").style.display = "none";
 </script>
-<div id="fullPage">
+<div id="fullPage" style="display:none">
     <div id="brandingWrapper" class="float">
         <div id="branding"></div>
     </div>
     <div id="contentWrapper" class="float">
         <div id="content">
             <div id="header">
-                <h4>Glen Whisperer Identity Provider</h4>
+                <h4>OpenID Whisperer</h4><h5>Identity and Token Service</h5>
             </div>
             <main>
                 <div id="workArea">
                     <div id="authArea" class="groupMargin">
+                        {% if termination_reply %}
+                        <div id="TermMsg">{{ termination_reply }}</div>
+                        {% else %}
                         <div id="loginArea">
                             <div id="loginMessage" class="groupMargin">Sign in</div>
-
                             <form method="post" id="loginForm" autocomplete="off" novalidate="novalidate" onKeyPress="if (event && event.keyCode == 13) Login.submitLoginRequest();" action="{{action}}">
                                 <div id="error" class="fieldMargin error smallText">
                                     <span id="errorText" for="" aria-live="assertive" role="alert"></span>
                                 </div>
-
                                 <div id="formsAuthenticationArea">
                                     <div id="userNameArea">
                                         <label id="userNameInputLabel" for="userNameInput" class="hidden">User Account</label>
                                         <input id="userNameInput" name="UserName" type="email" value="" tabindex="1" class="text fullWidth"
                                                spellcheck="false" placeholder="someone@example.com" autocomplete="off"/>
                                     </div>
-
                                     <div id="passwordArea">
                                         <label id="passwordInputLabel" for="passwordInput" class="hidden">Password</label>
                                         <input id="passwordInput" name="Password" type="password" tabindex="2" class="text fullWidth"
                                                placeholder="Password" autocomplete="off"/>
                                     </div>
-                                    <div id="codeChallengeArea">
-                                        <label id="codeChallengeInputLabel" for="codeChallengeInput" class="hidden">Code Challenge</label>
-                                        <input id="codeChallengeInput" name="CodeChallenge" type="text" tabindex="2" class="text fullWidth"
-                                               placeholder="Code Challenge" autocomplete="off"/>
+                                    {% if requires_mfa %}
+                                    <div id="mfaArea">
+                                        <label id="mfaInputLabel" for="mfaInput" class="hidden">Multi-factor Code</label>
+                                        <input id="mfaInput" name="Mfa" type="text" tabindex="2" class="text fullWidth"
+                                               placeholder="MFA Code" autocomplete="off"/>
                                     </div>
-                                    <div id="kmsiArea" style="display:none">
+                                    {% endif %}
+                                    {% if allows_kmsi %}
+                                    <div id="kmsiArea" style="margin-bottom: 8px">
                                         <input type="checkbox" name="Kmsi" id="kmsiInput" value="true" tabindex="3" />
                                         <label for="kmsiInput">Keep me signed in</label>
                                     </div>
+                                    {% endif %}
+                                    {% if requires_user_code %}
+                                    <div id="codeChallengeArea">
+                                        <label id="codeChallengeInputLabel" for="codeChallengeInput" class="hidden">Code Challenge</label>
+                                        <input id="codeChallengeInput" name="CodeChallenge" type="text" tabindex="2" class="text fullWidth"
+                                               placeholder="User Code" autocomplete="off"/>
+                                    </div>
+                                    {% endif %}
                                     <div id="submissionArea" class="submitMargin">
                                         <span id="submitButton" class="submit" tabindex="4" role="button"
                                           onKeyPress="if (event && event.keyCode == 32) Login.submitLoginRequest();"
-                                          onclick="return Login.submitLoginRequest();">Sign in</span>
+                                          onclick="return Login.submitLoginRequest();">{{ submit_label }}</span>
                                     </div>
                                 </div>
+                                <input id="optionClientId" type="hidden" name="client_id" value="{{ client_id }}"/>
+                                <input id="optionRedirectUri" type="hidden" name="redirect_uri" value="{{ redirect_uri }}"/>
+                                <input id="optionResponseMode" type="hidden" name="response_mode" value="{{ response_mode }}"/>
+                                <input id="optionResponseType" type="hidden" name="response_type" value="{{ response_type }}"/>
+                                <input id="optionPrompt" type="hidden" name="prompt" value="{{ prompt }}"/>
+                                <input id="optionCodeChallengeMethod" type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}"/>
                                 <input id="optionForms" type="hidden" name="AuthMethod" value="FormsAuthentication"/>
                             </form>
 
                             <div id="authOptions">
-                                <form id="options" method="post" action="{{action}}}">
+                                <form id="options" method="post" action="{{ action }}}">
                                     <script type="text/javascript">
                                         function SelectOption(option) {
                                             var w = document.getElementById('waitingWheelDiv');
@@ -428,10 +442,12 @@
                                 //<![CDATA[
 
                                 function Login() {
+                                    // This is intentional
                                 }
 
                                 Login.userNameInput = 'userNameInput';
                                 Login.passwordInput = 'passwordInput';
+                                Login.codeChallengeInput = 'codeChallengeInput';
 
                                 Login.initialize = function () {
 
@@ -443,13 +459,14 @@
                                 }();
 
                                 Login.submitLoginRequest = function () {
-                                    var u = new InputUtil();
-                                    var e = new LoginErrors();
+                                    const u = new InputUtil();
+                                    const e = new LoginErrors();
 
-                                    var userName = document.getElementById(Login.userNameInput);
-                                    var password = document.getElementById(Login.passwordInput);
+                                    const userName = document.getElementById(Login.userNameInput);
+                                    const password = document.getElementById(Login.passwordInput);
+                                    const codeChallenge = document.getElementById(Login.codeChallengeInput);
 
-                                    if (!userName.value || !userName.value.match('[@\\\\]')) {
+                                    if (!userName.value?.match('[@\\\\]')) {
                                         u.setError(userName, e.userNameFormatError);
                                         return false;
                                     }
@@ -464,15 +481,22 @@
                                         return false;
                                     }
 
+                                    if (!codeChallenge?.value) {
+                                        u.setError(password, e.codeChallengeEmpty);
+                                        return false;
+                                    }
+
                                     document.forms['loginForm'].submit();
-                                    return false;
+                                    //return false;
                                 };
 
                                 InputUtil.makePlaceholder(Login.userNameInput);
                                 InputUtil.makePlaceholder(Login.passwordInput);
+
                                 //]]>
                             </script>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </main>
@@ -480,10 +504,13 @@
         </div>
         <footer id="footer">
             <div id="footerLinks" class="floatReverse">
-                <div><span>GlenW IDP</span></div>
+                <div><span>OpenID-Whisperer</span></div>
             </div>
         </footer>
     </div>
 </div>
+<script type="text/javascript" language="JavaScript">
+    document.getElementById("fullPage").style.display = "block";
+</script>
 </body>
 </html>
