@@ -91,7 +91,7 @@ if "access_token" in result:
         headers={"Authorization": "Bearer " + result["access_token"]},
         verify=False,
     )
-    print("Graph API call result: %s ..." % graph_response.text[:100])
+    print("API call result: %s ..." % graph_response.text[:100])
 else:
     print(result.get("error"))
     print(result.get("error_description"))

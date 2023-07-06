@@ -354,7 +354,11 @@ def keys() -> ResponseReturnValue:
 @openid_blueprint.route("/.well-known/openid-configuration", methods=["GET"])  # type: ignore[misc]
 def openid_configuration() -> ResponseReturnValue:
     """returns OpenID Connect metadata"""
-    # TODO: look at better way of determining this url, depending on the nework location of the client_id and end user
+    # TODO: look at better way of determining this url, depending on the network location of
+    #  the client_id and end user. i.e. if the endpoint is is accessible from different networks
+    #  then there will have to be valid certificates in place for host ip of the listening
+    #  endpoint and the url extracted from this send the usd user ot client app to the correct
+    #  destination.
     id_provider_base_url = config.id_provider_base_url_external
     return (
         jsonify(
