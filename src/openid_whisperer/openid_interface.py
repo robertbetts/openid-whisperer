@@ -191,7 +191,7 @@ class OpenidApiInterface:
             str, str
         ] = {}  # device_codes Indexed by user_code
         self.devicecode_authorization_codes: Dict[
-            str, str
+            str, Any
         ] = {}  # authorization_codes Indexed by device_code
 
     @classmethod
@@ -201,6 +201,7 @@ class OpenidApiInterface:
         """Returns True or False depending on where client_id validated. Validation currently
         is a non-empty string for client_id
         """
+        _ = client_secret
         if isinstance(client_id, str) and client_id != "":
             return True
         return False
@@ -270,7 +271,6 @@ class OpenidApiInterface:
             "requires_pkce": requires_pkce,
             "submit_label": "Sing In",
         }
-        return response
 
     def post_authorize(
         self,
@@ -508,7 +508,8 @@ class OpenidApiInterface:
 
         if grant_type == "device_code":
             devicecode_request = self.devicecode_requests.get(device_code, None)
-            # TODO: check devicecode_request and handle additional unsuccessful error states, request expiry, authorization_declined etc.
+            # TODO: check devicecode_request and handle additional unsuccessful
+            #  error states, request expiry, authorization_declined etc.
 
             device_authorization = self.devicecode_authorization_codes.pop(
                 device_code, None

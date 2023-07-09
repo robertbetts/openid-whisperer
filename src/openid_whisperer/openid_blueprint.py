@@ -16,14 +16,14 @@ from flask.typing import ResponseReturnValue
 
 from openid_whisperer.config import get_cached_config
 from openid_whisperer import openid_lib
-from openid_whisperer.openid_api import AuthTemplateInput
 from openid_whisperer.openid_interface import (
     OpenidApiInterface,
     OpenidApiInterfaceException,
 )
-from openid_whisperer.openid_types import GeneralPackageExceptionTypes
 from openid_whisperer.utils.credential_store_utils import UserCredentialStoreException
-from openid_whisperer.utils.token_store_utils import TokenIssuerCertificateStoreException
+from openid_whisperer.utils.token_store_utils import (
+    TokenIssuerCertificateStoreException,
+)
 
 config = get_cached_config()
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ def authorize_get() -> ResponseReturnValue:
     """
     status_code: int = 200
     try:
-        template_parameters: AuthTemplateInput = openid_api_interface.get_authorize(
+        template_parameters = openid_api_interface.get_authorize(
             tenant=openid_blueprint.url_prefix,
             response_type=response_type,
             client_id=client_id,
@@ -98,7 +98,11 @@ def authorize_get() -> ResponseReturnValue:
         )
         return authorize_get_resp, status_code
 
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         abort(403, str(e))
 
     except Exception as e:
@@ -165,7 +169,11 @@ def authorize_post() -> ResponseReturnValue:
             code_challenge_method=code_challenge_method,
             code_challenge=code_challenge,
         )
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         openid_response = e.to_dict()
         status_code = 403
 
@@ -173,7 +181,7 @@ def authorize_post() -> ResponseReturnValue:
         logging.exception(e)
         openid_response = {
             "error_code": "server_error",
-            "error_description": f"Error {request.method} {request.url} {e}"
+            "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
@@ -281,14 +289,18 @@ def token() -> ResponseReturnValue:
     try:
         response = openid_api_interface.get_token(**process_token_request_inputs)
         status_code = 200
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
         logging.exception(e)
         response = {
             "error_code": "server_error",
-            "error_description": f"Error {request.method} {request.url} {e}"
+            "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
@@ -301,14 +313,18 @@ def userinfo() -> ResponseReturnValue:
     status_code = 200
     try:
         response = {}
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
         logging.exception(e)
         response = {
             "error_code": "server_error",
-            "error_description": f"Error {request.method} {request.url} {e}"
+            "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
@@ -356,7 +372,11 @@ def devicecode() -> ResponseReturnValue:
         )
         status_code = 200
 
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         response = e.to_dict()
         status_code = 403
 
@@ -364,7 +384,7 @@ def devicecode() -> ResponseReturnValue:
         logging.exception(e)
         response = {
             "error_code": "server_error",
-            "error_description": f"Error {request.method} {request.url} {e}"
+            "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
@@ -388,14 +408,18 @@ def keys() -> ResponseReturnValue:
     status_code = 200
     try:
         response = openid_api_interface.token_store.get_keys()
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
         logging.exception(e)
         response = {
             "error_code": "server_error",
-            "error_description": f"Error {request.method} {request.url} {e}"
+            "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
@@ -417,14 +441,18 @@ def openid_configuration() -> ResponseReturnValue:
             base_url=id_provider_base_url,
         )
         status_code = 200
-    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
         logging.exception(e)
         response = {
             "error_code": "server_error",
-            "error_description": f"Error {request.method} {request.url} {e}"
+            "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
