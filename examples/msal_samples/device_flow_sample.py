@@ -29,8 +29,7 @@ import msal
 
 
 def submit_credentials_with_challenge_code(config, challenge_info):
-    """ Mock the end user authenticating and submitting the user code provided to them.
-    """
+    """Mock the end user authenticating and submitting the user code provided to them."""
     url_parts = urlparse(challenge_info["verification_uri"])
     query = url_parts.query
     query_items: List[tuple[str, str]] = [
@@ -64,7 +63,10 @@ def submit_credentials_with_challenge_code(config, challenge_info):
         sys.exit()
     else:
         logging.info("End User code_challenge submitted")
-        assert "Success, you have validated the user code provided to you." in response.text
+        assert (
+            "Success, you have validated the user code provided to you."
+            in response.text
+        )
 
 
 # Optional logging

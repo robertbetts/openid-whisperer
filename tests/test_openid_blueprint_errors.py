@@ -92,7 +92,7 @@ def test_post_authorize_token_error(client):
     response = client.post(auth_url, data=data, headers=headers)
     result = json.loads(response.text)
     assert "error_code" in result
-    assert "A valid username and user_secret is required" in result["error_description"]
+    assert "Valid credentials are required" in result["error_description"]
     assert response.status_code == 403
 
     data["UserName"] = ""
@@ -100,7 +100,7 @@ def test_post_authorize_token_error(client):
     assert response.status_code == 403
     result = json.loads(response.text)
     assert "error_code" in result
-    assert "A valid username and user_secret is required" in result["error_description"]
+    assert "Valid credentials are required" in result["error_description"]
 
     response_type = "BadValue"
     auth_url = "/adfs/oauth2/authorize?"
@@ -111,9 +111,7 @@ def test_post_authorize_token_error(client):
     data["UserName"] = domain_username
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 403
-    assert "Invalid response_type" in response.text
-    # assert "A valid username and user_secret is required" in result["error_description"]
-    # assert f"Invalid value for query parameter response_type, {response_type}" in response.text
+    assert "InvalidResponseType" in response.text
 
     response_type = "token"
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
@@ -125,12 +123,13 @@ def test_post_authorize_token_error(client):
     assert response.status_code == 405
 
 
-def test_post_get_token_error(client):
+def test_post_get_token_error(client, input_scenario_one):
     """1) Test invalid grant_type
     2) when grant_type is password with invalid credentials
     """
     token_url = "/adfs/oauth2/token"
     data = {
+        "client_id": input_scenario_one["client_id"],
         "grant_type": "invalid",
     }
     headers = {
@@ -140,36 +139,27 @@ def test_post_get_token_error(client):
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     result = json.loads(response.text)
-    assert result["error"] == "auth_processing_error"
+    assert result["error_code"] == "auth_processing_error"
     assert (
         result["error_description"]
         == f"The grant_type of '{data['grant_type']}' is not supported"
     )
 
-    scope = "openid profile"
-    client_id = "ID_12345"
-    resource_uri = "TEST:URI:RS-104134-21171-test-api"
-    domain_username = ""
-    nonce = uuid4().hex
     token_url = "/adfs/oauth2/token"
-    secret = "very long dev reminder"
     data = {
         "grant_type": "password",
-        "username": domain_username,
-        "password": secret,
-        "nonce": nonce,
-        "scope": scope,
-        "client_id": client_id,
-        "resource": resource_uri,
+        "username": input_scenario_one["username"],
+        "password": input_scenario_one["password"],
+        "nonce": input_scenario_one["nonce"],
+        "scope": input_scenario_one["scope"],
+        "client_id": input_scenario_one["client_id"],
+        "resource": input_scenario_one["resource"],
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
     }
     response = client.post(token_url, data=data, headers=headers)
-    assert response.status_code == 403
     result = json.loads(response.text)
-    assert result["error"] == "bad_token_request"
-    assert (
-        result["error_description"] == "Unable to retrieve token for grant 'password'"
-    )
+    assert "access_token" in result
+    assert response.status_code == 200

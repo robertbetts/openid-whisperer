@@ -2,6 +2,7 @@
 """
 import logging
 import json
+from typing import Dict, Any
 from flask import (
     Blueprint,
     request,
@@ -14,12 +15,21 @@ from flask import (
 from flask.typing import ResponseReturnValue
 
 from openid_whisperer.config import get_cached_config
-from openid_whisperer import openid_lib, openid_api
-from openid_whisperer.openid_api import process_token_request, AuthTemplateInput
-from openid_whisperer.openid_lib import OpenidException
+from openid_whisperer import openid_lib
+from openid_whisperer.openid_api import AuthTemplateInput
+from openid_whisperer.openid_interface import (
+    OpenidApiInterface,
+    OpenidApiInterfaceException,
+)
+from openid_whisperer.openid_types import GeneralPackageExceptionTypes
+from openid_whisperer.utils.credential_store_utils import UserCredentialStoreException
+from openid_whisperer.utils.token_store_utils import TokenIssuerCertificateStoreException
 
 config = get_cached_config()
 logger = logging.getLogger(__name__)
+
+openid_api_interface = OpenidApiInterface()
+
 openid_blueprint: Blueprint = Blueprint(
     "openid",
     __name__,
@@ -29,27 +39,18 @@ openid_blueprint: Blueprint = Blueprint(
 )
 
 
+def return_redirect(redirect_uri: str, data: Dict[str, Any]) -> ResponseReturnValue:
+    if len(data) > 0:
+        query_start: str = "&" if "?" in redirect_uri else "?"
+        for key, value in data.items():
+            redirect_uri += f"{query_start}{key}={value}"
+            query_start = "&"
+    return redirect_uri
+
+
 @openid_blueprint.route("/oauth2/authorize", methods=["GET"])  # type: ignore[misc]
 def authorize_get() -> ResponseReturnValue:
-    """Handles get requests to the authorization endpoint, this would typically
-    be to initiate human interaction required for a particular authorization
-    flow.
-
-    # TODO: Handle interactive flow, query example:
-    GET /adfs/oauth2/authorize?
-        client_id=PC-90274-SID-12655-DEV
-        &response_type=code
-        &redirect_uri=http://localhost:63385
-        &scope=URI:API:RS-104134-21171-mock-api-PROD+offline_access+openid+profile
-        &state=cezPxSQJLvjHrFob
-        &code_challenge=b_tTwfMnShCYxxaZSuEE3CdO2uDHvHvdcvUC6wBj624
-        &code_challenge_method=S256
-        &nonce=9d431d44112f0cbca609f9b3bb5b7c0f9a8e241a91006c883a1af4abc4b19e36
-        &client_info=1
-        &login_hint=your_username@your_tenant.com
-        &X-AnchorMailbox=UPN:your_username@your_tenant.com
-    HTTP/1.1
-    """
+    """Handles get requests to the authorization endpoint"""
 
     # Mandatory query string arguments
     response_type: str = request.args.get("response_type", "")
@@ -74,32 +75,36 @@ def authorize_get() -> ResponseReturnValue:
     # Query parameters supplied my MSAL for Azure interactive flow
     login_hint: str = request.args.get("prompt", "")
     client_info: str = request.args.get("client_info", "")
-    code_challenge: str = request.args.get("code_challenge", "")
     """
-
+    status_code: int = 200
     try:
-        template_parameters: AuthTemplateInput = (
-            openid_api.initiate_end_user_authentication(
-                response_type=response_type,
-                client_id=client_id,
-                scope=scope,
-                resource=resource,
-                response_mode=response_mode,
-                redirect_uri=redirect_uri,
-                state=state,
-                nonce=nonce,
-                prompt=prompt,
-                rcode=resource,
-                code_challenge_method=code_challenge_method,
-                code_challenge=code_challenge,
-            )
+        template_parameters: AuthTemplateInput = openid_api_interface.get_authorize(
+            tenant=openid_blueprint.url_prefix,
+            response_type=response_type,
+            client_id=client_id,
+            scope=scope,
+            resource=resource,
+            response_mode=response_mode,
+            redirect_uri=redirect_uri,
+            state=state,
+            nonce=nonce,
+            prompt=prompt,
+            rcode=resource,
+            code_challenge_method=code_challenge_method,
+            code_challenge=code_challenge,
         )
         authorize_get_resp = make_response(
             render_template("authenticate.html", **template_parameters)
         )
-        return authorize_get_resp
-    except OpenidException as e:
+        return authorize_get_resp, status_code
+
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
         abort(403, str(e))
+
+    except Exception as e:
+        logging.exception(e)
+        error = f"server_error: Error {request.method} {request.url} {e}"
+        abort(500, error)
 
 
 @openid_blueprint.route("/oauth2/authorize", methods=["POST"])  # type: ignore[misc]
@@ -123,15 +128,25 @@ def authorize_post() -> ResponseReturnValue:
     state: str = request.form.get("state", "")
     prompt: str = request.form.get("prompt", "")
     username = request.form.get("UserName")
-    user_secret = request.form.get("Password")
+    password = request.form.get("Password")
     user_code = request.form.get("CodeChallenge")
-    mfa = request.form.get("Mfa")
+    mfa_code = request.form.get("Mfa")
     kmsi = request.form.get("Kmsi")
     code_challenge_method: str = request.form.get("code_challenge_method", "")
     code_challenge: str = request.form.get("code_challenge", "")
 
+    if "code" not in response_type and "token" not in response_type:
+        abort(
+            403,
+            f"InvalidResponseType: response_type value of '{response_type}' is not supported. "
+            f"A call to /.well-known/openid-configuration will provide information on "
+            f"supported response types",
+        )
+
+    status_code: int = 200
     try:
-        openid_response = openid_api.process_end_user_authentication(
+        openid_response = openid_api_interface.post_authorize(
+            tenant=openid_blueprint.url_prefix,
             response_type=response_type,
             response_mode=response_mode,
             client_id=client_id,
@@ -140,28 +155,35 @@ def authorize_post() -> ResponseReturnValue:
             redirect_uri=redirect_uri,
             nonce=nonce,
             username=username,
-            user_secret=user_secret,
+            password=password,
             resource=resource,
             state=state,
-            mfa=mfa,
+            mfa_code=mfa_code,
             kmsi=kmsi,
             prompt=prompt,
             user_code=user_code,
             code_challenge_method=code_challenge_method,
             code_challenge=code_challenge,
         )
-    except OpenidException as e:
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
         openid_response = e.to_dict()
+        status_code = 403
+
+    except Exception as e:
+        logging.exception(e)
+        openid_response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}"
+        }
+        status_code = 500
 
     if code_challenge_method != "" and redirect_uri == "":
         if "error_code" in openid_response:
             termination_reply = openid_response["error_description"]
-            status_code = 403
         else:
             termination_reply = (
                 "Success, you have validated the user code provided to you."
             )
-            status_code = 200
 
         template_parameters = {
             "termination_reply": termination_reply,
@@ -183,50 +205,28 @@ def authorize_post() -> ResponseReturnValue:
         return authorize_get_resp, status_code
 
     if "code" in response_type:
-        query_start = "&" if "?" in redirect_uri else "?"
-
-        if "error_code" in openid_response:
-            error_code = openid_response["error_code"]
-            error_description = openid_response.get("error_description")
-            redirect_uri = f"{redirect_uri}{query_start}error_code={error_code}&error_description={error_description}"
+        # TODO: Handling cases where redirect should be replaced by a form_post
+        if "error_code" not in openid_response:
+            code_response = {
+                "code": openid_response["authorization_code"],
+                "state": state,
+            }
         else:
-            authorisation_code = openid_response["authorisation_code"]
-            redirect_uri = (
-                f"{redirect_uri}{query_start}code={authorisation_code}&state={state}"
-            )
-            logging.debug("redirect_uri: %s", redirect_uri)
-
-        # TODO: Research handling cases where redirect should be replaced by a form_post
+            code_response = openid_response
+        redirect_uri = return_redirect(redirect_uri, code_response)
         return redirect(redirect_uri, code=302)
 
     elif "token" in response_type:
         if "error_code" in openid_response:
-            error_code = openid_response["error_code"]
-            error_description = openid_response.get("error_description")
-            response = {
-                "error_code": error_code,
-                "error_description": error_description,
-            }
-            status_code = 403
+            response = openid_response
         else:
             response = openid_response["access_token"]
-            status_code = 200
         return json.dumps(response), status_code
 
-    elif "error_code" in openid_response:
-        # TODO: see about when to abort or to rather redirect and include error details
+    else:  # "error_code" in openid_response:
         error_code = openid_response["error_code"]
         error_description = openid_response.get("error_description")
         abort(403, f"{error_code}: {error_description}")
-
-    else:  # catch all line, because of response_type validation this line will never evaluate
-        # TODO: see about when to abort or to rather redirect and include error details
-        abort(
-            403,
-            f"InvalidResponseType: response_type value of '{response_type}' is not supported. "
-            f"A call to /.well-known/openid-configuration will provide information on "
-            f"supported response types",
-        )  # pragma: no cover
 
 
 @openid_blueprint.route("/oauth2/token", methods=["POST"])  # type: ignore[misc]
@@ -238,6 +238,10 @@ def token() -> ResponseReturnValue:
     """
     grant_type: str = request.form.get("grant_type", "")
     device_code: str = request.form.get("device_code", "")
+    access_token: str = request.form.get("access_token", "")
+    refresh_token: str = request.form.get("refresh_token", "")
+    token_type: str = request.form.get("token_type", "")
+    expires_in: int | str = request.form.get("token_type", "")
     client_id: str = request.form.get("client_id", "")
     client_secret: str = request.form.get("client_secret", "")
 
@@ -249,19 +253,24 @@ def token() -> ResponseReturnValue:
     code_verifier: str = request.form.get("code_verifier", "")
 
     username: str = request.form.get("username", "")
-    user_secret: str = request.form.get("password", "")
+    password: str = request.form.get("password", "")
     nonce: str = request.form.get("nonce", "")
     scope: str = request.form.get("scope", "")
     resource: str = request.form.get("resource", "")
 
     process_token_request_inputs = {
+        "tenant": openid_blueprint.url_prefix,
         "grant_type": grant_type,
         "client_id": client_id,
+        "refresh_token": refresh_token,
+        "token_type": token_type,
+        "expires_in": expires_in,
+        "access_token": access_token,
         "client_secret": client_secret,
         "device_code": device_code,
         "code": code,
         "username": username,
-        "user_secret": user_secret,
+        "password": password,
         "nonce": nonce,
         "scope": scope,
         "resource": resource,
@@ -270,13 +279,18 @@ def token() -> ResponseReturnValue:
     }
 
     try:
-        response = process_token_request(**process_token_request_inputs)
+        response = openid_api_interface.get_token(**process_token_request_inputs)
         status_code = 200
-    except OpenidException as e:
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
         response = e.to_dict()
-        logging.debug(process_token_request_inputs)
-        logging.debug(response)
         status_code = 403
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}"
+        }
+        status_code = 500
 
     return jsonify(response), status_code
 
@@ -284,7 +298,21 @@ def token() -> ResponseReturnValue:
 @openid_blueprint.route("/oauth2/userinfo", methods=["POST"])  # type: ignore[misc]
 def userinfo() -> ResponseReturnValue:
     """Returns claims about the authenticated user"""
-    return ""
+    status_code = 200
+    try:
+        response = {}
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+        response = e.to_dict()
+        status_code = 403
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}"
+        }
+        status_code = 500
+
+    return jsonify(response), status_code
 
 
 @openid_blueprint.route("/oauth2/devicecode", methods=["POST"])  # type: ignore[misc]
@@ -313,24 +341,33 @@ def devicecode() -> ResponseReturnValue:
      }
     """
     try:
-        client_id = request.form["client_id"]
-        """ this is a reminder
-        client_secret = request.form.get("client_secret")
-        """
-        scope = request.form["scope"]
+        tenant = "adfs"
+        client_id = request.form.get("client_id", "")
+        client_secret = request.form.get("client_secret", "")
+        scope = request.form.get("scope", "")
         resource = request.form.get("resource", "")
-        # TODO: Check that the verification_uri returned in the response, is accessible to the the end user
-        response = openid_lib.devicecode_request(
-            config.id_provider_base_url_external,
-            config.id_service_prefix,
-            client_id,
-            scope,
-            resource,
+        response = openid_api_interface.get_devicecode_request(
+            tenant=tenant,
+            base_url=config.id_provider_base_url_external,
+            client_id=client_id,
+            client_secret=client_secret,
+            scope=scope,
+            resource=resource,
         )
         status_code = 200
-    except KeyError as e:
-        response = {"error": "bad_devicecode_request", "error_description": str(e)}
+
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+        response = e.to_dict()
         status_code = 403
+
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}"
+        }
+        status_code = 500
+
     return jsonify(response), status_code
 
 
@@ -348,7 +385,21 @@ def logout() -> ResponseReturnValue:
 @openid_blueprint.route("/discovery/keys", methods=["GET"])  # type: ignore[misc]
 def keys() -> ResponseReturnValue:
     """Returns the public keys used to sign tokens"""
-    return jsonify(openid_lib.get_keys()), 200
+    status_code = 200
+    try:
+        response = openid_api_interface.token_store.get_keys()
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+        response = e.to_dict()
+        status_code = 403
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}"
+        }
+        status_code = 500
+
+    return jsonify(response), status_code
 
 
 @openid_blueprint.route("/.well-known/openid-configuration", methods=["GET"])  # type: ignore[misc]
@@ -359,12 +410,22 @@ def openid_configuration() -> ResponseReturnValue:
     #  then there will have to be valid certificates in place for host ip of the listening
     #  endpoint and the url extracted from this send the usd user ot client app to the correct
     #  destination.
-    id_provider_base_url = config.id_provider_base_url_external
-    return (
-        jsonify(
-            openid_lib.get_openid_configuration(
-                id_provider_base_url, config.id_service_prefix
-            )
-        ),
-        200,
-    )
+    try:
+        id_provider_base_url = config.id_provider_base_url_external
+        response = openid_lib.get_openid_configuration(
+            tenant=config.id_service_prefix,
+            base_url=id_provider_base_url,
+        )
+        status_code = 200
+    except (TokenIssuerCertificateStoreException, OpenidApiInterfaceException, UserCredentialStoreException) as e:
+        response = e.to_dict()
+        status_code = 403
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}"
+        }
+        status_code = 500
+
+    return jsonify(response), status_code

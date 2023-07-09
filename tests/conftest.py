@@ -4,6 +4,9 @@ import string
 
 from openid_whisperer import main
 from openid_whisperer.config import get_cached_config
+from openid_whisperer.openid_interface import OpenidApiInterface
+from openid_whisperer.openid_blueprint import openid_api_interface
+from openid_whisperer.utils.token_utils import public_keys_from_x509_certificates
 
 
 @pytest.fixture
@@ -23,6 +26,22 @@ def client(app):
 
 
 @pytest.fixture
+def openid_api():
+    openid_api_interface.issuer_reference = "uri:pytest:issuer:name:openid-whisperer"
+    yield openid_api_interface
+
+
+@pytest.fixture
+def internal_jwks_keys(openid_api: OpenidApiInterface):
+    return openid_api.token_store.get_keys()
+
+
+@pytest.fixture
+def endpoint_jwks_keys(openid_api: OpenidApiInterface):
+    return public_keys_from_x509_certificates(openid_api.token_store.get_keys())
+
+
+@pytest.fixture
 def input_scenario_one():
     client_id = "ID_12345"
     scope = "openid profile"
@@ -37,4 +56,6 @@ def input_scenario_one():
         "username": "enduser@domain",
         "password": "password1234",
         "nonce": nonce,
+        "kmsi": "",
+        "mfa_code": "",
     }

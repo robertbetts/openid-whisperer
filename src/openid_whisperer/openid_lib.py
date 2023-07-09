@@ -12,27 +12,28 @@
     Specifications referenced from Microsoft:
     https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
 """
+import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import hashlib
-import base64
 from urllib.parse import urljoin
 from uuid import uuid4
 from typing import Dict, Any, Optional, List
 import string
 import secrets
-from calendar import timegm
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric.types import CertificatePublicKeyTypes
-from cryptography.hazmat.primitives import serialization
 from cryptography import x509
 
 import jwt
-from jwt.utils import to_base64url_uint
 
 # Module configuration Information and default values
 from openid_whisperer.config import get_cached_config
-from openid_whisperer.openid_lib_types import DeviceCodeRequestResponse
+from openid_whisperer.openid_types import DeviceCodeRequestResponse
+from openid_whisperer.utils.token_utils import (
+    generate_s256_hash,
+    get_seconds_epoch,
+    get_now_seconds_epoch,
+)
 
 
 class OpenidException(Exception):
@@ -56,17 +57,20 @@ KEY_ID: str = "idp-key-id"
 KEY: rsa.RSAPrivateKey = config.org_key
 CERTIFICATE: x509.Certificate = config.org_cert
 ISSUER: str = f"urn:whisperer:openid:issuer:{CERTIFICATE.serial_number}"
-UNIT_TESTING: bool = False
 
 
 # Module authentication flow state tracking
-authorisation_codes: Dict[str, Any] = {}
+authorization_codes: Dict[str, Any] = {}
 access_tokens: Dict[str, Any] = {}
+refresh_tokens: Dict[str, Any] = {}
 code_challenges: Dict[str, Any] = {}  # Any: (code_challenge, code_challenge_method)
 
 # Module device_code flow state tracking
-device_code_requests: Dict[str, Any] = {}  # Indexed by user_code
-device_user_codes: Dict[str, str] = {}  # Indexed by device_code
+device_code_requests: Dict[str, Any] = {}  # device_requests Indexed by device_code
+user_device_codes: Dict[str, str] = {}  # device_codes Indexed by user_code
+device_authorization_codes: Dict[
+    str, str
+] = {}  # authorization_codes Indexed by device_code
 
 
 scopes_supported = [
@@ -111,7 +115,7 @@ def split_scope_and_resource(scope: str, resource: str) -> tuple[List[str], List
     return scope_list, resource_list
 
 
-def get_openid_configuration(base_url: str, tenant: str) -> Dict[str, Any]:
+def get_openid_configuration(tenant: str, base_url: str) -> Dict[str, Any]:
     openid_configuration: Dict[str, Any] = {
         "access_token_issuer": access_token_issuer,
         "as_access_token_token_binding_supported": False,
@@ -167,43 +171,6 @@ def get_openid_configuration(base_url: str, tenant: str) -> Dict[str, Any]:
     return openid_configuration
 
 
-def get_now_seconds_epoch() -> int:
-    """returns seconds between 1 January 1970 and now"""
-    return timegm(datetime.now(tz=timezone.utc).utctimetuple())
-
-
-def get_seconds_epoch(time_now: datetime) -> int:
-    """returns seconds between 1 January 1970 and time_now"""
-    return timegm(time_now.utctimetuple())
-
-
-def get_keys() -> Dict[str, Any]:
-    """returns public key info"""
-    pn_n: str = ""
-    pn_e: str = ""
-    public_key: CertificatePublicKeyTypes = CERTIFICATE.public_key()
-    if isinstance(public_key, rsa.RSAPublicKey):
-        public_numbers: rsa.RSAPublicNumbers = public_key.public_numbers()
-        pn_n = to_base64url_uint(public_numbers.n).decode("ascii")
-        pn_e = to_base64url_uint(public_numbers.e).decode("ascii")
-    public_cert: bytes = CERTIFICATE.public_bytes(encoding=serialization.Encoding.DER)
-    x5c: str = base64.b64encode(public_cert).decode("ascii")
-    return {
-        "keys": [
-            {
-                "kty": "RSA",
-                "use": "sig",
-                "alg": ALGORITHM,
-                "kid": KEY_ID,
-                "x5t": KEY_ID,
-                "n": pn_n,
-                "e": pn_e,
-                "x5c": [x5c],
-            }
-        ]
-    }
-
-
 def create_access_token_response(
     payload: Dict[str, Any], headers: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
@@ -242,34 +209,25 @@ def create_access_token_response(
     return access_token_response
 
 
-def get_client_id_information(
-    client_id: str,
-    resource: str,
-    username: str,
-    nonce: str,
-    scope: str,
+def get_end_user_information(
+    client_id: str, scope: str, resource: str, username: str, nonce: str
 ) -> Dict[str, Any] | None:
-    """Retrieve user information for the user identified by username within
-    the scope the application identified by client_id
-    If there is no valid scope for the given username for the client_id
-    then return None
+    """Retrieve user information for the end user identified by client_id and username
+
+    # TODO: rename this function to something like get_access_token or get get_identity_token
 
     Specifications for standard industry claims found here:
         https://www.iana.org/assignments/jwt/jwt.xhtml#claims
     """
     payload: Dict[str, Any] | None = None
     if client_id and username:
-        _ = scope
-        username_parts = username.split("\\", 1)
-        username = username_parts[1] if len(username_parts) > 1 else username
-
         auth_time = datetime.utcnow()
         expires_in = auth_time + timedelta(seconds=EXPIRES_SECONDS)
         _, audience = split_scope_and_resource(scope, resource)
         audience.append(client_id)
         payload = {
             "iss": ISSUER,
-            "sub": uuid4().hex,
+            "sub": username,
             "aud": audience,
             "exp": get_seconds_epoch(expires_in),
             "iat": get_seconds_epoch(auth_time),
@@ -284,55 +242,112 @@ def get_client_id_information(
     return payload
 
 
-def create_authorisation_code(
+def create_jwt_token(
+    issuer_key: rsa.RSAPrivateKey,
+    issuer_cert: x509.Certificate,
     client_id: str,
+    scope: str,
     resource: str,
     username: str,
     nonce: str,
+) -> Dict[str, Any]:
+    """
+    KEY, algorithm=ALGORITHM
+    :param issuer_key:
+    :param issuer_cert:
+    :param client_id:
+    :param scope:
+    :param resource:
+    :param username:
+    :param nonce:
+    :return:
+    """
+    auth_time = datetime.utcnow()
+    expires_in = auth_time + timedelta(seconds=EXPIRES_SECONDS)
+    _, audience = split_scope_and_resource(scope, resource)
+    audience.append(client_id)
+    claims = {
+        "iss": ISSUER,
+        "sub": uuid4().hex,
+        "aud": audience,
+        "exp": get_seconds_epoch(expires_in),
+        "iat": get_seconds_epoch(auth_time),
+        "auth_time": auth_time.isoformat(sep=" "),
+        "nonce": nonce,
+        "appid": client_id,
+        "username": username,
+        "email": "name.surname@mock-company.com",
+        "ver": "1.0",
+    }
+    headers = {
+        "kid": private_key_id,
+        "x5t": private_key_id,
+    }
+    return jwt.encode(claims, issuer_key, algorithm=ALGORITHM, headers=headers)
+
+
+def create_authorisation_code(
+    client_id: str,
     scope: str,
-    code_challenge_method: str | None = None,
-    code_challenge: str | None = None,
-    user_code: str | None = None,
+    resource: str,
+    username: str,
+    nonce: str,
+    code_challenge_method: Optional[str] = None,
+    code_challenge: Optional[str] = None,
+    user_code: Optional[str] = None,
     expiry_timeout: int = 600,
 ) -> Optional[str]:
-    """Create an authorisation code to pass back to the authorisation requester client_id
-    which will allow them to request a valid access token
+    """Returns an authorization_code for an access_token to an authorization requester."""
+    device_code: str | None = None
+    if user_code:
+        device_code = user_device_codes.pop(user_code, None)
+        if device_code is None:
+            raise OpenidException(
+                "device_code_missing_error",
+                f"Invalid user code {user_code}",
+            )
+        logging.debug(
+            "authorization_code issued relating to device code request from user_code: %s",
+            user_code,
+        )
+        device_code_request = device_code_requests[device_code]
+        time_now = get_now_seconds_epoch()
+        if device_code_request["expires_in"] <= time_now:
+            raise OpenidException(
+                "device_code_request_timeout",
+                f"device code request for user code {user_code} has timed out",
+            )
+        # TODO: Check the validity of the device code request
 
-    When a value for code_challenge is entered, then we assume device code authentication flow.
-    """
-    # TODO: Complete PKCE and S256 on code_challenge and user_code
-    authorisation_code: str | None = None
-    if client_id and username:
-        if user_code:
-            device_code_request = device_code_requests.pop(user_code, None)
-            if device_code_request is None:
-                raise OpenidException(
-                    "code_challenge_error",
-                    f"Invalid user code {user_code}",
-                )
-            authorisation_code = device_code_request["device_code"]
-            logging.debug("authorisation_code from device user code: %s", user_code)
-            # TODO: Validity and expiry check of device code request
-        else:
-            authorisation_code = hashlib.sha256(uuid4().hex.encode()).hexdigest()
+    expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
+    authorization_code_request = {
+        "expires_in": get_seconds_epoch(expires_in),
+        "client_id": client_id,
+        "resource": resource,
+        "username": username,
+        "nonce": nonce,
+        "scope": scope,
+        "code_challenge": code_challenge,
+        "code_challenge_method": code_challenge_method,
+    }
+    authorization_code = generate_s256_hash(json.dumps(authorization_code_request))
+    if code_challenge_method != "code_challenge":
+        logging.debug(
+            "authorization_code issued from code challenge: %s, %s -> %s",
+            code_challenge_method,
+            code_challenge,
+            authorization_code,
+        )
+    if device_code:
+        device_authorization_codes[device_code] = authorization_code
+        logging.debug(
+            "linking device_code to authorization_code: %s -> %s",
+            device_code,
+            authorization_code,
+        )
+    authorization_codes[authorization_code] = authorization_code_request
 
-        if authorisation_code is not None:
-            if code_challenge_method != "":
-                code_challenge = code_challenge if code_challenge else user_code
-                code_challenges[authorisation_code] = (code_challenge_method, code_challenge)
-                logging.debug("Stored code challenge: %s, %s", code_challenge_method, code_challenge)
-
-            expires_in = datetime.utcnow() + timedelta(seconds=expiry_timeout)
-            authorisation_codes[authorisation_code] = {
-                "authorisation_code": authorisation_code,
-                "expires_in": int(expires_in.timestamp()),
-                "client_id": client_id,
-                "resource": resource,
-                "username": username,
-                "nonce": nonce,
-                "scope": scope,
-            }
-    return authorisation_code
+    return authorization_code
 
 
 def devicecode_request(
@@ -359,7 +374,7 @@ def devicecode_request(
     user_code: str
     while True:
         user_code = "".join(secrets.choice(string.digits) for _ in range(8))
-        if user_code not in device_code_requests:
+        if user_code not in user_device_codes:
             break
 
     device_code = hashlib.sha256(user_code.encode("ascii")).hexdigest()
@@ -380,34 +395,36 @@ def devicecode_request(
     )
     auth_link_complete = f"{auth_link}&user_code={user_code}"
 
-    response = {
+    device_code_request = {
         "code_challenge_method": code_challenge_method,
         "device_code": device_code,
         "user_code": user_code,
         "verification_uri": auth_link,
         "verification_uri_complete": auth_link_complete,
-        "expires_in": int(expires_in.timestamp()),
+        "expires_in": get_seconds_epoch(expires_in),
         "interval": 5,
         "message": f"Enter the following code: {user_code} at this link, {auth_link}",
     }
-    device_code_requests[user_code] = response
-    device_user_codes[device_code] = user_code
-    return response
+    device_code_requests[device_code] = device_code_request
+    user_device_codes[user_code] = device_code
+    return device_code_request
 
 
-def get_access_token_from_authorisation_code(code: str) -> Dict[str, Any] | None:
+def get_access_token_from_authorisation_code(
+    authorisation_code: str,
+) -> Dict[str, Any] | None:
     """Search for the given code amongst the issued authorisation codes and if present, then create
     and return an access token.
     """
     response = None
-    auth_request_info = authorisation_codes.get(code)
+    auth_request_info = authorization_codes.get(authorisation_code)
     if auth_request_info:
-        payload = get_client_id_information(
+        payload = get_end_user_information(
             auth_request_info["client_id"],
+            auth_request_info["scope"],
             auth_request_info["resource"],
             auth_request_info["username"],
             auth_request_info["nonce"],
-            auth_request_info["scope"],
         )
         if payload:
             headers = {
@@ -419,7 +436,7 @@ def get_access_token_from_authorisation_code(code: str) -> Dict[str, Any] | None
     return response
 
 
-def authenticate(
+def authenticate_end_user(
     client_id: str,
     resource: str,
     username: str,
@@ -438,7 +455,8 @@ def authenticate(
     return response
 
 
-def authenticate_token(
+def authenticate_with_token_response(
+    response_type: str,
     client_id: str,
     resource: str,
     username: str,
@@ -452,10 +470,10 @@ def authenticate_token(
     user_secret, kmsi and mfa_code
     if authentication fails return None
     """
-    _, _ = kmsi, mfa_code
+    _, _, _ = kmsi, mfa_code, response_type
     response = None
-    if authenticate(client_id, resource, username, user_secret, mfa_code):
-        payload = get_client_id_information(client_id, resource, username, nonce, scope)
+    if authenticate_end_user(client_id, resource, username, user_secret, mfa_code):
+        payload = get_end_user_information(client_id, scope, resource, username, nonce)
         if payload:
             headers = {
                 "kid": KEY_ID,
@@ -465,7 +483,7 @@ def authenticate_token(
     return response
 
 
-def authenticate_code(
+def authenticate_with_code_response(
     client_id: str,
     resource: str,
     username: str,
@@ -478,30 +496,32 @@ def authenticate_code(
     kmsi: str | None = None,
     mfa_code: str | None = None,
 ) -> Optional[str]:
-    """Returns an authentication code after authenticating an end user and validating a user_code or code_challenge
-    if authentication or validation fail, an OpenidException is raised
+    """Returns an access_token after authenticating the end user and validating a user_code or code_challenge
+    if authentication or validation fails, then an OpenidException is raised
+
+    # TODO: Add extend input to receive redirect_uri and pass on to create_authorisation_code
     """
     _ = kmsi
     response: str | None = None
-    if not authenticate(client_id, resource, username, user_secret, mfa_code):
+    if not authenticate_end_user(client_id, resource, username, user_secret, mfa_code):
         raise OpenidException(
             "authentication_error",
             "Unable to authenticate the end user, while processing code challenge",
         )
 
-    response = create_authorisation_code(
-        client_id,
-        resource,
-        username,
-        nonce,
-        scope,
-        code_challenge_method,
-        code_challenge,
-        user_code,
+    access_token = create_authorisation_code(
+        client_id=client_id,
+        scope=scope,
+        resource=resource,
+        username=username,
+        nonce=nonce,
+        code_challenge_method=code_challenge_method,
+        code_challenge=code_challenge,
+        user_code=user_code,
     )
-    if response is None:
+    if access_token is None:
         raise OpenidException(
             "authorization_error", "error validating the code challenge"
         )
 
-    return response
+    return access_token

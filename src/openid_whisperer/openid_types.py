@@ -1,4 +1,16 @@
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, Type
+
+from openid_whisperer.openid_interface import OpenidApiInterfaceException
+from openid_whisperer.utils.credential_store_utils import UserCredentialStoreException
+from openid_whisperer.utils.token_store_utils import (
+    TokenIssuerCertificateStoreException,
+)
+
+GeneralPackageExceptionTypes = Type[
+    TokenIssuerCertificateStoreException
+    | OpenidApiInterfaceException
+    | UserCredentialStoreException
+]
 
 
 class DevicecodeRequestInput(TypedDict):

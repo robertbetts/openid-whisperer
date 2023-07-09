@@ -471,7 +471,7 @@ def process_end_user_authentication(
     if "code" in response_type:
         state: str = stringify(kwargs.get("state"))
 
-        authorisation_code = openid_lib.authenticate_code(
+        authorisation_code = openid_lib.authenticate_with_code_response(
             client_id=client_id,
             resource=resource,
             username=username,
@@ -492,7 +492,8 @@ def process_end_user_authentication(
     else:  # if "token" in response_type:
         kmsi: str = stringify(kwargs.get("kmsi"))
 
-        access_token = openid_lib.authenticate_token(
+        access_token = openid_lib.authenticate_with_token_response(
+            response_type=response_type,
             client_id=client_id,
             resource=resource,
             username=username,
@@ -510,6 +511,10 @@ def process_end_user_authentication(
 def process_token_request(
     grant_type: str,
     client_id: str,
+    refresh_token: str,
+    token_type: str,
+    expires_in: int | str,
+    access_token: str,
     client_secret: str,
     device_code: str,
     code: str,
@@ -542,6 +547,14 @@ def process_token_request(
         required str, Must be authorization_code for the authorization code flow.
     client_id:
         required str, The Application (client) ID that the AD FS assigned to your app.
+    refresh_token:
+        optional str, Required for grant_type of refresh_token
+    token_type:
+        optional str, Required for grant_type of refresh_token
+    expires_in:
+        optional int | str, Required for grant_type of refresh_token
+    access_token:
+        optional str, Required for grant_type of refresh_token
     client_secret:
         optional str, Required for web apps The application secret that you
         created during app registration in AD FS. You shouldn't use the
@@ -581,6 +594,10 @@ def process_token_request(
         client_secret,
         redirect_uri,
         code_verifier,
+        refresh_token,
+        token_type,
+        expires_in,
+        access_token,
     )  # interface variables provided for future features
 
     grant_type = validate_grant_type(grant_type)
@@ -588,9 +605,30 @@ def process_token_request(
     response: Dict[str, Any] | None = None
 
     if grant_type == "device_code":
-        response = openid_lib.get_access_token_from_authorisation_code(device_code)
+        device_code_request = openid_lib.device_code_requests.get(device_code)
+        if device_code_request is None:
+            raise OpenidException(
+                "device_code_error",
+                "Unknown device_code provided.",
+            )
+
+        # TODO: handle additional unsuccessful and error states, expired_token, authorization_declined etc.
+        # TODO: openid_lib device_code cache cleanup
+
+        authorization_code = openid_lib.device_authorization_codes.pop(
+            device_code, None
+        )
+        if authorization_code is None:
+            raise OpenidException(
+                "authorization_pending",
+                "End user authentication relating to the user_code provided has not been completed.",
+            )
+
+        response = openid_lib.get_access_token_from_authorisation_code(
+            authorization_code
+        )
         if response is None:
-            user_code = openid_lib.device_user_codes.get(device_code)
+            user_code = openid_lib.user_device_codes.get(device_code)
             if user_code:
                 # TODO: handle additional unsuccessful and error states, expired_token, authorization_declined etc.
                 # TODO: openid_lib device_code cache cleanup
@@ -613,6 +651,10 @@ def process_token_request(
                 )
         return response
 
+    elif grant_type == "refresh_token":
+        raise OpenidException(
+            "bad_token_request", f"grant_type '{grant_type}' not implemented"
+        )
     # TODO: handle grant_type for on-behalf-of flow
     # elif grant_type.endswith("jwt-bearer"):
     #     # For on-behalf-of flow
@@ -641,8 +683,9 @@ def process_token_request(
 
     elif grant_type == "password":
         _ = validate_client_id(client_id)
-
-        response = openid_lib.authenticate_token(
+        response_type = "id_token"
+        response = openid_lib.authenticate_with_token_response(
+            response_type=response_type,
             client_id=client_id,
             resource=resource,
             username=username,

@@ -15,8 +15,9 @@ def test_userinfo_call():
 def test_devicecode_call():
     test_client = app().test_client()
     response = test_client.post("/adfs/oauth2/devicecode")
+    print(response.text)
+    assert response.json["error_code"] == "auth_processing_error"
     assert response.status_code == 403
-    assert response.json["error"] == "bad_devicecode_request"
 
 
 def test_logout_call():
@@ -70,28 +71,20 @@ def test_authorize_get_call():
     assert response.status_code == 200
 
 
-def test_authorize_code_and_fetch_token_flow(client):
-    scope = "openid profile"
+def test_authorize_code_and_fetch_token_flow(client, input_scenario_one):
     response_type = "code"
-    client_id = "ID_12345"
-    resource_uri = "TEST:URI:RS-104134-21171-test-api"
     redirect_uri = "http://test/api/handleAccessToken"
-    nonce = uuid4().hex
     state = secrets.token_hex()
     auth_url = f"/adfs/oauth2/authorize"
-    domain = "my-domain"
-    username = "my-name"
-    domain_username = f"{username}@{domain}"
-    secret = "very long dev reminder"
     data = {
         "response_type": response_type,
         "grant_type": "password",
-        "client_id": client_id,
-        "scope": scope,
-        "resource": resource_uri,
-        "UserName": domain_username,
-        "Password": secret,
-        "nonce": nonce,
+        "client_id": input_scenario_one["client_id"],
+        "scope": input_scenario_one["scope"],
+        "resource": input_scenario_one["resource"],
+        "UserName": input_scenario_one["username"],
+        "Password": input_scenario_one["password"],
+        "nonce": input_scenario_one["nonce"],
         "state": state,
         "redirect_uri": redirect_uri,
     }
@@ -114,6 +107,7 @@ def test_authorize_code_and_fetch_token_flow(client):
 
     token_url = "/adfs/oauth2/token"
     data = {
+        "client_id": input_scenario_one["client_id"],
         "grant_type": "authorization_code",
         "code": query_params["code"],
     }
@@ -160,28 +154,20 @@ def test_authorize_token_flow(client):
     assert response.status_code == 200
 
 
-def test_fetch_token_with_password_flow(client):
+def test_fetch_token_with_password_flow(client, input_scenario_one):
     response_type = "token id_token"
-    client_id = "ID_12345"
-    scope = "openid profile"
-    resource = "TEST:URI:RS-104134-21171-test-api"
     auth_url = "/adfs/oauth2/authorize"
-    domain = "my-domain"
-    username = "my-name"
-    domain_username = f"{username}@{domain}"
-    secret = "very long dev reminder"
-    kmsi = ""
-    nonce = uuid4().hex
 
     data = {
         "response_type": response_type,
         "grant_type": "password",
-        "client_id": client_id,
-        "resource": resource,
-        "UserName": domain_username,
-        "Password": secret,
-        "nonce": nonce,
-        "Kmsi": kmsi,
+        "client_id": input_scenario_one["client_id"],
+        "scope": input_scenario_one["scope"],
+        "resource": input_scenario_one["resource"],
+        "UserName": input_scenario_one["username"],
+        "Password": input_scenario_one["password"],
+        "nonce": input_scenario_one["nonce"],
+        "Kmsi": input_scenario_one["kmsi"],
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -195,12 +181,12 @@ def test_fetch_token_with_password_flow(client):
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "password",
-        "username": domain_username,
-        "password": secret,
-        "nonce": nonce,
-        "scope": scope,
-        "client_id": client_id,
-        "resource": resource,
+        "username": input_scenario_one["username"],
+        "password": input_scenario_one["password"],
+        "nonce": input_scenario_one["nonce"],
+        "scope": input_scenario_one["scope"],
+        "client_id": input_scenario_one["client_id"],
+        "resource": input_scenario_one["resource"],
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",

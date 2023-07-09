@@ -115,6 +115,7 @@ def handle_access_token() -> Response:
                 else:
                     # Cache the access token in the session for future use
                     session["access_token"] = access_token
+                    # TODO: check that this time conversion from epoch seconds is accurate
                     session["exp"] = exp_date = datetime.utcfromtimestamp(claims["exp"])
                     resp = make_response(
                         render_template(
@@ -152,6 +153,7 @@ def index():
                 audience=config.audience,
                 verify_server=config.validate_certs,
             )
+            # TODO: check that this time conversion from epoch seconds is accurate
             exp_date = datetime.utcfromtimestamp(claims["exp"])
             return render_template(
                 "mock_api_index.html", claims=claims, exp_date=exp_date

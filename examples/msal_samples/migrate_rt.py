@@ -25,6 +25,7 @@ import msal
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
 logging.getLogger("msal").setLevel(logging.INFO)  # Optionally disable MSAL DEBUG logs
 
+
 def get_preexisting_rt_and_their_scopes_from_elsewhere():
     # Maybe you have an ADAL-powered app like this
     #   https://github.com/AzureAD/azure-activedirectory-library-for-python/blob/1.2.3/sample/device_code_sample.py#L72
