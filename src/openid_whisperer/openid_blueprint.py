@@ -50,7 +50,7 @@ def return_redirect(redirect_uri: str, data: Dict[str, Any]) -> ResponseReturnVa
 @openid_blueprint.route("/oauth2/authorize", methods=["GET"])  # type: ignore[misc]
 def authorize_get() -> ResponseReturnValue:
     """Handles GET requests to the authorization endpoint"""
-
+    tenant: str = openid_blueprint.url_prefix
     # Mandatory query string arguments
     response_type: str = request.args.get("response_type", "")
     client_id: str = request.args.get("client_id", "")
@@ -63,6 +63,7 @@ def authorize_get() -> ResponseReturnValue:
     nonce: str = request.args.get("nonce", "")
     state: str = request.args.get("state", "")
     prompt: str = request.args.get("prompt", "")
+    rcode: str = request.args.get("rcode", "")
     code_challenge_method: str = request.args.get("code_challenge_method", "")
     code_challenge: str = request.args.get("code_challenge", "")
 
@@ -74,7 +75,7 @@ def authorize_get() -> ResponseReturnValue:
     status_code: int = 200
     try:
         template_parameters = openid_api_interface.get_authorize(
-            tenant=openid_blueprint.url_prefix,
+            tenant=tenant,
             response_type=response_type,
             client_id=client_id,
             scope=scope,
@@ -84,10 +85,18 @@ def authorize_get() -> ResponseReturnValue:
             state=state,
             nonce=nonce,
             prompt=prompt,
-            rcode=resource,
+            rcode=rcode,
             code_challenge_method=code_challenge_method,
             code_challenge=code_challenge,
         )
+        template_parameters.update({
+            "tenant": openid_blueprint.url_prefix,
+            "resource": resource,
+            "state": state,
+            "scope": scope,
+            "nonce": "nonce",
+            "redirect_uri": redirect_uri,
+        })
         authorize_get_resp = make_response(
             render_template("authenticate.html", **template_parameters)
         )

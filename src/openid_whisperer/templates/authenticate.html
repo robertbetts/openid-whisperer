@@ -222,6 +222,7 @@
                                 <input id="optionRedirectUri" type="hidden" name="redirect_uri" value="{{ redirect_uri }}"/>
                                 <input id="optionNonce" type="hidden" name="nonce" value="{{ nonce }}"/>
                                 <input id="optionState" type="hidden" name="state" value="{{ state }}"/>
+                                <input id="optionResource" type="hidden" name="resource" value="{{ resource }}"/>
                                 {% if requires_pkce %}
                                 <input id="optionCodeChallenge" type="hidden" name="code_challenge" value="{{ code_challenge }}"/>
                                 {% endif %}

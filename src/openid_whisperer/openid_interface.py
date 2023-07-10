@@ -93,7 +93,7 @@ def get_audience(
     audience.append(client_id)
     for item in scope.split(" "):
         aud = item.strip()
-        if item not in SCOPE_PROFILES:
+        if item not in SCOPE_PROFILES and item != "":
             audience.append(aud)
     return audience
 
@@ -408,8 +408,9 @@ class OpenidApiInterface:
             user_claims = self.credential_store.get_user_scope_claims(
                 username=username, scope=scope, nonce=nonce
             )
+            logger.debug((client_id, resource, user_claims))
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
-
+            logger.debug(audience)
             authorization_code, token_response = self.token_store.create_new_token(
                 client_id=client_id,
                 issuer=self.issuer_reference,
@@ -417,6 +418,8 @@ class OpenidApiInterface:
                 user_claims=user_claims,
                 audience=audience,
             )
+            logger.debug(f"token: {token_response['access_token']}")
+
             if device_code:
                 device_authorization = {
                     "expires_in": token_response["expires_in"],

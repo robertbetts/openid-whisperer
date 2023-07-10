@@ -2,9 +2,19 @@ import pytest
 from openid_whisperer.openid_interface import (
     validate_response_type,
     validate_response_mode,
-    validate_grant_type, OpenidApiInterfaceException,
+    validate_grant_type, OpenidApiInterfaceException, get_audience,
 )
 
+
+def test_assemble_audience(input_scenario_one):
+
+    audience = get_audience(
+        client_id=input_scenario_one["client_id"],
+        scope=input_scenario_one["scope"],
+        resource=input_scenario_one["resource"]
+    )
+    print(audience)
+    assert all([item in audience for item in [input_scenario_one["client_id"], input_scenario_one["resource"]]])
 
 def test_valid_response_types():
     # Check invalid
