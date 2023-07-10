@@ -80,12 +80,11 @@ class UserCredentialStore:
         if not username:
             return self.count_failed_authentication(username)
 
-        if self.maximum_login_attempts and self.maximum_login_attempts > 0:
-            if (
-                self.failed_login_attempts.get(username, 0)
-                > self.maximum_login_attempts
-            ):
-                return self.count_failed_authentication(username)
+        if (
+                self.maximum_login_attempts
+                and 0 < self.maximum_login_attempts < self.failed_login_attempts.get(username, 0)
+        ):
+            return self.count_failed_authentication(username)
 
         # Mock user credentials require a non-zero length password
         if not password:

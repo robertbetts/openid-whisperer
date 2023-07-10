@@ -83,7 +83,7 @@ def validate_access_token(
 
 def validate_jwt_token(
     access_token: str,
-    jwks_keys: List[Any],
+    jwks_keys: Dict[str, Any],
     algorithms: List[str],
     audience: Optional[List[str]] = None,
     issuer: Optional[str] = None,

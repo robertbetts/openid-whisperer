@@ -104,7 +104,7 @@ class TokenIssuerCertificateStore:
 
         # TODO: Track these
         self.tokens_issued: Dict[
-            str, Tuple[int, str]
+            str, Tuple[Any, str]
         ] = {}  # (expires_in, authorization_code) indexed by jti
         self.refresh_tokens_issued: Dict[
             str, Tuple[int, str]
@@ -134,7 +134,7 @@ class TokenIssuerCertificateStore:
             )
             # TODO: certificate validation
 
-        private_key: CertificateIssuerPrivateKeyTypes = None
+        private_key: CertificateIssuerPrivateKeyTypes | None = None
         if key_filename:
             with open(key_filename, "rb") as key_file:
                 key_password: bytes = key_password.encode() if key_password else None
@@ -217,7 +217,7 @@ class TokenIssuerCertificateStore:
         sub: str,
         user_claims: Dict[str, Any],
         audience: List[str],
-    ) -> Dict[str, Any]:
+    ) -> Tuple[str, Dict[str, Any]]:
         """Returns a new JWT response using the parameters given.
 
         The claims iss, sun, exp, iat, auth_time, appid, ver are overriden by the TokenIssuerCertificateStore
