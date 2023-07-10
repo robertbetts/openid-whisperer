@@ -88,9 +88,6 @@ def test_device_code_flow(app, input_scenario_one):
     assert "text/html" in response.content_type
     assert response.status_code == 200
 
-    # Now inspect the contents of the authlib_cache to validate backend token state
-    from openid_whisperer import openid_lib
-
     print(devicecode_response)
     # Test valid token
     token_url = "/adfs/oauth2/token"

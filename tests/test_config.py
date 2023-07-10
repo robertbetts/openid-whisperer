@@ -13,6 +13,10 @@ from openid_whisperer.utils.config_utils import (
 from openid_whisperer.config import Config, get_cached_config
 
 
+def test_config_base_url(config):
+    base_url = config.id_provider_base_url
+    assert base_url == f"https://{config.id_service_host}:{config.id_service_port}"
+
 def test_messing_with_config_class():
     with pytest.raises(ValueError):
         config = Config(defaults={"bad-property-name": (str, "property-value")})

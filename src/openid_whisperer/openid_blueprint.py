@@ -15,13 +15,12 @@ from flask import (
 from flask.typing import ResponseReturnValue
 
 from openid_whisperer.config import get_cached_config
-from openid_whisperer import openid_lib
 from openid_whisperer.openid_interface import (
     OpenidApiInterface,
     OpenidApiInterfaceException,
 )
-from openid_whisperer.utils.credential_store_utils import UserCredentialStoreException
-from openid_whisperer.utils.token_store_utils import (
+from openid_whisperer.utils.credential_store import UserCredentialStoreException
+from openid_whisperer.utils.token_store import (
     TokenIssuerCertificateStoreException,
 )
 
@@ -50,7 +49,7 @@ def return_redirect(redirect_uri: str, data: Dict[str, Any]) -> ResponseReturnVa
 
 @openid_blueprint.route("/oauth2/authorize", methods=["GET"])  # type: ignore[misc]
 def authorize_get() -> ResponseReturnValue:
-    """Handles get requests to the authorization endpoint"""
+    """Handles GET requests to the authorization endpoint"""
 
     # Mandatory query string arguments
     response_type: str = request.args.get("response_type", "")
@@ -64,15 +63,11 @@ def authorize_get() -> ResponseReturnValue:
     nonce: str = request.args.get("nonce", "")
     state: str = request.args.get("state", "")
     prompt: str = request.args.get("prompt", "")
-
-    # If a value for code_challenge_method is present, then assumed that this request
-    # forms part of a device code authorisation flow.
     code_challenge_method: str = request.args.get("code_challenge_method", "")
-    # ths a value for the code_challenge is present, this is a PKCE
     code_challenge: str = request.args.get("code_challenge", "")
 
     """
-    # Query parameters supplied my MSAL for Azure interactive flow
+    # TODO: Query parameters supplied my MSAL for Azure interactive flow
     login_hint: str = request.args.get("prompt", "")
     client_info: str = request.args.get("client_info", "")
     """
@@ -139,15 +134,6 @@ def authorize_post() -> ResponseReturnValue:
     code_challenge_method: str = request.form.get("code_challenge_method", "")
     code_challenge: str = request.form.get("code_challenge", "")
 
-    if "code" not in response_type and "token" not in response_type:
-        abort(
-            403,
-            f"InvalidResponseType: response_type value of '{response_type}' is not supported. "
-            f"A call to /.well-known/openid-configuration will provide information on "
-            f"supported response types",
-        )
-
-    status_code: int = 200
     try:
         openid_response = openid_api_interface.post_authorize(
             tenant=openid_blueprint.url_prefix,
@@ -169,6 +155,7 @@ def authorize_post() -> ResponseReturnValue:
             code_challenge_method=code_challenge_method,
             code_challenge=code_challenge,
         )
+        status_code: int = 200
     except (
         TokenIssuerCertificateStoreException,
         OpenidApiInterfaceException,
@@ -214,36 +201,27 @@ def authorize_post() -> ResponseReturnValue:
 
     if "code" in response_type:
         # TODO: Handling cases where redirect should be replaced by a form_post
-        if "error_code" not in openid_response:
+        if "error_code" in openid_response:
+            code_response = openid_response
+        else:
             code_response = {
                 "code": openid_response["authorization_code"],
                 "state": state,
             }
-        else:
-            code_response = openid_response
         redirect_uri = return_redirect(redirect_uri, code_response)
         return redirect(redirect_uri, code=302)
 
-    elif "token" in response_type:
+    else:  # only other possible option is a response_type == "token":
         if "error_code" in openid_response:
             response = openid_response
         else:
             response = openid_response["access_token"]
         return json.dumps(response), status_code
 
-    else:  # "error_code" in openid_response:
-        error_code = openid_response["error_code"]
-        error_description = openid_response.get("error_description")
-        abort(403, f"{error_code}: {error_description}")
-
 
 @openid_blueprint.route("/oauth2/token", methods=["POST"])  # type: ignore[misc]
 def token() -> ResponseReturnValue:
-    """Returns:
-    * (200) issued token json
-    * (400) pending token json
-    * (403) invalid token request json
-    """
+    """Returns a token response payload for the support grant_types"""
     grant_type: str = request.form.get("grant_type", "")
     device_code: str = request.form.get("device_code", "")
     access_token: str = request.form.get("access_token", "")
@@ -252,9 +230,6 @@ def token() -> ResponseReturnValue:
     expires_in: int | str = request.form.get("token_type", "")
     client_id: str = request.form.get("client_id", "")
     client_secret: str = request.form.get("client_secret", "")
-
-    # check specifications for handling redirect_uri and compare with openid specs MS reference below:
-    # https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
     redirect_uri: str = request.args.get("redirect_uri", "")
 
     code: str = request.form.get("code", "")
@@ -310,9 +285,19 @@ def token() -> ResponseReturnValue:
 @openid_blueprint.route("/oauth2/userinfo", methods=["POST"])  # type: ignore[misc]
 def userinfo() -> ResponseReturnValue:
     """Returns claims about the authenticated user"""
+    tenant: str = openid_blueprint.url_prefix
+    client_id: str = request.form.get("client_id", "")
+    client_secret: str = request.form.get("client_secret", "")
+    username: str = request.form.get("username", "")
+
     status_code = 200
     try:
-        response = {}
+        response = openid_api_interface.post_userinfo(
+            tenant=tenant,
+            client_id=client_id,
+            client_secret=client_secret,
+            username=username,
+        )
     except (
         TokenIssuerCertificateStoreException,
         OpenidApiInterfaceException,
@@ -357,7 +342,7 @@ def devicecode() -> ResponseReturnValue:
      }
     """
     try:
-        tenant = "adfs"
+        tenant: str = openid_blueprint.url_prefix
         client_id = request.form.get("client_id", "")
         client_secret = request.form.get("client_secret", "")
         scope = request.form.get("scope", "")
@@ -391,15 +376,76 @@ def devicecode() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET", "POST"])  # type: ignore[misc]
-@openid_blueprint.route("/oauth2/logout", methods=["GET", "POST"])  # type: ignore[misc]
-def logout() -> ResponseReturnValue:
+@openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET"])  # type: ignore[misc]
+@openid_blueprint.route("/oauth2/logout", methods=["GET"])  # type: ignore[misc]
+def get_logout() -> ResponseReturnValue:
     """logs out the end user, the client is also responsible for clearing out
     any cached authenticated session info held. The end uer is then redirected to the
     given post_logout_redirect_uri
     """
-    post_logout_redirect_uri = request.args["post_logout_redirect_uri"]
-    return redirect(post_logout_redirect_uri, code=302)
+    tenant: str = openid_blueprint.url_prefix
+    client_id: str = request.args.get("client_id", "")
+    username: str = request.args.get("username", "")
+    post_logout_redirect_uri: str = request.args.get("post_logout_redirect_uri", "")
+
+    try:
+        response: Dict[str, Any] = openid_api_interface.logoff(
+            tenant, client_id, username
+        )
+        redirect_uri: str = return_redirect(post_logout_redirect_uri, response)
+        return redirect(redirect_uri, code=302)
+
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
+        response = e.to_dict()
+        status_code = 403
+
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}",
+        }
+        status_code = 500
+
+    abort(status_code, response)
+
+
+@openid_blueprint.route("/oauth2/v2.0/logout", methods=["POST"])  # type: ignore[misc]
+@openid_blueprint.route("/oauth2/logout", methods=["POST"])  # type: ignore[misc]
+def post_logout() -> ResponseReturnValue:
+    """logs out the end user, the client is also responsible for clearing out
+    any cached authenticated session info held. The end uer is then redirected to the
+    given post_logout_redirect_uri
+    """
+    tenant: str = openid_blueprint.url_prefix
+    client_id: str = request.form.get("client_id", "")
+    username: str = request.form.get("username", "")
+    try:
+        response = openid_api_interface.logoff(
+            tenant=tenant, client_id=client_id, username=username
+        )
+        status_code = 200
+    except (
+        TokenIssuerCertificateStoreException,
+        OpenidApiInterfaceException,
+        UserCredentialStoreException,
+    ) as e:
+        response = e.to_dict()
+        status_code = 403
+
+    except Exception as e:
+        logging.exception(e)
+        response = {
+            "error_code": "server_error",
+            "error_description": f"Error {request.method} {request.url} {e}",
+        }
+        status_code = 500
+
+    return jsonify(response), status_code
 
 
 @openid_blueprint.route("/discovery/keys", methods=["GET"])  # type: ignore[misc]
@@ -412,7 +458,7 @@ def keys() -> ResponseReturnValue:
         TokenIssuerCertificateStoreException,
         OpenidApiInterfaceException,
         UserCredentialStoreException,
-    ) as e:
+    ) as e:  # pragma: no cover
         response = e.to_dict()
         status_code = 403
     except Exception as e:
@@ -436,7 +482,7 @@ def openid_configuration() -> ResponseReturnValue:
     #  destination.
     try:
         id_provider_base_url = config.id_provider_base_url_external
-        response = openid_lib.get_openid_configuration(
+        response = openid_api_interface.get_openid_configuration(
             tenant=config.id_service_prefix,
             base_url=id_provider_base_url,
         )
@@ -445,10 +491,10 @@ def openid_configuration() -> ResponseReturnValue:
         TokenIssuerCertificateStoreException,
         OpenidApiInterfaceException,
         UserCredentialStoreException,
-    ) as e:
+    ) as e: # pragma: no cover
         response = e.to_dict()
         status_code = 403
-    except Exception as e:
+    except Exception as e: # pragma: no cover
         logging.exception(e)
         response = {
             "error_code": "server_error",

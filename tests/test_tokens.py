@@ -4,10 +4,9 @@ from uuid import uuid4
 from typing import Dict, Any
 
 from openid_whisperer.utils.token_utils import (
-    validate_access_token,
-    generate_s256_hash,
-    validate_s256_hash,
+    validate_access_token, validate_jwt_token,
 )
+from openid_whisperer.utils.common import generate_s256_hash, validate_s256_hash
 from openid_whisperer.openid_interface import OpenidApiInterface, get_audience
 
 
@@ -61,3 +60,21 @@ def test_authorisation_code(
         and claims["appid"] == input_scenario_one["client_id"]
         and claims["nonce"] == input_scenario_one["nonce"]
     )
+    # Test proxy function of validate_access_token
+    claims = validate_jwt_token(
+        access_token=token_response["access_token"],
+        jwks_keys=endpoint_jwks_keys,
+        algorithms=algorithms,
+        audience=input_scenario_one["resource"],
+        issuer=openid_api.issuer_reference,
+    )
+    assert (
+            claims["aud"]
+            == [input_scenario_one["resource"], input_scenario_one["client_id"]]
+            and claims["iss"] == openid_api.issuer_reference
+            and claims["appid"] == input_scenario_one["client_id"]
+            and claims["nonce"] == input_scenario_one["nonce"]
+    )
+
+
+

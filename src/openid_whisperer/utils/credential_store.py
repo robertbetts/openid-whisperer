@@ -1,8 +1,6 @@
 from typing import Dict, Any, Optional
-import datetime
 
-from openid_whisperer.utils.common import GeneralPackageException
-from openid_whisperer.utils.token_utils import get_now_seconds_epoch
+from openid_whisperer.utils.common import GeneralPackageException, get_now_seconds_epoch
 
 
 class UserCredentialStoreException(GeneralPackageException):
@@ -34,11 +32,15 @@ class UserCredentialStore:
         ] = {}  # login_time_stamp indexed by username
         self.failed_login_attempts: Dict[str, int] = {}  # Indexed by username
 
-    def logoff(self, username: str) -> None:
+    def logoff(self, tenant: str, username: str) -> None:
         """Remove an authenticated_session if one exists for the user, if one does not exist then do nothing
 
+        :param tenant:
         :param username:
         """
+        # Future feature placeholder parameters
+        _ = tenant
+
         self.authenticated_session.pop(username, None)
 
     def count_failed_authentication(self, username: str) -> bool:
@@ -49,6 +51,7 @@ class UserCredentialStore:
 
     def authenticate(
         self,
+        tenant: str,
         username: str,
         password: str,
         mfa_code: Optional[str] = None,
@@ -60,6 +63,7 @@ class UserCredentialStore:
 
             An existing session will be extended by session_expiry_seconds when a user authenticates
 
+        :param tenant:
         :param username:
         :param password:
         :param mfa_code:
@@ -67,8 +71,7 @@ class UserCredentialStore:
         :return:
         """
         # Future feature placeholder parameters
-        _ = mfa_code
-        _ = kmsi
+        _ = tenant, mfa_code, kmsi
 
         if not username:
             return self.count_failed_authentication(username)
@@ -95,10 +98,13 @@ class UserCredentialStore:
 
         return True
 
-    def get_user_scope_claims(self, username, scope: str, nonce: str) -> Dict[str, Any]:
+    @classmethod
+    def get_user_scope_claims(cls, username, scope: str, nonce: str) -> Dict[str, Any]:
+        _ = scope
+        email_user = username.replace("@", "-")
         openid_claims_payload = {
             "nonce": nonce,
             "username": username,
-            "email": "name.surname@mock-company.com",
+            "email": f"{email_user}@mock-company.com",
         }
         return openid_claims_payload

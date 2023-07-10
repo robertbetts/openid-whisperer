@@ -1,4 +1,4 @@
-from openid_whisperer.utils.token_store_utils import TokenIssuerCertificateStore
+from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
 
 
 def test_init_certificate_store(config):

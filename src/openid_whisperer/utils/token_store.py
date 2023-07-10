@@ -19,11 +19,11 @@ import jwt
 from jwt.utils import to_base64url_uint
 
 
-from openid_whisperer.utils.common import GeneralPackageException
-from openid_whisperer.utils.token_utils import (
+from openid_whisperer.utils.common import (
+    GeneralPackageException,
     generate_s256_hash,
-    get_seconds_epoch,
     get_now_seconds_epoch,
+    get_seconds_epoch,
 )
 
 TokenTypes = Literal["token", "refresh_token"]
@@ -275,27 +275,31 @@ class TokenIssuerCertificateStore:
         self.token_requests[authorisation_code] = token_response
         return authorisation_code, token_response
 
-    def decode_token(self, token, issuer: Optional[str] = None) -> Dict[str, Any]:
+    def decode_token(self, token, issuer: Optional[str] = None, audience: Optional[List[str]] = None) -> Dict[str, Any]:
         return jwt.decode(
             jwt=token,
             key=self.token_issuer_certificate.public_key(),
             algorithms=[self.token_issuer_algorithm],
             issuer=issuer,
+            audience=audience,
         )
 
-    def validate_jwt_token(self, token_type: TokenTypes, token: str) -> bool:
+    def validate_jwt_token(self, token: str, token_type: TokenTypes, issuer: str, audience: List[str]) -> bool:
         """Validate the token using cert-pairs from the TokenIssuerCertificateStore or
         validate a refresh token against those issued.
+
+        issuer and audience are required for proper validation
         """
         if token_type == "token":
             try:
-                claims = self.decode_token(token)
-                if claims["jti"] not in self.self.tokens_issued:
-                    return False
+                claims = self.decode_token(token=token, issuer=issuer, audience=audience)
+                if claims["jti"] not in self.tokens_issued:
+                    return False  # pragma: no cover
                 if get_now_seconds_epoch() > claims["exp"]:
-                    return False
+                    return False  # pragma: no cover
+                return True
             except Exception as e:
-                logging.debug(e)
+                logging.exception(e)
                 return False
         else:
             return token in self.refresh_tokens_issued

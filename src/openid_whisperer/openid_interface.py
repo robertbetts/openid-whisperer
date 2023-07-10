@@ -6,10 +6,9 @@ import secrets
 from urllib.parse import urljoin
 import string
 
-from openid_whisperer.utils.common import GeneralPackageException
-from openid_whisperer.utils.credential_store_utils import UserCredentialStore
-from openid_whisperer.utils.token_store_utils import TokenIssuerCertificateStore
-from openid_whisperer.utils.token_utils import get_seconds_epoch
+from openid_whisperer.utils.common import GeneralPackageException, get_seconds_epoch
+from openid_whisperer.utils.credential_store import UserCredentialStore
+from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +42,33 @@ GRANT_TYPES_SUPPORTED: List[str] = [
     "srv_challenge",
     "urn:ietf:params:oauth:grant-type:device_code",
     "device_code",
+]
+
+scopes_supported = [
+    "user_impersonation",
+    "offline_access",
+    "profile",
+    "email",
+    "openid",
+]
+
+claims_supported: List[str] = [
+    "aud",
+    "iss",
+    "iat",
+    "exp",
+    "auth_time",
+    "nonce",
+    "at_hash",
+    "c_hash",
+    "sub",
+    "upn",
+    "unique_name",
+    "pwd_url",
+    "pwd_exp",
+    "mfa_auth_time",
+    "sid",
+    "nbf",
 ]
 
 
@@ -87,9 +113,8 @@ def validate_response_type(response_type: str) -> str:
     response_type_check = " ".join(response_type_list)
     if response_type_check not in RESPONSE_TYPES_SUPPORTED:
         raise OpenidApiInterfaceException(
-            "auth_processing_error",
-            f"Invalid response_type '{response_type}'. A call to /.well-known/openid-configuration will "
-            "provide information on supported response types",
+            "api_validation_error",
+            f"Invalid response_type '{response_type}'",
         )
     return response_type_check
 
@@ -131,7 +156,7 @@ def validate_response_mode(response_type: str, response_mode: str) -> str:
         error_message = f"Unsupported response_mode of {response_mode}."
 
     if error_message:
-        raise OpenidApiInterfaceException("auth_processing_error", error_message)
+        raise OpenidApiInterfaceException("api_validation_error", error_message)
 
     return response_mode
 
@@ -164,7 +189,7 @@ def validate_grant_type(grant_type: str) -> str:
         error_message = f"The grant_type of '{grant_type}' not as yet implemented"
 
     if error_message is not None:
-        raise OpenidApiInterfaceException("auth_processing_error", error_message)
+        raise OpenidApiInterfaceException("api_validation_error", error_message)
 
     return grant_type
 
@@ -205,6 +230,28 @@ class OpenidApiInterface:
         if isinstance(client_id, str) and client_id != "":
             return True
         return False
+
+    def logoff(self, tenant: str, client_id: str, username: str) -> Dict[str, Any]:
+        """Remove an authenticated_session if one exists for the user, if one does not exist then do nothing
+
+        :param tenant:
+        :param client_id:
+        :param username:
+        """
+        # Future feature placeholder parameters
+        _ = tenant
+
+        if not self.validate_client(client_id):
+            raise OpenidApiInterfaceException(
+                "auth_processing_error", "A valid client_id is required"
+            )
+        username = stringify(username)
+        if username == "":
+            raise OpenidApiInterfaceException(
+                "api_validation_error", "A valid username is required"
+            )
+        self.credential_store.logoff(tenant, username)
+        return {}
 
     def get_authorize(
         self,
@@ -304,12 +351,17 @@ class OpenidApiInterface:
                 "Unable to validate the referring client application.",
             )
 
+        scope = stringify(scope)
         password = stringify(kwargs.get("password"))
         mfa_code = stringify(kwargs.get("mfa_code"))
         kmsi = stringify(kwargs.get("kmsi"))
 
         if not self.credential_store.authenticate(
-            username=username, password=password, mfa_code=mfa_code, kmsi=kmsi
+            tenant=tenant,
+            username=username,
+            password=password,
+            mfa_code=mfa_code,
+            kmsi=kmsi,
         ):
             raise OpenidApiInterfaceException(
                 "authentication_error", "Valid credentials are required"
@@ -487,7 +539,6 @@ class OpenidApiInterface:
         OpenidException could also be raised for various validation and processing errors
         """
         _ = (
-            tenant,
             redirect_uri,
             code_verifier,
             refresh_token,
@@ -560,6 +611,7 @@ class OpenidApiInterface:
             """
 
             if not self.credential_store.authenticate(
+                tenant=tenant,
                 username=username,
                 password=password,
             ):
@@ -587,3 +639,77 @@ class OpenidApiInterface:
                 "Invalid token request",
             )
         return token_response
+
+    def post_userinfo(
+        self, tenant: str, client_id: str, client_secret: str, username: str
+    ):
+        _ = (tenant,)  # interface variables provided for future features
+
+        if not self.validate_client(client_id, client_secret):
+            raise OpenidApiInterfaceException(
+                "auth_processing_error", "A valid client_id is required"
+            )
+        else:
+            return {
+                "tenant": tenant,
+                "username": username,
+            }
+
+    def get_openid_configuration(self, tenant: str, base_url: str) -> Dict[str, Any]:
+        openid_configuration: Dict[str, Any] = {
+            "access_token_issuer": self.issuer_reference,
+            "as_access_token_token_binding_supported": False,
+            "as_refresh_token_token_binding_supported": False,
+            "authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/authorize"),
+            "capabilities": ["kdf_ver2"],
+            "claims_supported": claims_supported,
+            "device_authorization_endpoint": urljoin(
+                base_url, f"{tenant}/oauth2/devicecode"
+            ),
+            "end_session_endpoint": urljoin(base_url, f"{tenant}/oauth2/logout"),
+            "frontchannel_logout_session_supported": True,
+            "frontchannel_logout_supported": True,
+            "grant_types_supported": [
+                "authorization_code",
+                "refresh_token",
+                "client_credentials",
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "implicit",
+                "password",
+                "srv_challenge",
+                "urn:ietf:params:oauth:grant-type:device_code",
+                "device_code",
+            ],
+            "id_token_signing_alg_values_supported": [
+                self.token_store.token_issuer_algorithm
+            ],
+            "issuer": urljoin(base_url, f"{tenant}"),
+            "jwks_uri": urljoin(base_url, f"{tenant}/discovery/keys"),
+            "microsoft_multi_refresh_token": True,
+            "op_id_token_token_binding_supported": False,
+            "resource_access_token_token_binding_supported": False,
+            "response_modes_supported": ["query", "fragment", "form_post"],
+            "response_types_supported": [
+                "code",
+                "id_token",
+                "code id_token",
+                "id_token token",
+                "code token",
+                "code id_token token",
+            ],
+            "rp_id_token_token_binding_supported": False,
+            "scopes_supported": scopes_supported,
+            "subject_types_supported": ["pairwise"],
+            "token_endpoint": urljoin(base_url, f"{tenant}/oauth2/token"),
+            "token_endpoint_auth_methods_supported": [
+                "client_secret_post",
+                "client_secret_basic",
+                "private_key_jwt",
+                "windows_client_authentication",
+            ],
+            "token_endpoint_auth_signing_alg_values_supported": [
+                self.token_store.token_issuer_algorithm
+            ],
+            "userinfo_endpoint": urljoin(base_url, f"{tenant}/userinfo"),
+        }
+        return openid_configuration

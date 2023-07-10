@@ -6,40 +6,73 @@ from typing import List
 from openid_whisperer.main import app
 
 
-def test_userinfo_call():
-    test_client = app().test_client()
-    response = test_client.post("/adfs/oauth2/userinfo")
+def test_userinfo_call(client, input_scenario_one):
+    response = client.post("/adfs/oauth2/userinfo")
+    assert response.status_code == 403
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    data = {
+        "client_id": input_scenario_one["client_id"],
+        "username": input_scenario_one["username"],
+    }
+    response = client.post(
+        "/adfs/oauth2/userinfo",
+        data=data,
+        headers=headers,
+    )
+    assert isinstance(response.json, dict)
     assert response.status_code == 200
 
 
-def test_devicecode_call():
-    test_client = app().test_client()
-    response = test_client.post("/adfs/oauth2/devicecode")
+def test_devicecode_call(client):
+    response = client.post("/adfs/oauth2/devicecode")
     print(response.text)
     assert response.json["error_code"] == "auth_processing_error"
     assert response.status_code == 403
 
 
-def test_logout_call():
-    test_client = app().test_client()
-    response = test_client.get(
-        "/adfs/oauth2/logout?post_logout_redirect_uri=http://test/api/logout"
-    )
-    assert response.status_code == 302
-    response = test_client.post(
-        "/adfs/oauth2/logout?post_logout_redirect_uri=http://test/api/logout"
+def test_logout_call(client, input_scenario_one):
+    client_id = input_scenario_one["client_id"]
+    username = input_scenario_one["username"]
+
+    response = client.get(
+        f"/adfs/oauth2/logout?client_id={client_id}&username={username}&post_logout_redirect_uri=http://test/api/logout"
     )
     assert response.status_code == 302
 
-    test_client = app().test_client()
-    response = test_client.get(
-        "/adfs/oauth2/v2.0/logout?post_logout_redirect_uri=http://test/api/logout"
+    response = client.get(
+        f"/adfs/oauth2/v2.0/logout?client_id={client_id}&username={username}&post_logout_redirect_uri=http://test/api/logout"
     )
     assert response.status_code == 302
-    response = test_client.post(
-        "/adfs/oauth2/v2.0/logout?post_logout_redirect_uri=http://test/api/logout"
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    data = {
+        "client_id": client_id,
+        "username": username,
+    }
+    response = client.post(
+        "/adfs/oauth2/logout",
+        data=data,
+        headers=headers,
     )
-    assert response.status_code == 302
+    result = response.json
+    assert result == {}
+    assert response.status_code == 200
+
+    response = client.post(
+        "/adfs/oauth2/v2.0/logout",
+        data=data,
+        headers=headers,
+    )
+    result = response.json
+    assert result == {}
+    assert response.status_code == 200
 
 
 def test_discover_keys_call():
@@ -94,7 +127,7 @@ def test_authorize_code_and_fetch_token_flow(client, input_scenario_one):
     }
     response = client.post(auth_url, data=data, headers=headers)
     if response.status_code != 302:
-        print(response.text)
+        print(response.text)  # pragma: no cover
     assert response.status_code == 302
     assert "code" in response.location
     print(response.location)
@@ -150,7 +183,7 @@ def test_authorize_token_flow(client):
     }
     response = client.post(auth_url, data=data, headers=headers)
     if response.status_code != 200:
-        print(response.text)
+        print(response.text)  # pragma: no cover
     assert response.status_code == 200
 
 
@@ -175,7 +208,7 @@ def test_fetch_token_with_password_flow(client, input_scenario_one):
     }
     response = client.post(auth_url, data=data, headers=headers)
     if response.status_code != 200:
-        print(response.text)
+        print(response.text)  # pragma: no cover
     assert response.status_code == 200
 
     token_url = "/adfs/oauth2/token"
