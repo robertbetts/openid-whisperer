@@ -1,6 +1,10 @@
 from typing import Dict, Any, Optional
 
-from openid_whisperer.utils.common import GeneralPackageException, get_now_seconds_epoch
+from openid_whisperer.utils.common import (
+    GeneralPackageException,
+    get_now_seconds_epoch,
+    generate_s256_hash,
+)
 
 
 class UserCredentialStoreException(GeneralPackageException):
@@ -15,7 +19,7 @@ class UserCredentialStore:
     maximum_login_attempts of None or <=0 enables infinite authentication attempts
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
         self.validate_user: bool | None = None
         self.validate_password: bool | None = None
         self.json_users: str | None = None
@@ -78,7 +82,7 @@ class UserCredentialStore:
 
         if self.maximum_login_attempts and self.maximum_login_attempts > 0:
             if (
-                self.failed_authentication_attempts.get(username, 0)
+                self.failed_login_attempts.get(username, 0)
                 > self.maximum_login_attempts
             ):
                 return self.count_failed_authentication(username)
@@ -89,8 +93,12 @@ class UserCredentialStore:
 
         if self.validate_user:
             user = self.end_user_db.get(username)
+            if user is None:
+                return False
             user_password = user["password"]
-            if self.validate_password and not user_password:
+            if self.validate_password and (
+                not user_password or generate_s256_hash(password) != user_password
+            ):
                 return self.count_failed_authentication(username)
 
         # existing session will be extended by session_expiry_seconds
@@ -99,7 +107,9 @@ class UserCredentialStore:
         return True
 
     @classmethod
-    def get_user_scope_claims(cls, username, scope: str, nonce: str) -> Dict[str, Any]:
+    def get_user_scope_claims(
+        cls, username: str, scope: str, nonce: str
+    ) -> Dict[str, Any]:
         _ = scope
         email_user = username.replace("@", "-")
         openid_claims_payload = {

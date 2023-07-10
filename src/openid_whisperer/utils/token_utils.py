@@ -51,7 +51,7 @@ def validate_access_token(
     algorithms: List[str],
     audience: Optional[List[str]] = None,
     issuer: Optional[str] = None,
-) -> List[any]:
+) -> List[Any]:
     """Returns a list of claim from a verified access_token.
 
     :param access_token: encoded token string
@@ -87,7 +87,7 @@ def validate_jwt_token(
     algorithms: List[str],
     audience: Optional[List[str]] = None,
     issuer: Optional[str] = None,
-) -> List[any]:
+) -> List[Any]:
     """Proxy function for validate_access_token"""
     return validate_access_token(
         access_token=access_token,

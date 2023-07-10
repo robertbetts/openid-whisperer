@@ -101,7 +101,7 @@ def urlsafe_b64encode(s: bytes) -> bytes:
     pass
 
 
-def urlsafe_b64encode(s):
+def urlsafe_b64encode(s) -> bytes:
     """Implementation of urlsafe_b64encode"""
     s = s if isinstance(s, bytes) else s.encode()
     return base64.urlsafe_b64encode(s).rstrip(b"=")
@@ -119,7 +119,7 @@ def urlsafe_b64decode(s: bytes) -> bytes:
     pass
 
 
-def urlsafe_b64decode(s):
+def urlsafe_b64decode(s) -> bytes:
     """Implementation of urlsafe_b64decode"""
     s = s.decode if isinstance(s, bytes) else s
     s += "b" * (-len(s) % 4)

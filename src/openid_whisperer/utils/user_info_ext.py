@@ -32,11 +32,11 @@ GENDER_WEIGHTS = [46, 44, 10]
 
 
 class UserInfoExtension:
-    def __init__(self):
+    def __init__(self) -> None:
         self._user_info: Dict[str, Any] = {}
         self.faker = faker.Faker()
 
-    def user_info(self, username: str, scope: str):
+    def user_info(self, username: str, scope: str) -> Dict[str, Dict[str, Any]]:
         if username in self._user_info:
             user_data = self._user_info[username]
         else:
@@ -49,7 +49,9 @@ class UserInfoExtension:
                 case _:
                     name = self.faker.name_nonbinary()
             given_name, family_name = name.split(" ")
-            middle_name = random.choice([self.faker.first_name(), self.faker.last_name()])
+            middle_name = random.choice(
+                [self.faker.first_name(), self.faker.last_name()]
+            )
             domain_name = self.faker.domain_name()
             user_data = {
                 "name": name,
@@ -73,11 +75,12 @@ class UserInfoExtension:
                 "phone_number_verified": True,
             }
             self._user_info[username] = user_data
-            return user_data
+        return user_data
 
 
 if __name__ == "__main__":
     userdb = UserInfoExtension()
     user_info = userdb.user_info("o123456", "openid profile")
     from pprint import pformat
+
     print(pformat(user_info))

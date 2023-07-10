@@ -99,16 +99,16 @@ class Config:
         self.init_certs()
 
     @property
-    def id_provider_base_url(self):
+    def id_provider_base_url(self) -> str:
         """This url must be accessible to the client interacting with the identity provider"""
         return f"https://{self.id_service_host}:{self.id_service_port}"
 
     @property
-    def id_provider_base_url_external(self):
+    def id_provider_base_url_external(self) -> str:
         """This url must be accessible to the end user interacting with the identity provider"""
         return f"https://{self.id_service_host_gw}:{self.id_service_port_gw}"
 
-    def load_config(self):
+    def load_config(self) -> None:
         load_environment_variables(env_target=self.env_target)
         config_to_initialise: default_config_type = self.default_config.copy()
         config_to_initialise.update(self.init_defaults)
@@ -128,7 +128,7 @@ class Config:
                     e,
                 )
 
-    def init_logging(self, log_level: str | None = None):
+    def init_logging(self, log_level: str | None = None) -> None:
         log_level = log_level if log_level else self.log_level
         initialize_logging(log_level=log_level, logger_name="openid_whisperer")
 

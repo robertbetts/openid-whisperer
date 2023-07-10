@@ -6,7 +6,7 @@ from typing import Dict, Any, Iterable, Callable, Tuple
 
 from dotenv import load_dotenv
 
-default_config_type = Dict[str, Iterable[Tuple[Callable[[str], Any], str]]]
+default_config_type = Dict[str, Tuple[Callable[[str], Any], str]]
 
 DEFAULT_LOGGING_FORMAT = "[%(levelname)1.1s %(asctime)s.%(msecs)03d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
 
@@ -50,7 +50,7 @@ def load_environment_variables(env_target: str | None = None) -> None:
             "Defaulting target environment variable ENVIRONMENT to %s", env_target
         )
         os.environ["ENVIRONMENT"] = env_target
-    elif not os_env_target:
+    elif not os_env_target and env_target:
         logger.warning(
             "Defaulting os environment variable ENVIRONMENT to %s", env_target
         )
