@@ -74,7 +74,6 @@ pyyaml = "^6.0"
 flask = {extras = ["async"], version = "^2.2.3"}
 python-dotenv = "^1.0.0"
 
-
 [tool.poetry.group.dev.dependencies]
 poetry = "^1.5.1"
 pytest = "^7.3.1"
@@ -84,6 +83,7 @@ pytest-dotenv = "^0.5.2"
 black = "^23.3.0"
 msal = "1.22.0"
 mypy = "^1.4.1"
+Faker = "^18.13.0"
 
 [build-system]
 requires = ["poetry-core"]

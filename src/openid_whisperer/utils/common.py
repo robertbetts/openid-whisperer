@@ -2,7 +2,55 @@ import base64
 import hashlib
 from calendar import timegm
 from datetime import datetime, timezone
-from typing import Dict, overload
+from typing import Dict, overload, List, Optional
+
+SCOPE_PROFILES = [
+    "user_impersonation",
+    "offline_access",
+    "profile",
+    "email",
+    "openid",
+]
+RESPONSE_TYPES_SUPPORTED: List[str] = [
+    "code",
+    "id_token",
+    "code id_token",
+    "id_token token",
+    "code token",
+    "code id_token token",
+]
+RESPONSE_MODES_SUPPORTED: List[str] = ["fragment", "query", "form_post"]
+GRANT_TYPES_SUPPORTED: List[str] = [
+    "authorization_code",
+    "refresh_token",
+    "client_credentials",
+    "jwt-bearer",
+    "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    "implicit",
+    "password",
+    "srv_challenge",
+    "urn:ietf:params:oauth:grant-type:device_code",
+    "device_code",
+]
+SCOPE_PROFILE_CLAIMS = [
+    "name",
+    "family_name",
+    "given_name",
+    "middle_name",
+    "nickname",
+    "preferred_username",
+    "profile",
+    "picture",
+    "website",
+    "gender",
+    "birthdate",
+    "zoneinfo",
+    "locale",
+    "updated_at",
+]
+SCOPE_EMAIL_CLAIMS = ["email", "email_verified"]
+SCOPE_ADDRESS_CLAIMS = ["address"]
+SCOPE_PHONE_CLAIMS = ["phone_number", "phone_number_verified"]
 
 
 class GeneralPackageException(Exception):
@@ -76,3 +124,23 @@ def urlsafe_b64decode(s):
     s = s.decode if isinstance(s, bytes) else s
     s += "b" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s)
+
+
+def stringify(value: str | None) -> str:
+    """returns a string representation of the input value, turning None into an empty string"""
+    if value is None:
+        return ""
+    else:
+        return value
+
+
+def get_audience(
+    client_id: str, scope: str, resource: Optional[str] = None
+) -> List[str]:
+    audience: List[str] = [resource] if resource else []
+    audience.append(client_id)
+    for item in scope.split(" "):
+        aud = item.strip()
+        if item not in SCOPE_PROFILES and item != "":
+            audience.append(aud)
+    return audience

@@ -275,7 +275,9 @@ class TokenIssuerCertificateStore:
         self.token_requests[authorisation_code] = token_response
         return authorisation_code, token_response
 
-    def decode_token(self, token, issuer: Optional[str] = None, audience: Optional[List[str]] = None) -> Dict[str, Any]:
+    def decode_token(
+        self, token, issuer: Optional[str] = None, audience: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         return jwt.decode(
             jwt=token,
             key=self.token_issuer_certificate.public_key(),
@@ -284,7 +286,9 @@ class TokenIssuerCertificateStore:
             audience=audience,
         )
 
-    def validate_jwt_token(self, token: str, token_type: TokenTypes, issuer: str, audience: List[str]) -> bool:
+    def validate_jwt_token(
+        self, token: str, token_type: TokenTypes, issuer: str, audience: List[str]
+    ) -> bool:
         """Validate the token using cert-pairs from the TokenIssuerCertificateStore or
         validate a refresh token against those issued.
 
@@ -292,7 +296,9 @@ class TokenIssuerCertificateStore:
         """
         if token_type == "token":
             try:
-                claims = self.decode_token(token=token, issuer=issuer, audience=audience)
+                claims = self.decode_token(
+                    token=token, issuer=issuer, audience=audience
+                )
                 if claims["jti"] not in self.tokens_issued:
                     return False  # pragma: no cover
                 if get_now_seconds_epoch() > claims["exp"]:

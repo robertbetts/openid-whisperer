@@ -2,8 +2,8 @@ import pytest
 from openid_whisperer.openid_interface import (
     validate_response_type,
     validate_response_mode,
-    validate_grant_type, OpenidApiInterfaceException, get_audience,
-)
+    validate_grant_type, OpenidApiInterfaceException, )
+from openid_whisperer.utils.common import get_audience
 
 
 def test_assemble_audience(input_scenario_one):

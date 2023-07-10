@@ -89,14 +89,16 @@ def authorize_get() -> ResponseReturnValue:
             code_challenge_method=code_challenge_method,
             code_challenge=code_challenge,
         )
-        template_parameters.update({
-            "tenant": openid_blueprint.url_prefix,
-            "resource": resource,
-            "state": state,
-            "scope": scope,
-            "nonce": "nonce",
-            "redirect_uri": redirect_uri,
-        })
+        template_parameters.update(
+            {
+                "tenant": openid_blueprint.url_prefix,
+                "resource": resource,
+                "state": state,
+                "scope": scope,
+                "nonce": "nonce",
+                "redirect_uri": redirect_uri,
+            }
+        )
         authorize_get_resp = make_response(
             render_template("authenticate.html", **template_parameters)
         )
@@ -500,10 +502,10 @@ def openid_configuration() -> ResponseReturnValue:
         TokenIssuerCertificateStoreException,
         OpenidApiInterfaceException,
         UserCredentialStoreException,
-    ) as e: # pragma: no cover
+    ) as e:  # pragma: no cover
         response = e.to_dict()
         status_code = 403
-    except Exception as e: # pragma: no cover
+    except Exception as e:  # pragma: no cover
         logging.exception(e)
         response = {
             "error_code": "server_error",

@@ -6,13 +6,20 @@ import secrets
 from urllib.parse import urljoin
 import string
 
+from openid_whisperer.utils.common import (
+    RESPONSE_TYPES_SUPPORTED,
+    RESPONSE_MODES_SUPPORTED,
+    GRANT_TYPES_SUPPORTED,
+    stringify,
+    get_audience,
+)
 from openid_whisperer.utils.common import GeneralPackageException, get_seconds_epoch
 from openid_whisperer.utils.credential_store import UserCredentialStore
 from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
 
 logger = logging.getLogger(__name__)
 
-SCOPE_PROFILES = [
+SCOPES_SUPPORTED = [
     "user_impersonation",
     "offline_access",
     "profile",
@@ -20,39 +27,7 @@ SCOPE_PROFILES = [
     "openid",
 ]
 
-RESPONSE_TYPES_SUPPORTED: List[str] = [
-    "code",
-    "id_token",
-    "code id_token",
-    "id_token token",
-    "code token",
-    "code id_token token",
-]
-
-RESPONSE_MODES_SUPPORTED: List[str] = ["fragment", "query", "form_post"]
-
-GRANT_TYPES_SUPPORTED: List[str] = [
-    "authorization_code",
-    "refresh_token",
-    "client_credentials",
-    "jwt-bearer",
-    "urn:ietf:params:oauth:grant-type:jwt-bearer",
-    "implicit",
-    "password",
-    "srv_challenge",
-    "urn:ietf:params:oauth:grant-type:device_code",
-    "device_code",
-]
-
-scopes_supported = [
-    "user_impersonation",
-    "offline_access",
-    "profile",
-    "email",
-    "openid",
-]
-
-claims_supported: List[str] = [
+CLAIMS_SUPPORTED: List[str] = [
     "aud",
     "iss",
     "iat",
@@ -67,7 +42,6 @@ claims_supported: List[str] = [
     "pwd_url",
     "pwd_exp",
     "mfa_auth_time",
-    "sid",
     "nbf",
 ]
 
@@ -76,26 +50,6 @@ class OpenidApiInterfaceException(GeneralPackageException):
     """Exception raised when OpenidApiInterface requirements are not met, other runtime
     exceptions are passed through.
     """
-
-
-def stringify(value: str | None) -> str:
-    """returns a string representation of the input value, turning None into an empty string"""
-    if value is None:
-        return ""
-    else:
-        return value
-
-
-def get_audience(
-    client_id: str, scope: str, resource: Optional[str] = None
-) -> List[str]:
-    audience: List[str] = [resource] if resource else []
-    audience.append(client_id)
-    for item in scope.split(" "):
-        aud = item.strip()
-        if item not in SCOPE_PROFILES and item != "":
-            audience.append(aud)
-    return audience
 
 
 def validate_response_type(response_type: str) -> str:
@@ -665,7 +619,7 @@ class OpenidApiInterface:
             "as_refresh_token_token_binding_supported": False,
             "authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/authorize"),
             "capabilities": ["kdf_ver2"],
-            "claims_supported": claims_supported,
+            "CLAIMS_SUPPORTED": CLAIMS_SUPPORTED,
             "device_authorization_endpoint": urljoin(
                 base_url, f"{tenant}/oauth2/devicecode"
             ),
@@ -701,7 +655,7 @@ class OpenidApiInterface:
                 "code id_token token",
             ],
             "rp_id_token_token_binding_supported": False,
-            "scopes_supported": scopes_supported,
+            "SCOPES_SUPPORTED": SCOPES_SUPPORTED,
             "subject_types_supported": ["pairwise"],
             "token_endpoint": urljoin(base_url, f"{tenant}/oauth2/token"),
             "token_endpoint_auth_methods_supported": [

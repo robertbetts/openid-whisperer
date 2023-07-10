@@ -6,8 +6,8 @@ from typing import Dict, Any
 from openid_whisperer.utils.token_utils import (
     validate_access_token, validate_jwt_token,
 )
-from openid_whisperer.utils.common import generate_s256_hash, validate_s256_hash
-from openid_whisperer.openid_interface import OpenidApiInterface, get_audience
+from openid_whisperer.utils.common import generate_s256_hash, validate_s256_hash, get_audience
+from openid_whisperer.openid_interface import OpenidApiInterface
 
 
 def test_hash_codes():

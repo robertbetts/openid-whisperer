@@ -1,6 +1,6 @@
 import hashlib
 
-from openid_whisperer.openid_interface import get_audience
+from openid_whisperer.utils.common import get_audience
 from openid_whisperer.utils.token_utils import validate_access_token
 
 
