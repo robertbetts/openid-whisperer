@@ -1,9 +1,13 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Type
+
+from openid_whisperer.utils.user_info_ext import (
+    UserInfoExtension,
+    UserInfoExtensionTemplate,
+)
 
 from openid_whisperer.utils.common import (
     GeneralPackageException,
     get_now_seconds_epoch,
-    generate_s256_hash,
 )
 
 
@@ -21,16 +25,18 @@ class UserCredentialStore:
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
         self.validate_user: bool | None = None
-        self.validate_password: bool | None = None
         self.json_users: str | None = None
         self.session_expiry_seconds: int | None = None
         self.maximum_login_attempts: int | None = None
+        self.end_user_info: Type[UserInfoExtensionTemplate] | None = None
 
         # Update class properties from kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        self.end_user_db: Dict[str, Dict[str, Any]] = {}
+        if self.end_user_info is None:
+            self.end_user_info = UserInfoExtension()
+
         self.authenticated_session: Dict[
             str, float
         ] = {}  # login_time_stamp indexed by username
@@ -81,8 +87,10 @@ class UserCredentialStore:
             return self.count_failed_authentication(username)
 
         if (
-                self.maximum_login_attempts
-                and 0 < self.maximum_login_attempts < self.failed_login_attempts.get(username, 0)
+            self.maximum_login_attempts
+            and 0
+            < self.maximum_login_attempts
+            < self.failed_login_attempts.get(username, 0)
         ):
             return self.count_failed_authentication(username)
 
@@ -91,29 +99,29 @@ class UserCredentialStore:
             return self.count_failed_authentication(username)
 
         if self.validate_user:
-            user = self.end_user_db.get(username)
+            user = self.end_user_info.get_user_claims(username)
             if user is None:
                 return False
-            user_password = user["password"]
-            if self.validate_password and (
-                not user_password or generate_s256_hash(password) != user_password
-            ):
-                return self.count_failed_authentication(username)
 
         # existing session will be extended by session_expiry_seconds
         self.authenticated_session[username] = get_now_seconds_epoch()
 
         return True
 
-    @classmethod
     def get_user_scope_claims(
-        cls, username: str, scope: str, nonce: str
+        self, username: str, scope: str, nonce: str
     ) -> Dict[str, Any]:
         _ = scope
-        email_user = username.replace("@", "-")
-        openid_claims_payload = {
-            "nonce": nonce,
-            "username": username,
-            "email": f"{email_user}@mock-company.com",
-        }
+
+        openid_claims_payload = self.end_user_info.get_user_claims(
+            username=username, scope=scope, including_empty=False
+        )
+        reply_username = openid_claims_payload.setdefault("username", username)
+
+        openid_claims_payload.update(
+            {
+                "nonce": nonce,
+                "username": reply_username,
+            }
+        )
         return openid_claims_payload

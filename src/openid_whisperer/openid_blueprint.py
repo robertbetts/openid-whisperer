@@ -2,7 +2,7 @@
 """
 import logging
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Type
 from flask import (
     Blueprint,
     request,
@@ -36,6 +36,40 @@ openid_blueprint: Blueprint = Blueprint(
     template_folder="templates",
     static_folder="static",
 )
+
+
+def register_user_info_extension(
+    openid_api: Type[OpenidApiInterface], extension: str | Any | None = None
+) -> None:
+    """Register an extension with the credential store that returns user_information claims
+    :param openid_api:
+    :param extension:
+    """
+    from openid_whisperer.utils.user_info_ext import (
+        UserInfoExtensionTemplate,
+        UserInfoExtension,
+        UserInfoFakerExtension,
+    )
+
+    extension_instance = None
+    if extension == "Faker":
+        logger.info("Loading the UserInfoFakerExtension")
+        extension_instance = UserInfoFakerExtension()
+    elif isinstance(extension, str):
+        logger.info(
+            f"Unsupported extension '{extension}', loading the UserInfoExtension"
+        )
+    elif isinstance(extension, UserInfoExtensionTemplate):
+        logger.info(
+            f"Unsupported extension '{extension.__class__}', loading the UserInfoExtension"
+        )
+        extension_instance = extension
+
+    if extension_instance is None:
+        logger.info("loading the default UserInfoExtensions")
+        extension_instance = UserInfoExtension()
+
+    openid_api.credential_store.end_user_info = extension_instance
 
 
 def return_redirect(redirect_uri: str, data: Dict[str, Any]) -> ResponseReturnValue:
