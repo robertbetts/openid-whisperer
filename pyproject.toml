@@ -19,7 +19,7 @@ packages = [
 [tool.poetry.scripts]
 openid-whisperer = 'openid_whisperer.main:main'
 mock-openid-service = 'mocking_examples.mock_openid_service:main'
-mock-api-service = 'mocking_examples:mock_api_service:main'
+mock-api-service = 'mocking_examples.mock_api_service:main'
 mock-api-client = 'mocking_examples.mock_api_client:main'
 
 
