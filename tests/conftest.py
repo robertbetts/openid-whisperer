@@ -1,3 +1,4 @@
+import logging
 import pytest
 import secrets
 import string
@@ -8,6 +9,7 @@ from openid_whisperer.openid_interface import OpenidApiInterface
 from openid_whisperer.openid_blueprint import openid_api_interface
 from openid_whisperer.utils.token_utils import public_keys_from_x509_certificates
 
+logging.getLogger("faker.factory").setLevel(logging.WARNING)
 
 @pytest.fixture
 def app():

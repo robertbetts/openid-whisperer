@@ -87,6 +87,36 @@ def test_openid_configuration_call():
     assert response.status_code == 200
 
 
+def test_post_authorize_kmsi_with_code(client, input_scenario_one):
+    response_type = "code"
+    redirect_uri = "http://test/api/handleAccessToken"
+    state = secrets.token_hex()
+    auth_url = f"/adfs/oauth2/authorize"
+    data = {
+        "response_type": response_type,
+        "grant_type": "password",
+        "client_id": input_scenario_one["client_id"],
+        "scope": input_scenario_one["scope"],
+        "resource": input_scenario_one["resource"],
+        "UserName": input_scenario_one["username"],
+        "Password": input_scenario_one["password"],
+        "Kmsi": "1",
+        "nonce": input_scenario_one["nonce"],
+        "state": state,
+        "redirect_uri": redirect_uri,
+
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    response = client.post(auth_url, data=data, headers=headers)
+    assert response.status_code == 302
+
+    # cookie_header = response.headers['Set-Cookie']
+    assert f"openid-whisperer-token-{input_scenario_one['client_id']}" in response.headers.get("Set-Cookie")
+
+
 def test_authorize_get_call():
     scope = "openid profile"
     response_type = "code"

@@ -149,7 +149,9 @@ class UserInfoFakerExtension(UserInfoExtension):
         self._user_info: Dict[str, Any] = {}
         self.faker = faker.Faker()
 
-    def get_user_claims(self, username: str, scope: str, including_empty: bool = False) -> Dict[str, Dict[str, Any]]:
+    def get_user_claims(
+        self, username: str, scope: str, including_empty: bool = False
+    ) -> Dict[str, Dict[str, Any]]:
         """Searches the input username and returns a set of compliant ida claims
 
         :param username:  username in format SID or SID@DOMAIN (0728000@EMEA)

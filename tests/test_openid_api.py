@@ -16,6 +16,7 @@ def test_assemble_audience(input_scenario_one):
     print(audience)
     assert all([item in audience for item in [input_scenario_one["client_id"], input_scenario_one["resource"]]])
 
+
 def test_valid_response_types():
     # Check invalid
     with pytest.raises(OpenidApiInterfaceException):
@@ -79,6 +80,28 @@ def test_validate_response_mode():
     response_type, response_mode = "code", "form_post"
     adjusted_response_mode = validate_response_mode(response_type, response_mode)
     assert adjusted_response_mode == response_mode
+
+
+def test_logoff(openid_api, input_scenario_one):
+    openid_api.logoff(
+        tenant=input_scenario_one["tenant"],
+        client_id=input_scenario_one["client_id"],
+        username=input_scenario_one["username"]
+    )
+    with pytest.raises(OpenidApiInterfaceException):
+        openid_api.logoff(
+            tenant=input_scenario_one["tenant"],
+            client_id="",
+            username=input_scenario_one["username"]
+        )
+    with pytest.raises(OpenidApiInterfaceException):
+        openid_api.logoff(
+            tenant=input_scenario_one["tenant"],
+            client_id=input_scenario_one["client_id"],
+            username=""
+        )
+
+
 
 
 def test_validate_client(openid_api):

@@ -12,6 +12,7 @@ from openid_whisperer.utils.common import (
     GRANT_TYPES_SUPPORTED,
     stringify,
     get_audience,
+    boolify,
 )
 from openid_whisperer.utils.common import GeneralPackageException, get_seconds_epoch
 from openid_whisperer.utils.credential_store import UserCredentialStore
@@ -308,7 +309,7 @@ class OpenidApiInterface:
         scope = stringify(scope)
         password = stringify(kwargs.get("password"))
         mfa_code = stringify(kwargs.get("mfa_code"))
-        kmsi = stringify(kwargs.get("kmsi"))
+        kmsi = boolify(kwargs.get("kmsi"))
 
         if not self.credential_store.authenticate(
             tenant=tenant,

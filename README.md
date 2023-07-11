@@ -72,7 +72,7 @@ VALIDATE_CERTS=${VALIDATE_CERTS:-False}
 
 ## Running Code
 ### PyTest unit tests
-Code test coverage objective is 100%. there are currently no unit tests for the module mock_api_service
+Code test coverage objective is 100%. there are currently no unit tests for the module mocking_examples
 ```
 poetry run coverage run -m pytest && poetry run coverage report -m
 ```
@@ -85,12 +85,12 @@ poetry run python -m openid_whisperer.main
 
 Run Mock API Service (from project root)
 ```
-poetry run python -m mock_api_service
+poetry run python -m mocking_examples
 ```
 
 Run Mock API Service Client (from project root)
 ```
-poetry run python -m mock_api_service.mock_api_client 
+poetry run python -m mocking_examples.mock_api_client 
 ```
 
 ## Containerisation

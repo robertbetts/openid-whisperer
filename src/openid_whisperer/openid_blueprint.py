@@ -3,6 +3,8 @@
 import logging
 import json
 from typing import Dict, Any, Type
+from urllib.parse import urljoin
+
 from flask import (
     Blueprint,
     request,
@@ -19,16 +21,16 @@ from openid_whisperer.openid_interface import (
     OpenidApiInterface,
     OpenidApiInterfaceException,
 )
+from openid_whisperer.utils.common import boolify
 from openid_whisperer.utils.credential_store import UserCredentialStoreException
 from openid_whisperer.utils.token_store import (
     TokenIssuerCertificateStoreException,
 )
 
-config = get_cached_config()
 logger = logging.getLogger(__name__)
 
+config = get_cached_config()
 openid_api_interface = OpenidApiInterface()
-
 openid_blueprint: Blueprint = Blueprint(
     "openid",
     __name__,
@@ -72,7 +74,9 @@ def register_user_info_extension(
     openid_api.credential_store.end_user_info = extension_instance
 
 
-def return_redirect(redirect_uri: str, data: Dict[str, Any]) -> ResponseReturnValue:
+def update_redirect_url_query(
+    redirect_uri: str, data: Dict[str, Any]
+) -> ResponseReturnValue:
     if len(data) > 0:
         query_start: str = "&" if "?" in redirect_uri else "?"
         for key, value in data.items():
@@ -129,7 +133,7 @@ def authorize_get() -> ResponseReturnValue:
                 "resource": resource,
                 "state": state,
                 "scope": scope,
-                "nonce": "nonce",
+                "nonce": nonce,
                 "redirect_uri": redirect_uri,
             }
         )
@@ -175,9 +179,15 @@ def authorize_post() -> ResponseReturnValue:
     password = request.form.get("Password")
     user_code = request.form.get("CodeChallenge")
     mfa_code = request.form.get("Mfa")
-    kmsi = request.form.get("Kmsi")
+    kmsi = boolify(request.form.get("Kmsi"))
     code_challenge_method: str = request.form.get("code_challenge_method", "")
     code_challenge: str = request.form.get("code_challenge", "")
+
+    auth_cookie_token = json.loads(
+        request.cookies.get(f"openid-whisperer-token-{client_id}", "null")
+    )
+    if auth_cookie_token:
+        logger.debug("kmsi: secure cookie token received.")  # pragma: no cover
 
     try:
         openid_response = openid_api_interface.post_authorize(
@@ -252,9 +262,29 @@ def authorize_post() -> ResponseReturnValue:
             code_response = {
                 "code": openid_response["authorization_code"],
                 "state": state,
+                "nonce": nonce,
             }
-        redirect_uri = return_redirect(redirect_uri, code_response)
-        return redirect(redirect_uri, code=302)
+            #
+            ...
+        redirect_uri = update_redirect_url_query(redirect_uri, code_response)
+        authorize_get_resp = redirect(redirect_uri, code=302)
+        if kmsi:
+            auth_cookie_token = json.dumps(
+                {
+                    "username": username,
+                    "client_id": client_id,
+                    "scope": scope,
+                    "resource": resource,
+                }
+            )
+            logger.debug("kmsi: secure cookie token set.")
+            authorize_get_resp.set_cookie(
+                key=f"openid-whisperer-token-{client_id}",
+                value=auth_cookie_token,
+                secure=True,
+                httponly=True,
+            )
+        return authorize_get_resp
 
     else:  # only other possible option is a response_type == "token":
         if "error_code" in openid_response:
@@ -437,7 +467,9 @@ def get_logout() -> ResponseReturnValue:
         response: Dict[str, Any] = openid_api_interface.logoff(
             tenant, client_id, username
         )
-        redirect_uri: str = return_redirect(post_logout_redirect_uri, response)
+        redirect_uri: str = update_redirect_url_query(
+            post_logout_redirect_uri, response
+        )
         return redirect(redirect_uri, code=302)
 
     except (

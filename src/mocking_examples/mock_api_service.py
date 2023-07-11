@@ -18,8 +18,8 @@ import requests
 import jwt
 from json.decoder import JSONDecodeError
 
-from mock_api_service.openid_client_lib import OpenIDClient
-from mock_api_service.config import config
+from mocking_examples.openid_client_lib import OpenIDClient
+from mocking_examples.config import config
 
 
 app = Flask(__name__)

@@ -134,6 +134,14 @@ def stringify(value: str | None) -> str:
         return value
 
 
+def boolify(value: str | None) -> bool:
+    """returns a boolean representation of the input value, turning "1", "true" into True"""
+    if str(value).lower() in ("1", "true"):
+        return True
+    else:
+        return False
+
+
 def get_audience(
     client_id: str, scope: str, resource: Optional[str] = None
 ) -> List[str]:

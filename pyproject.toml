@@ -13,13 +13,14 @@ classifiers = [
 ]
 packages = [
     {include = "openid_whisperer", from = "src" },
-    {include = "mock_api_service", from = "src" }
+    {include = "mocking_examples", from = "src" }
 ]
 
 [tool.poetry.scripts]
-openid-whisperer = 'mock_api_service.main:main'
-mock-api-service = 'mock_api_service.mock_api_service:main'
-mock-api-client = 'mock_api_service.mock_api_client:main'
+openid-whisperer = 'openid_whisperer.main:main'
+mock-openid-service = 'mocking_examples.mock_openid_service:main'
+mock-api-service = 'mocking_examples:mock_api_service:main'
+mock-api-client = 'mocking_examples.mock_api_client:main'
 
 
 [tool.pytest]
@@ -58,7 +59,7 @@ enable_error_code = [
 ]
 exclude = [
     "tests",
-    "src/mock_api_service"
+    "src/mocking_examples"
 ]
 
 [tool.pylint]
