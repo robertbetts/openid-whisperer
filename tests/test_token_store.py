@@ -27,7 +27,6 @@ def test_token_issue_and_decode(openid_api, input_scenario_one):
     user_claims = openid_api.credential_store.get_user_scope_claims(
         username=input_scenario_one["username"],
         scope=input_scenario_one["scope"],
-        nonce=input_scenario_one["nonce"],
     )
     audience = [input_scenario_one["client_id"]]
     _, token_response = openid_api.token_store.create_new_token(
@@ -35,32 +34,43 @@ def test_token_issue_and_decode(openid_api, input_scenario_one):
         issuer=openid_api.issuer_reference,
         sub=input_scenario_one["username"],
         user_claims=user_claims,
-        audience=audience)
+        audience=audience,
+        nonce=input_scenario_one["nonce"],
+    )
     decoded_claims = openid_api.token_store.decode_token(
         token=token_response["access_token"],
         issuer=openid_api.issuer_reference,
-        audience=audience
+        audience=audience,
     )
     assert isinstance(decoded_claims, dict) and len(decoded_claims) > 5
     assert decoded_claims["nonce"] == input_scenario_one["nonce"]
 
-    assert openid_api.token_store.validate_jwt_token(
-        token_response["access_token"],
-        token_type="token",
-        issuer=openid_api.issuer_reference,
-        audience=audience,
-    ) is True
+    assert (
+        openid_api.token_store.validate_jwt_token(
+            token_response["access_token"],
+            token_type="token",
+            issuer=openid_api.issuer_reference,
+            audience=audience,
+        )
+        is True
+    )
 
-    assert openid_api.token_store.validate_jwt_token(
-        token_response["access_token"],
-        token_type="token",
-        issuer=openid_api.issuer_reference,
-        audience=[],
-    ) is False
+    assert (
+        openid_api.token_store.validate_jwt_token(
+            token_response["access_token"],
+            token_type="token",
+            issuer=openid_api.issuer_reference,
+            audience=[],
+        )
+        is False
+    )
 
-    assert openid_api.token_store.validate_jwt_token(
-        token_response["access_token"],
-        token_type="refresh_token",
-        issuer=openid_api.issuer_reference,
-        audience=audience,
-    ) is False
+    assert (
+        openid_api.token_store.validate_jwt_token(
+            token_response["access_token"],
+            token_type="refresh_token",
+            issuer=openid_api.issuer_reference,
+            audience=audience,
+        )
+        is False
+    )

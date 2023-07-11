@@ -361,7 +361,7 @@ class OpenidApiInterface:
             """
             # TODO: if scope is blank default to "openid" and update scope with client_id and resource
             user_claims = self.credential_store.get_user_scope_claims(
-                username=username, scope=scope, nonce=nonce
+                username=username, scope=scope
             )
             logger.debug((client_id, resource, user_claims))
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
@@ -372,6 +372,7 @@ class OpenidApiInterface:
                 sub=username,
                 user_claims=user_claims,
                 audience=audience,
+                nonce=nonce,
             )
             logger.debug(f"token: {token_response['access_token']}")
 
@@ -395,7 +396,7 @@ class OpenidApiInterface:
 
             # TODO: if scope is blank default to "openid" and update scope with client_id and resource
             user_claims = self.credential_store.get_user_scope_claims(
-                username=username, scope=scope, nonce=nonce
+                username=username, scope=scope
             )
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
 
@@ -405,6 +406,7 @@ class OpenidApiInterface:
                 sub=username,
                 user_claims=user_claims,
                 audience=audience,
+                nonce=nonce,
             )
             return token_response
 
@@ -579,7 +581,7 @@ class OpenidApiInterface:
 
             # TODO: if scope is blank default to "openid" and update scope with client_id and resource
             user_claims = self.credential_store.get_user_scope_claims(
-                username=username, scope=scope, nonce=nonce
+                username=username, scope=scope
             )
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
 
@@ -589,6 +591,7 @@ class OpenidApiInterface:
                 sub=username,
                 user_claims=user_claims,
                 audience=audience,
+                nonce=nonce,
             )
 
         if token_response is None:
@@ -608,10 +611,10 @@ class OpenidApiInterface:
                 "auth_processing_error", "A valid client_id is required"
             )
         else:
-            return {
-                "tenant": tenant,
-                "username": username,
-            }
+            scope = "openid profile email"
+            return self.credential_store.get_user_scope_claims(
+                username=username,
+                scope=scope)
 
     def get_openid_configuration(self, tenant: str, base_url: str) -> Dict[str, Any]:
         openid_configuration: Dict[str, Any] = {

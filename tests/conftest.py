@@ -11,6 +11,7 @@ from openid_whisperer.utils.token_utils import public_keys_from_x509_certificate
 
 logging.getLogger("faker.factory").setLevel(logging.WARNING)
 
+
 @pytest.fixture
 def app():
     app = main.app()
@@ -42,11 +43,13 @@ def broken_openid_api():
     def broken_validate_client(client_id: str, client_secret: str | None = None):
         _ = (client_id, client_secret)
         assert "This is broken" == "very broken"
+
     openid_api_interface.validate_client = broken_validate_client
 
     # Force runtime errors when accessing the token store from the openid_interface
     def get_keys():
         assert "This is broken" == "very broken"
+
     openid_api_interface.token_store.get_keys = get_keys
 
     yield openid_api_interface

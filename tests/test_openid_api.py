@@ -2,19 +2,28 @@ import pytest
 from openid_whisperer.openid_interface import (
     validate_response_type,
     validate_response_mode,
-    validate_grant_type, OpenidApiInterfaceException, )
+    validate_grant_type,
+    OpenidApiInterfaceException,
+)
 from openid_whisperer.utils.common import get_audience
 
 
 def test_assemble_audience(input_scenario_one):
-
     audience = get_audience(
         client_id=input_scenario_one["client_id"],
         scope=input_scenario_one["scope"],
-        resource=input_scenario_one["resource"]
+        resource=input_scenario_one["resource"],
     )
     print(audience)
-    assert all([item in audience for item in [input_scenario_one["client_id"], input_scenario_one["resource"]]])
+    assert all(
+        [
+            item in audience
+            for item in [
+                input_scenario_one["client_id"],
+                input_scenario_one["resource"],
+            ]
+        ]
+    )
 
 
 def test_valid_response_types():
@@ -86,22 +95,20 @@ def test_logoff(openid_api, input_scenario_one):
     openid_api.logoff(
         tenant=input_scenario_one["tenant"],
         client_id=input_scenario_one["client_id"],
-        username=input_scenario_one["username"]
+        username=input_scenario_one["username"],
     )
     with pytest.raises(OpenidApiInterfaceException):
         openid_api.logoff(
             tenant=input_scenario_one["tenant"],
             client_id="",
-            username=input_scenario_one["username"]
+            username=input_scenario_one["username"],
         )
     with pytest.raises(OpenidApiInterfaceException):
         openid_api.logoff(
             tenant=input_scenario_one["tenant"],
             client_id=input_scenario_one["client_id"],
-            username=""
+            username="",
         )
-
-
 
 
 def test_validate_client(openid_api):

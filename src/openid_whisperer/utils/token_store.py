@@ -217,6 +217,7 @@ class TokenIssuerCertificateStore:
         sub: str,
         user_claims: Dict[str, Any],
         audience: List[str],
+        nonce: str,
     ) -> Tuple[str, Dict[str, Any]]:
         """Returns a new JWT response using the parameters given.
 
@@ -233,6 +234,7 @@ class TokenIssuerCertificateStore:
         expires_in = auth_time + datetime.timedelta(seconds=self.token_expiry_seconds)
         payload = {}
         payload.update(user_claims)
+        payload["nonce"] = nonce
         jti = uuid4().hex
         payload.update(
             {

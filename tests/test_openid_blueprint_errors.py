@@ -177,8 +177,7 @@ def test_post_userinfo_403_error(client, input_scenario_one, openid_api):
 
     api_url = "/adfs/oauth2/userinfo"
     data = {
-        ""
-        "client_id": "",
+        "" "client_id": "",
         "client_secret": "",
     }
     headers = {

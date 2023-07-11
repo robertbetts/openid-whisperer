@@ -1,4 +1,3 @@
-import json
 from uuid import uuid4
 import secrets
 from urllib.parse import urlparse
@@ -104,7 +103,6 @@ def test_post_authorize_kmsi_with_code(client, input_scenario_one):
         "nonce": input_scenario_one["nonce"],
         "state": state,
         "redirect_uri": redirect_uri,
-
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -114,7 +112,10 @@ def test_post_authorize_kmsi_with_code(client, input_scenario_one):
     assert response.status_code == 302
 
     # cookie_header = response.headers['Set-Cookie']
-    assert f"openid-whisperer-token-{input_scenario_one['client_id']}" in response.headers.get("Set-Cookie")
+    assert (
+        f"openid-whisperer-token-{input_scenario_one['client_id']}"
+        in response.headers.get("Set-Cookie")
+    )
 
 
 def test_authorize_get_call():

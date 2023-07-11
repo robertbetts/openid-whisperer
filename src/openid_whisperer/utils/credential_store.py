@@ -109,19 +109,11 @@ class UserCredentialStore:
         return True
 
     def get_user_scope_claims(
-        self, username: str, scope: str, nonce: str
+        self, username: str, scope: str
     ) -> Dict[str, Any]:
         _ = scope
 
         openid_claims_payload = self.end_user_info.get_user_claims(
             username=username, scope=scope, including_empty=False
-        )
-        reply_username = openid_claims_payload.setdefault("username", username)
-
-        openid_claims_payload.update(
-            {
-                "nonce": nonce,
-                "username": reply_username,
-            }
         )
         return openid_claims_payload

@@ -91,7 +91,6 @@ def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
     )
     assert isinstance(authentication_response, dict)
 
-
     print(response)
     # Get access_token using authentication_code
     response = openid_api.get_token(
@@ -115,9 +114,7 @@ def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
     )
     access_token = response["access_token"]
 
-    audience = get_audience(
-        input_scenario_one["scope"], input_scenario_one["resource"]
-    )
+    audience = get_audience(input_scenario_one["scope"], input_scenario_one["resource"])
     # audience = [input_scenario_one["client_id"]]
     claims = validate_access_token(
         access_token=access_token,

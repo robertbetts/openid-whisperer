@@ -4,9 +4,14 @@ from uuid import uuid4
 from typing import Dict, Any
 
 from openid_whisperer.utils.token_utils import (
-    validate_access_token, validate_jwt_token,
+    validate_access_token,
+    validate_jwt_token,
 )
-from openid_whisperer.utils.common import generate_s256_hash, validate_s256_hash, get_audience
+from openid_whisperer.utils.common import (
+    generate_s256_hash,
+    validate_s256_hash,
+    get_audience,
+)
 from openid_whisperer.openid_interface import OpenidApiInterface
 
 
@@ -17,14 +22,13 @@ def test_hash_codes():
 
 
 def test_authorisation_code(
-        input_scenario_one: Dict[str, Any],
-        openid_api: OpenidApiInterface,
-        endpoint_jwks_keys: Dict[str, Any],
+    input_scenario_one: Dict[str, Any],
+    openid_api: OpenidApiInterface,
+    endpoint_jwks_keys: Dict[str, Any],
 ):
     user_claims = openid_api.credential_store.get_user_scope_claims(
         username=input_scenario_one["username"],
         scope=input_scenario_one["scope"],
-        nonce=input_scenario_one["nonce"],
     )
     assert isinstance(user_claims, dict)
     assert len(user_claims) > 1
@@ -41,6 +45,7 @@ def test_authorisation_code(
         sub=input_scenario_one["username"],
         user_claims=user_claims,
         audience=audience,
+        nonce=input_scenario_one["nonce"],
     )
 
     token_response = openid_api.token_store.token_requests.get(authorisation_code, None)
@@ -69,12 +74,9 @@ def test_authorisation_code(
         issuer=openid_api.issuer_reference,
     )
     assert (
-            claims["aud"]
-            == [input_scenario_one["resource"], input_scenario_one["client_id"]]
-            and claims["iss"] == openid_api.issuer_reference
-            and claims["appid"] == input_scenario_one["client_id"]
-            and claims["nonce"] == input_scenario_one["nonce"]
+        claims["aud"]
+        == [input_scenario_one["resource"], input_scenario_one["client_id"]]
+        and claims["iss"] == openid_api.issuer_reference
+        and claims["appid"] == input_scenario_one["client_id"]
+        and claims["nonce"] == input_scenario_one["nonce"]
     )
-
-
-

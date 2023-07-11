@@ -142,8 +142,9 @@ class UserInfoFakerExtension(UserInfoExtension):
             logger.warning(
                 "Faker package not available, defaulting the extension to the default, UserInfoExtension."
             )
-        else:
             return UserInfoExtension()
+        else:
+            return super().__new__(cls)
 
     def __init__(self) -> None:
         self._user_info: Dict[str, Any] = {}
@@ -170,10 +171,15 @@ class UserInfoFakerExtension(UserInfoExtension):
                     name = self.faker.name_male()
                 case _:
                     name = self.faker.name_nonbinary()
-            given_name, family_name = name.split(" ")
-            middle_name = random.choice(
-                [self.faker.first_name(), self.faker.last_name()]
-            )
+            names = name.split(" ")
+            given_name = names[0]
+            family_name = names[-1]
+            if len(names) >= 3:
+                middle_name = names[1]
+            else:
+                middle_name = random.choice(
+                    [self.faker.first_name(), self.faker.last_name()]
+                )
             domain_name = self.faker.domain_name()
             user_data = {
                 "name": name,
@@ -200,7 +206,7 @@ class UserInfoFakerExtension(UserInfoExtension):
         return user_data
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     userdb = UserInfoFakerExtension()
     user_info = userdb.get_user_claims("o123456", "openid profile")
     from pprint import pformat
