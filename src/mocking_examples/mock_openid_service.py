@@ -1,9 +1,9 @@
-""" Module for initialising the OpenID Whisperer running service
+""" Custom implementation of openid-whisperer
 """
+
 from flask import Flask
 from openid_whisperer.utils.cert_utils import get_ssl_context
 from openid_whisperer.openid_blueprint import openid_blueprint
-
 from openid_whisperer.config import get_cached_config
 
 

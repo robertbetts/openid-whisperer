@@ -4,8 +4,8 @@ from typing import Dict, Any
 import json
 import requests
 
-from mock_api_service.openid_client_lib import OpenIDClient
-from mock_api_service.config import config
+from mocking_examples.openid_client_lib import OpenIDClient
+from mocking_examples.config import config
 
 
 def call_api_private_endpoint(access_token, use_gateway: bool = False):

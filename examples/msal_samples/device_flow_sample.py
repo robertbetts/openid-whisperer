@@ -29,16 +29,9 @@ import msal
 
 
 def submit_credentials_with_challenge_code(config, challenge_info):
-    data = {
-        "response_type": "code",
-        "client_id": config["client_id"],
-        "UserName": config["username"],
-        "Password": config["password"],
-        "code_challenge_method": "plain",
-        "CodeChallenge": challenge_info["user_code"],
-    }
-
-    query = urlparse(challenge_info["verification_uri"]).query
+    """Mock the end user authenticating and submitting the user code provided to them."""
+    url_parts = urlparse(challenge_info["verification_uri"])
+    query = url_parts.query
     query_items: List[tuple[str, str]] = [
         (item.split("=", 1)[0], item.split("=", 1)[1])
         for item in [part for part in query.split("&")]
@@ -46,19 +39,34 @@ def submit_credentials_with_challenge_code(config, challenge_info):
     query_params = dict(query_items)
     logging.info(pformat(query_params))
 
-    auth_url = challenge_info["verification_uri"]
-    logging.info(auth_url)
-
+    auth_url = f"{url_parts.scheme}://{url_parts.netloc}{url_parts.path}"
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
+    }
+    data = {
+        "response_type": query_params["response_type"],
+        "client_id": query_params["client_id"],
+        "prompt": query_params["prompt"],
+        "scope": query_params["scope"],
+        "resource": query_params["resource"],
+        "UserName": config["username"],
+        "Password": config["password"],
+        "CodeChallenge": challenge_info["user_code"],
+        "code_challenge_method": query_params["code_challenge_method"],
+        "code_challenge": challenge_info.get("code_challenge", ""),
     }
     response = requests.post(auth_url, data=data, headers=headers, verify=False)
     logging.info(response.status_code)
     if response.status_code != 200:
         logging.info("Error processing end user verification of the user code")
         sys.exit()
-        # logging.info(response.text)
+    else:
+        logging.info("End User code_challenge submitted")
+        assert (
+            "Success, you have validated the user code provided to you."
+            in response.text
+        )
 
 
 # Optional logging

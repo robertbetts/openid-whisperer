@@ -45,7 +45,7 @@ app = msal.PublicClientApplication(
     authority=config["authority"],
     validate_authority=False,
     verify=False,
-    # allow_broker=True,  # If opted in, you will be guided to meet the prerequisites, when applicable
+    allow_broker=False,  # If opted in, you will be guided to meet the prerequisites, when applicable
     # See also: https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-desktop-acquire-token-wam#wam-value-proposition
     # token_cache=...  # Default cache is in memory only.
     # You can learn how to use SerializableTokenCache from
@@ -89,8 +89,9 @@ if "access_token" in result:
     graph_response = requests.get(  # Use token to call downstream service
         config["endpoint"],
         headers={"Authorization": "Bearer " + result["access_token"]},
+        verify=False,
     )
-    print("Graph API call result: %s ..." % graph_response.text[:100])
+    print("API call result: %s ..." % graph_response.text[:100])
 else:
     print(result.get("error"))
     print(result.get("error_description"))

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openid-whisperer"
-version = "0.1.0"
+version = "0.1.1"
 description = "OpenID Oauth 2.0 compatible Identity Provider"
 license = "MIT"
 authors = ["Robert Betts"]
@@ -13,13 +13,14 @@ classifiers = [
 ]
 packages = [
     {include = "openid_whisperer", from = "src" },
-    {include = "mock_api_service", from = "src" }
+    {include = "mocking_examples", from = "src" }
 ]
 
 [tool.poetry.scripts]
-openid-whisperer = 'mock_api_service.main:main'
-mock-api-service = 'mock_api_service.mock_api_service:main'
-mock-api-client = 'mock_api_service.mock_api_client:main'
+openid-whisperer = 'openid_whisperer.main:main'
+mock-openid-service = 'mocking_examples.mock_openid_service:main'
+mock-api-service = 'mocking_examples.mock_api_service:main'
+mock-api-client = 'mocking_examples.mock_api_client:main'
 
 
 [tool.pytest]
@@ -58,7 +59,7 @@ enable_error_code = [
 ]
 exclude = [
     "tests",
-    "src/mock_api_service"
+    "src/mocking_examples"
 ]
 
 [tool.pylint]
@@ -68,21 +69,22 @@ ignore-paths = "tests"
 python = "^3.11"
 pyjwt = "^2.6.0"
 requests = {extras = ["security"], version = "^2.31.0"}
+types-requests = "^2.31.0.1"
 cryptography = "^41.0.1"
 pyyaml = "^6.0"
 flask = {extras = ["async"], version = "^2.2.3"}
 python-dotenv = "^1.0.0"
-
+Faker = "^18.13.0"
 
 [tool.poetry.group.dev.dependencies]
 poetry = "^1.5.1"
 pytest = "^7.3.1"
 certifi = "^2022.12.7"
-types-requests = "^2.31.0.1"
 coverage = {extras = ["toml"], version = "^7.2.7"}
 pytest-dotenv = "^0.5.2"
 black = "^23.3.0"
 msal = "1.22.0"
+mypy = "^1.4.1"
 
 [build-system]
 requires = ["poetry-core"]
