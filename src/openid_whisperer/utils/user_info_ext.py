@@ -192,7 +192,7 @@ class UserInfoFakerExtension(UserInfoExtension):
                 "picture": "",
                 "website": "",
                 "gender": gender,
-                "birthdate": self.faker.date_of_birth(minimum_age=16),
+                "birthdate": self.faker.date_of_birth(minimum_age=16).isoformat(),
                 "zoneinfo": "",
                 "locale": "",
                 "updated_at": get_now_seconds_epoch(),

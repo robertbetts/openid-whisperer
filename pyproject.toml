@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openid-whisperer"
-version = "0.1.1"
+version = "0.1.2"
 description = "OpenID Oauth 2.0 compatible Identity Provider"
 license = "MIT"
 authors = ["Robert Betts"]
@@ -12,16 +12,11 @@ classifiers = [
     'Operating System :: OS Independent'
 ]
 packages = [
-    {include = "openid_whisperer", from = "src" },
-    {include = "mocking_examples", from = "src" }
+    {include = "openid_whisperer", from = "src" }
 ]
 
 [tool.poetry.scripts]
 openid-whisperer = 'openid_whisperer.main:main'
-mock-openid-service = 'mocking_examples.mock_openid_service:main'
-mock-api-service = 'mocking_examples.mock_api_service:main'
-mock-api-client = 'mocking_examples.mock_api_client:main'
-
 
 [tool.pytest]
 env_files = [".env_test"]

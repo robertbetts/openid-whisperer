@@ -3,7 +3,6 @@ import json
 import secrets
 from datetime import datetime
 from uuid import uuid4
-from typing import Dict, Any, NoReturn
 
 from flask import (
     Flask,
@@ -18,18 +17,21 @@ import requests
 import jwt
 from json.decoder import JSONDecodeError
 
-from mocking_examples.openid_client_lib import OpenIDClient
-from mocking_examples.config import config
+from openid_examples.mock_openid_client_lib import OpenIDClient
+from openid_examples.mock_shared_config import config
 
 
 app = Flask(__name__)
 app.secret_key = secrets.token_urlsafe(46)
+logger = logging.getLogger(__name__)
 
-logging.info("Connecting to the identity provider: %s", config.identity_endpoint_gw)
+logger.info("Connecting to the identity provider: %s", config.identity_endpoint_gw)
 openid_client: OpenIDClient = OpenIDClient(
     provider_url=config.identity_endpoint,
     provider_url_gw=config.identity_endpoint_gw,
+    tenant=config.tenant,
     client_id=config.client_id,
+    scope=config.scope,
     resource=config.resource_uri,
     use_gateway=False,
     verify_server=config.validate_certs,
@@ -44,19 +46,20 @@ def handle_access_token() -> Response:
     If a valid access token (JWT) can not be retrieved from the Identity service on exchange of the code,
     then respond to the API service's login page.
     """
-    code = request.args.get("code")
-    state = request.args.get("state")
-
+    code: str | None = request.args.get("code")
+    state: str | None = request.args.get("state")
     message: str | None = None
     access_token: str | None = None
 
-    if state != session.get("state"):
-        message = "Unable to pair state of access code response with the login redirect"
-        logging.debug(message)
+    logger.debug("Incoming authorisation response:\ncode:%s\nstate:%s", code, state)
+
+    if not code or not state or state != session.get("state"):
+        message = "Validation failed for the access_token response"
+        logger.debug(message)
 
     else:
-        # Using the code from the redirect (following Authentication), another call is required to IDA to
-        # exchange the code for a JWT
+        # Using the code from the redirect (following Authentication), a follow-up call is required to
+        # get the access_token from the Identity service in exchange for the code received here
         token_endpoint_url = openid_client.token_endpoint_url(use_gateway=True)
         header = {
             "content_type": "application/x-www-form-urlencoded",
@@ -80,27 +83,20 @@ def handle_access_token() -> Response:
                     access_token = json_response["access_token"]
                 elif "error" in json_response:
                     message = f"{json_response['error']}: {json_response['error_description']}"
-                    logging.error(message)
+                    logger.error(message)
                 else:
-                    logging.error(
+                    logger.error(
                         "Unknown json response from Identity Provider:\n%s",
                         json_response,
                     )
                     message = "Unknown response from Identity Provider"
             except JSONDecodeError as e:
-                logging.error(e)
-                logging.debug(r.text)
+                logger.error(e)
+                logger.debug(r.text)
                 message = "Error requesting token from the Identity Provider error, bad JSON data"
             except Exception as e:
-                logging.error(e)
+                logger.error(e)
                 message = "Error requesting token from access_code"
-
-        # elif 400 <= r.status_code < 500:
-        #     logging.error("Bad request submitted to the Identity Provider:\nresponse: %s", r.text)
-        # elif 500 <= r.status_code:
-        #     logging.error("Identity Provider server error:\nresponse: %s", r.text)
-        # else:
-        #     logging.error("Identity Provider server response: %s\nresponse: %s", r.status_code, r.text)
 
         # If message is set then there has been an error requesting the access_token
         if access_token is not None and message is None:
@@ -115,37 +111,61 @@ def handle_access_token() -> Response:
                 else:
                     # Cache the access token in the session for future use
                     session["access_token"] = access_token
-                    # TODO: check that this time conversion from epoch seconds is accurate
-                    session["exp"] = exp_date = datetime.utcfromtimestamp(claims["exp"])
-                    resp = make_response(
-                        render_template(
-                            "mock_api_index.html", claims=claims, exp_date=exp_date
-                        )
-                    )
+
+                    # Redirect to the pre-authorisation endpoint requested
+                    redirect_url = session.get("pre_auth_redirect_url")
+                    redirect_url = redirect_url if redirect_url else "/"
+                    resp = redirect(redirect_url, code=302)
                     return resp
 
             except jwt.ExpiredSignatureError as e:
                 message = "Invalid token: %s" % e
-
+                logger.error(message)
             except jwt.InvalidTokenError as e:
                 message = "Invalid token: %s" % e
-
+                logger.error(message)
             except Exception as e:
-                logging.error(e)
-                logging.exception(e)
                 message = "Error during token validation: %s" % e
+                logger.exception(message)
 
-    # If the code reaches this point then assume there has been an error requesting an access token
+    # If the code reaches this point then the authentication has been unsuccessful
     resp = make_response(render_template("mock_api_logout.html", message=message))
     session.clear()
-    return resp
+    return resp, 401
 
 
 @app.route("/")
 @app.route("/mock-api")
-@app.route("/mock-api/")
 def index():
-    if "access_token" in session:
+    if session.new or "access_token" not in session:
+        # Make an authentication and authorisation request
+        response_type = "code"
+        scope = openid_client.scope
+
+        # nonce is used to validate the token generated for this authorisation request
+        nonce = session["nonce"] = uuid4().hex
+        # state is used to link this session to the redirect from the identity provider
+        state = session["state"] = secrets.token_hex()
+
+        # Storing the url for this request in order to redirect back here after authorisation
+        session["pre_auth_redirect_url"] = request.url
+
+        auth_url = openid_client.authorization_endpoint_url(use_gateway=True)
+        auth_url += "?scope={}&response_type={}&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
+            scope,
+            response_type,
+            config.client_id,
+            config.resource_uri,
+            nonce,
+            config.redirect_url,
+            state,
+            nonce,
+        )
+        logger.debug("New User Session:\nstate:%s\nnonce:%s", state, nonce)
+        logger.debug("Authorisation redirect: %s", auth_url)
+        return redirect(auth_url, code=302)
+
+    else:
         access_token = session["access_token"]
         try:
             claims = openid_client.validate_access_token(
@@ -153,10 +173,13 @@ def index():
                 audience=config.audience,
                 verify_server=config.validate_certs,
             )
-            # TODO: check that this time conversion from epoch seconds is accurate
             exp_date = datetime.utcfromtimestamp(claims["exp"])
             return render_template(
-                "mock_api_index.html", claims=claims, exp_date=exp_date
+                "mock_api_index.html",
+                claims=claims,
+                exp_date=exp_date,
+                openid_provider_url=openid_client.provider_url,
+                token_issuer_uri=openid_client.identity_config["access_token_issuer"],
             )
 
         except Exception as e:
@@ -166,22 +189,6 @@ def index():
             )
             session.clear()
             return resp
-    else:
-        scope = "openid profile"
-        nonce = session["nonce"] = uuid4().hex
-        state = session["state"] = secrets.token_hex()
-        auth_url = openid_client.authorization_endpoint_url(use_gateway=True)
-        auth_url += "?scope={}&response_type=code&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
-            scope,
-            config.client_id,
-            config.resource_uri,
-            nonce,
-            config.redirect_url,
-            state,
-            nonce,
-        )
-        logging.debug("Auth redirect: %s", auth_url)
-        return redirect(auth_url, code=302)
 
 
 @app.route("/mock-api/api/public")
@@ -209,7 +216,7 @@ def api_private():
                 "message": "You have successfully authenticated for this private endpoint"
             }
         except Exception as e:
-            logging.error(e)
+            logger.error(e)
             result = {
                 "error": "AccessValidationError",
                 "error_description": f"The access token provided is not valid - {e}",

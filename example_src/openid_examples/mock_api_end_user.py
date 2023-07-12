@@ -1,11 +1,13 @@
+from openid_examples.mock_shared_config import config
 import logging
 from urllib.parse import urljoin
 from typing import Dict, Any
 import json
 import requests
 
-from mocking_examples.openid_client_lib import OpenIDClient
-from mocking_examples.config import config
+from openid_examples.mock_openid_client_lib import OpenIDClient
+
+logger = logging.getLogger(__name__)
 
 
 def call_api_private_endpoint(access_token, use_gateway: bool = False):
@@ -19,12 +21,12 @@ def call_api_private_endpoint(access_token, use_gateway: bool = False):
         )
         logging.info(response.status_code)
         if response.status_code != 200:
-            logging.info("Unexpected response: \n%s", response.text)
+            logger.info("Unexpected response: \n%s", response.text)
         else:
             result = json.loads(response.text)
-            logging.info(result)
+            logger.info(result)
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         return {"error": str(e)}
 
 
@@ -33,7 +35,9 @@ def main():
     openid_client: OpenIDClient = OpenIDClient(
         provider_url=config.identity_endpoint,
         provider_url_gw=config.identity_endpoint_gw,
+        tenant=config.tenant,
         client_id=config.client_id,
+        scope=config.scope,
         resource=config.resource_uri,
         verify_server=config.validate_certs,
         use_gateway=False,
@@ -43,12 +47,12 @@ def main():
         secret="very long dev reminder",
     )
     if not access_token:
-        logging.error(
+        logger.error(
             "Unable to validate credentials against the openid provider at %s",
             config.identity_endpoint,
         )
     else:
-        logging.info(f"Access Token: {access_token}")
+        logger.info(f"Access Token: {access_token}")
         call_api_private_endpoint(access_token)
 
 

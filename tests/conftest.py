@@ -65,15 +65,16 @@ def endpoint_jwks_keys(openid_api: OpenidApiInterface):
 
 @pytest.fixture
 def input_scenario_one():
-    client_id = "ID_12345"
+    tenant = "/adfs"
+    client_id = "CLIENT-90274-DEV"
     scope = "openid profile"
-    resource = "TEST:URI:RS-104134-21171-test-api"
+    resource = "URI:API:CLIENT-90274-API"
     nonce = "".join(secrets.choice(string.ascii_letters) for _ in range(16))
     redirect_uri = "http://test/api/handleAccessToken"
     return {
         "client_id": client_id,
         "client_secret": "client_secret",
-        "tenant": "adfs",
+        "tenant": tenant,
         "scope": scope,
         "resource": resource,
         "username": "enduser@domain",

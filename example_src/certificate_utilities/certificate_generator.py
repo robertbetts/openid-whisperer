@@ -8,7 +8,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from openid_whisperer.cert_utils import (
+from openid_whisperer.utils.cert_utils import (
     generate_ca_key_and_certificate,
     generate_org_key_and_certificate,
     dump_cert_and_ca_bundle,
@@ -88,7 +88,7 @@ def next_path(
     return [pattern % b for pattern in patterns_with_prefix]
 
 
-def creat_sample_cert_files(
+def create_sample_cert_files(
     organization_name=None,
     common_name=None,
     host_names=None,
@@ -175,7 +175,7 @@ def gen_ord_certs_from_ca(
                         backend=default_backend(),
                         password=key_password,
                     )
-            creat_sample_cert_files(
+            create_sample_cert_files(
                 organization_name=organization_name,
                 common_name=common_name,
                 host_names=host_names,
