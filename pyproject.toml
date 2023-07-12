@@ -12,8 +12,7 @@ classifiers = [
     'Operating System :: OS Independent'
 ]
 packages = [
-    {include = "openid_whisperer", from = "src" },
-    {include = "mocking_examples", from = "src" }
+    {include = "openid_whisperer", from = "src" }
 ]
 
 [tool.poetry.scripts]
