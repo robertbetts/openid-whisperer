@@ -39,23 +39,25 @@ Any values input for client_id, client_secret, username, password, scope, resour
 
 ## User Information Claim Extensions:
 This is a relatively new feature to further support testing of resource permissions and end user claims. The 
-base extension echod back the input info and generates a set of the published OpenID token claims. 
+base extension echoes back the input information gathered from the client/resource owner together with the 
+credentials of the end user and generates a set of user claims. The claims follow the published OpenID
+specification. 
 
-There is also an Extended Faker based implementation that which for any input username, generates a fake random 
-end user profile. This profile is cached against the input username and used to populate token claims 
-information. An example of the Faker extension in use can be seen in the example 
+There is an extended Faker based implementation which for any input username, randomly generates a fake 
+end user profile. This profile is cached against the input username and is used to populate the token claim 
+information. An example of the Faker extension can be seen implemented in the API Service code example 
 `example_src/openid_examples/mock_openid_service.py`
 
-A typical customisation to the user information extension, is dropping in a set of predefined users and scopes. 
-This is very helpful to developer building OpenID protected APIs where different authenticated users have 
+A typical further customisation to the user information extension, is dropping in a set of predefined users and scopes. 
+This is very helpful when building and testing and OpenID protect API where different users have 
 different roles and access to different API resources.
 
 ## Example code for various OpenID use cases
 
 ### `example_src/openid_examples/`
-* `mock_openid_service.py`: An example of a custom implementation of Openid-Whisperer
-* `mock_api_server.py`: An example of a Web/API service, with resources protected through OpenID
-* `mock_api_end_user.py`: An example of an API client application
+* `mock_openid_service.py`: A custom implementation of Openid-Whisperer
+* `mock_api_server.py`: An example Web/API service, with resources protected through OpenID
+* `mock_api_end_user.py`: An example where a client app access an API Service
 * `mock_openid_client_lib.py`: A lightweight OpenID protocol library used by the examples
 * `mock_shared_config.py`: A common config class for synchronising configuration across the examples
 
