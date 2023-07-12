@@ -23,10 +23,16 @@
     </style>
 </head>
 <body>
-<h1> Welcome {{claims.FirstName}} to the Python Flask sample application</h1>
-You have successfully authenticated using IDAnywhere.
-<br>Your current token expires: {{exp_date}}
-<br>The access token contains the following claims:
+<h1>Welcome to the example API Service application</h1>
+<h3>You have been authenticated and authorised to access this page through an OpenID authentication flow.</h3>
+<br>
+<table>
+    <tr><td>Identity Provider URL</td><td>{{ openid_provider_url }}</td></tr>
+    <tr><td>Token Issuer URI</td><td>{{ token_issuer_uri }}</td></tr>
+    <tr><td>Token Expires on</td><td>{{ exp_date }}</td></tr>
+</table>
+<br>
+<br>The token issued contains the following claims:
 <br>
 <table>
     <caption>List of token claims</caption>

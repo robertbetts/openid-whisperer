@@ -7,11 +7,13 @@ from collections import UserDict
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from urllib.parse import urljoin, urlsplit, urlunsplit
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Type
 import math
 
 import requests
 import jwt
+
+logger = logging.getLogger(__name__)
 
 
 class OpenidClientException(Exception):
@@ -28,18 +30,31 @@ def replace_base_netloc(url1: str, url2: str) -> str:
 
 
 class IdentityConfig(UserDict):
-    """Dictionary like class for accessing and caching an OpenID Identity provider's configuration"""
+    """Dictionary like class that contains and caches an identity service's published services and settings. This
+    is accessed via a call to http://identity_service_address/{tenant}/.well-known/openid-configuration.
 
-    def __init__(self, provider_url: str, verify_server: bool = True):
-        self.provider_url: str = provider_url
+    The initial call to the identity service is made when the first configuration element is requested.
+    """
+
+    def __init__(
+        self,
+        provider_url: str,
+        tenant: Optional[str] = None,
+        verify_server: bool = True,
+    ):
+        self.tenant = tenant if tenant else ""
+        self._provider_url: str = urljoin(provider_url, tenant)
         self.verify_server: bool = verify_server
         self.initialised: bool = False
         super().__init__()
 
+    @property
+    def provider_url(self) -> str:
+        return urljoin(self._provider_url, self.tenant)
+
     def refresh(self):
-        """Update the dictionary's data with that from the identity provider.
-        this class is refreshed with the identity provider the first an
-        element is retrieved.
+        """Update the dictionary's data with that from the identity provider. This class is first refreshed when the
+        configuration element is accessed.
         """
         endpoint = urljoin(self.provider_url, ".well-known/openid-configuration")
         response = requests.get(url=endpoint, verify=self.verify_server)
@@ -47,9 +62,11 @@ class IdentityConfig(UserDict):
             config_data: Dict[str, Any] = response.json()
             self.update(config_data)
         else:
-            logging.error("Failed identity provider endpoint {}".format(endpoint))
+            logging.error(
+                "Failed to access identity provider openid-configuration endpoint"
+            )
             raise OpenidClientException(
-                "Unable to connect to the identity provider\n{}".format(response.text)
+                f"Error accessing the identity provider service\n{response.text}"
             )
 
     def __getitem__(self, item):
@@ -61,20 +78,24 @@ class IdentityConfig(UserDict):
 
 
 class OpenIDClient:
-    """OpenID 1.0 Compatible Client Library"""
+    """OpenID 1.0 example compatible client library"""
 
     def __init__(
         self,
         provider_url: str,
         provider_url_gw: str,
+        tenant: str,
         client_id: str,
+        scope: str,
         resource: Optional[str] = None,
         use_gateway: bool = False,
         verify_server: bool = True,
     ):
         self.provider_url: str = provider_url
         self.provider_url_gw: str = provider_url_gw
+        self.tenant: str = tenant
         self.client_id: str = client_id
+        self.scope: str = scope if scope else "openid"
         self.resource: str = resource if resource else ""
         self.use_gateway: bool = use_gateway
         self.verify_server = verify_server
@@ -83,29 +104,59 @@ class OpenIDClient:
         self.validated_claims: Dict[str, Any] = {}
 
         provider_url = self.provider_url_gw if use_gateway else self.provider_url
-        self.identity_config: IdentityConfig = IdentityConfig(
-            provider_url, verify_server
+        self.identity_config: Type[IdentityConfig] = IdentityConfig(
+            provider_url=self.provider_url,
+            tenant=self.tenant,
+            verify_server=self.verify_server,
         )
 
     def validate_access_token(
         self,
         access_token: str,
-        audience: Optional[str | List] = None,
+        audience: Optional[str | List],
         verify_server: bool = True,
         use_gateway: bool = False,
     ) -> Dict[str, Any]:
-        """Validate a JWT against the keys provided by the IDA service and return the valid claim payload.
-        if the JWT, claim or IDA keys are invalid or the claim is empty the raise an exception.
+        """Validate a JWT (Bearer token) against the keys provided by the IDA service and return the validated token
+         claim payload. If the JWT, claim or IDA keys are invalid or the claim is empty, then raise an exception.
 
-        audience is mandatory token check, as a minimum the aud claim will always contain the OpenID client_id. Where
-        resource has been specified, this will be included in the aud claim.
-        Where the audience parameter is None, the audience is assigned [self.client_id, self.resource]
+        If a colon is found in the first 10 characters of the input access_token, the only accepted
+        "type indicator".lower() is "bearer"
+
+        audience is a mandatory token check, as a minimum the aud claim should always contain the OpenID client_id,
+        as well as being the value of the "appid" claim.
+
+        The issuer reference embedded in the token is compared to "access_token_issuer" value received from a
+        call to http://identity_service/{tenant}/.well-known/openid-configuration.
+
+        FYI: resource: For those migrating from MS ADFS or earlier version of Azure, there is a move away from
+        specifying the resource permissions using the resource (resource_uri) parameter in the various authentication
+        flows. The preference is defined authorisation requirements withing the scope parameter.
+
+        Parameters:
+            access_token: can be in the form of "Bearer: LKJLJHKVG345VJGGG...." or only the token value e.g "LKJLJHKVG345VJGGG...."
+            audience: parameter should as a minimum contain [client_id, resource] as a list of strings or a single space separated string.
+            verify_server: Whether to validate the SSL credentials of the identity service
+            use_gateway: access internal or external address of the identity service
         """
-        at_list = access_token.split(".")
+        access_token = access_token.strip()
+
+        if ":" in access_token[:10]:
+            token_type, token = (item.strip() for item in access_token.split(":", 1))
+            if token_type.lower() != "bearer":
+                logger.warning(
+                    "Only Bearer tokens have been tested, result for {} is undefined"
+                )
+            access_token = token
+
+        token_parts = access_token.split(".")
         # Adjust the left padding to avoid the base64 padding error
-        token_header = at_list[0].ljust(int(math.ceil(len(at_list[0]) / 4)) * 4, "=")
+        token_header = token_parts[0].ljust(
+            int(math.ceil(len(token_parts[0]) / 4)) * 4, "="
+        )
         header = json.loads(base64.b64decode(token_header).decode("utf-8"))
         tok_x5t = header["x5t"]
+
         issuer: str = self.identity_config["access_token_issuer"]
 
         claims: Dict[str, Any] = {}
