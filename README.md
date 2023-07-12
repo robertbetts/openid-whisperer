@@ -5,21 +5,58 @@ OpenID Compliant Identity Service
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project started life as a mock Microsoft ADFS service, it since evolved into a compliant
-OpenID version 1 service and covers most common authentication flows required by applications that 
-use an OpenID type authentication provider. 
+Sometimes you want to stand up an application fast, and you don't want to compromise on its design or access control.
+Openid-Whisperer provides a quick and efficient set of solutions where applications have a requirement for OpenID 1.0
+or Oauth 2.0 authentication and access control.
 
-It is important to note, although a compliant OpenID API with authentication flows and tokens issued, it still 
-behaves as a mock service in that there is no internal repository of end user or client app credentials. The 
-values for client_id, client_secret, username, password, scope and resource are assumed to be valid as is input.
-* UserName@domain / Password credentials entered assumed to be correct.
-* client_id, resource and scope profiles/permissions are also assumed to be valid. 
+1. OpenID Identity Service run either standalone or as Docker container
+2. Python OpenID class library
+3. Flask OpenID blueprint
+4. Customised or mock end user information claims 
+5. Sandbox for learning and experimenting
 
-### Microsoft Authentication Library MSAL
-MSAL is used as 3rd party testing kit for additional verification the implemented authentication flows. The 
-current MSAL code examples run through successfully:
-* device_code_flow.py
-* username_and_password_example.py
+There are numerous opensource projects that offer specifications, patterns and solutions around OpenID
+authentication and authorisation. This project aims to take a lightweight approach with as complete functional flow and
+api coverage as possible. Some of the references that have been useful to this effort are:
+
+* https://openid.net/developers/specs/
+* https://auth0.com/docs/
+* https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
+* https://github.com/AzureAD/microsoft-authentication-library-for-python
+
+## History
+This project started life as a mock for Microsoft ADFS, it has since evolved into a lightweight, compliant,
+OpenID version 1 service and covers most of the common authentication flows required when running or testing against  
+an OpenID type service provider. 
+
+Important to note is that although a compliant OpenID API, with authentication flows and tokens issued, it still 
+designed as a protocol mock or authentication flow validator. By default there is no internal repository of 
+protected resources of end user credentials. 
+
+Any values input for client_id, client_secret, username, password, scope, resource are assumed to be valid.
+* UserName@domain and non-empty password credentials entered assumed to be correct.
+* client_id, resource and scope profiles/permissions are also assumed to exist and to be valid.
+
+## User Information Claim Extensions:
+This is a relatively new feature to further support testing of resource permissions and end user claims. The 
+base extension echod back the input info and generates a set of the published OpenID token claims. 
+
+There is also an Extended Faker based implementation that which for any input username, generates a fake random 
+end user profile. This profile is cached against the input username and used to populate token claims 
+information. An example of the Faker extension in use can be seen in the example 
+`example_src/openid_examples/mock_openid_service.py`
+
+A typical customisation to the user information extension, is dropping in a set of predefined users and scopes. 
+This is very helpful to developer building OpenID protected APIs where different authenticated users have 
+different roles and access to different API resources.
+
+## Microsoft Authentication Library MSAL
+MSAL is used for alternative testing kit to verify ADFS and Azure OpenID authentication flows. The
+following MSAL code examples run through successfully:
+* `device_code_flow.py`
+* `username_and_password_example.py`
+* `interactive_sample.py`
+* `migrate_rt.py` This example has API compatibility, however there is no functional implementation.
 
 ## Development
 Active development is on Python 3.11 on both Windows 10 and macOS 13.4. Testing is run using PyTest against these 
@@ -70,31 +107,20 @@ NO_PROXY=${NO_PROXY:-127.0.0.1,localhost},${GATEWAY_HOST:-localhost},${INTERNAL_
 VALIDATE_CERTS=${VALIDATE_CERTS:-False}
 ```
 
-## Running Code
-### PyTest unit tests
+## Running the Code
+### Pytest unit tests
 Code test coverage objective is 100%. there are currently no unit tests for the module mocking_examples
 ```
 poetry run coverage run -m pytest && poetry run coverage report -m
 ```
 
-### Application Instances
+### Running Openid-Whisperer
 Run OpenID Whisperer (from project root)
 ```
 poetry run python -m openid_whisperer.main 
 ```
 
-Run Mock API Service (from project root)
-```
-poetry run python -m mocking_examples
-```
-
-Run Mock API Service Client (from project root)
-```
-poetry run python -m mocking_examples.mock_api_client 
-```
-
-## Containerisation
-To Build and Run a Docker Container
+Run within a Docker Container
 ```
 docker build -t opendid-whisperer:0.1.0 .
 docker run --name=openid-whisperer -p5005:5000  -eID_SERVICE_PORT_GW=5005 opendid-whisperer:0.1.0
