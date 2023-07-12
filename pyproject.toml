@@ -1,13 +1,17 @@
 [tool.poetry]
 name = "openid-whisperer"
-version = "0.1.2"
-description = "OpenID Oauth 2.0 compatible Identity Provider"
+version = "0.1.3"
+description = "OpenID 1.0 Mock Identity Service"
 license = "MIT"
-authors = ["Robert Betts"]
+authors = ["Robert Betts <betts_robert@yahoo.com>"]
+maintainers = ["Robert Betts <betts_robert@yahoo.com>"]
 readme = "README.md"
+homepage = "https://github.com/robertbetts/openid-whisperer"
+repository = "https://github.com/robertbetts/openid-whisperer"
 keywords = ["python", "mock", "api", "oauth2", "openid"]
 classifiers = [
     'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.10',
     'License :: OSI Approved :: MIT License',
     'Operating System :: OS Independent'
 ]
@@ -61,7 +65,7 @@ exclude = [
 ignore-paths = "tests"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 pyjwt = "^2.6.0"
 requests = {extras = ["security"], version = "^2.31.0"}
 types-requests = "^2.31.0.1"
