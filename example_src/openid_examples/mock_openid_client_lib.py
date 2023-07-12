@@ -105,7 +105,7 @@ class OpenIDClient:
 
         provider_url = self.provider_url_gw if use_gateway else self.provider_url
         self.identity_config: Type[IdentityConfig] = IdentityConfig(
-            provider_url=self.provider_url,
+            provider_url=provider_url,
             tenant=self.tenant,
             verify_server=self.verify_server,
         )
