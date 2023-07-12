@@ -61,7 +61,7 @@ def register_user_info_extension(
         logger.info(
             f"Unsupported extension '{extension}', loading the UserInfoExtension"
         )
-    elif isinstance(extension, UserInfoExtensionTemplate):
+    elif not isinstance(extension, UserInfoExtensionTemplate):
         logger.info(
             f"Unsupported extension '{extension.__class__}', loading the UserInfoExtension"
         )
