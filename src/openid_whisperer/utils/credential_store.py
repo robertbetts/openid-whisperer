@@ -25,6 +25,7 @@ class UserCredentialStore:
 
     maximum_login_attempts of None or <=0 enables infinite authentication attempts
     """
+
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
         self.validate_users: bool | None = None
         self.json_users: str | None = None
@@ -35,7 +36,11 @@ class UserCredentialStore:
         # Update class properties from kwargs
         for key, value in kwargs.items():
             if not hasattr(self, key):
-                logger.warning("Invalid initialization parameter, ignoring. %s: %s", key, str(value)[:100])
+                logger.warning(
+                    "Invalid initialization parameter, ignoring. %s: %s",
+                    key,
+                    str(value)[:100],
+                )
                 continue
             setattr(self, key, value)
 

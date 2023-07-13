@@ -37,12 +37,10 @@ class Config:
         "id_service_bind": (str, "0.0.0.0"),
         "id_service_port_gw": (int, 5005),
         "id_service_host_gw": (str, "localhost"),
-
         "validate_users": (boolify, False),
         "json_user_file": (str, ""),
         "session_expiry_seconds": (int, 0),
         "maximum_login_attempts": (int, 0),
-
         "ca_cert_filename": (str, ""),
         "org_key_filename": (str, ""),
         "org_key_password": (str, ""),
@@ -90,9 +88,7 @@ class Config:
         for key, value in init_config.items():
             _, default = value
             if not key.isidentifier():
-                raise ValueError(
-                    f"Configuration property {key}, is not valid."
-                )
+                raise ValueError(f"Configuration property {key}, is not valid.")
             setattr(instance, key, default)
         return instance
 
@@ -181,9 +177,13 @@ class Config:
         """
 
         def load_cert_pair(
-            cert_file: TextIO, key_file: Optional[TextIO] = None, key_password: Optional[str] = None
+            cert_file: TextIO,
+            key_file: Optional[TextIO] = None,
+            key_password: Optional[str] = None,
         ) -> Tuple[x509.Certificate, Optional[rsa.RSAPrivateKey]]:
-            cert: x509.Certificate = x509.load_pem_x509_certificate(cert_file.read(), default_backend())
+            cert: x509.Certificate = x509.load_pem_x509_certificate(
+                cert_file.read(), default_backend()
+            )
             if key_file is not None:
                 key_password = key_password.encode() if key_password else None
                 key = serialization.load_pem_private_key(

@@ -171,7 +171,11 @@ class OpenidApiInterface:
         # Update class properties from kwargs
         for key, value in kwargs.items():
             if not hasattr(self, key):
-                logger.warning("Invalid initialization parameter, ignoring. %s: %s", key, str(value)[:100])
+                logger.warning(
+                    "Invalid initialization parameter, ignoring. %s: %s",
+                    key,
+                    str(value)[:100],
+                )
                 continue
             setattr(self, key, value)
 

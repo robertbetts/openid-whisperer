@@ -34,7 +34,8 @@ class UserInfoExtensionTemplate:
 
 
 def register_user_info_extension(
-    openid_api: Type[OpenidApiInterface], extension: str | UserInfoExtensionTemplate | None = None
+    openid_api: Type[OpenidApiInterface],
+    extension: str | UserInfoExtensionTemplate | None = None,
 ) -> None:
     """Register an extension with the credential store that returns user_information claims
     :param openid_api:
@@ -84,7 +85,6 @@ openid_blueprint: Blueprint = Blueprint(
     template_folder="templates",
     static_folder="static",
 )
-
 
 
 def update_redirect_url_query(
