@@ -10,7 +10,6 @@ ENV POETRY_NO_INTERACTION=1 \
 WORKDIR /app
 
 COPY pyproject.toml poetry.toml poetry.lock ./
-COPY certs ./certs
 RUN touch README.md
 RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
@@ -20,9 +19,11 @@ FROM python:3.11-slim-buster as runtime
 WORKDIR /app
 
 ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    ID_SERVICE_PORT=5005 \
+    ID_SERVICE_PORT_GW=5005
+
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-COPY --from=builder /app/certs /app/certs
 COPY src/openid_whisperer ./openid_whisperer
 
 ENTRYPOINT ["python", "-m", "openid_whisperer"]

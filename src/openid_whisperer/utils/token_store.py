@@ -26,6 +26,8 @@ from openid_whisperer.utils.common import (
     get_seconds_epoch,
 )
 
+logger = logging.getLogger(__name__)
+
 TokenTypes = Literal["token", "refresh_token"]
 
 
@@ -77,6 +79,9 @@ class TokenIssuerCertificateStore:
 
         # Update class properties from kwargs
         for key, value in kwargs.items():
+            if not hasattr(self, key):
+                logger.warning("Invalid initialization parameter, ignoring. %s: %s", key, str(value)[:100])
+                continue
             setattr(self, key, value)
 
         # Check config and update with reasonable defaults
@@ -128,7 +133,7 @@ class TokenIssuerCertificateStore:
         key_filename: str | None = None,
         key_password: str | None = None,
     ) -> Optional[CertificatePairType]:
-        """ returns a Private Key / certificate pair, where:
+        """returns a Private Key / certificate pair, where:
             * cert_filename is None, then return None
             * key_filename is None, the return  CertificatePairType with only the certificate populated.
 
@@ -148,11 +153,11 @@ class TokenIssuerCertificateStore:
         private_key: CertificateIssuerPrivateKeyTypes | None = None
         if key_filename:
             with open(key_filename, "rb") as key_file:
-                key_password: bytes = key_password.encode() if key_password else None
+                password: bytes = key_password.encode() if key_password else None
                 private_key = serialization.load_pem_private_key(
                     data=key_file.read(),
                     backend=default_backend(),
-                    password=key_password,
+                    password=password,
                 )
                 if not isinstance(private_key, CertificateIssuerPrivateKeyTypes):
                     raise TokenIssuerCertificateStoreException(
@@ -168,9 +173,7 @@ class TokenIssuerCertificateStore:
     def init_certificate_store(self) -> None:
         """Loads ca certificate and org private keys and certificate pairs."""
         # Loading ca certificate if provided
-        certificate_pair = self.load_certificate_pair(
-            self.ca_cert_filename, None, None
-        )
+        certificate_pair = self.load_certificate_pair(self.ca_cert_filename, None, None)
         if certificate_pair is not None:
             certificate = certificate_pair["certificate"]
             certificate_id = str(certificate.serial_number)
@@ -320,7 +323,7 @@ class TokenIssuerCertificateStore:
                     return False  # pragma: no cover
                 return True
             except Exception as e:
-                logging.exception(e)
+                logger.exception(e)
                 return False
         else:
             return token in self.refresh_tokens_issued

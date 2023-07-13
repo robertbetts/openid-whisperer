@@ -219,7 +219,7 @@ class OpenIDClient:
                 key_errors.append((key, e))
 
             except jwt.InvalidAudienceError as e:
-                # logging.exception("Unable to validate audience claim for %s, %s", audience, e)
+                logging.error("Unable to validate audience claim for %s, %s", audience, e)
                 token_errors.append((access_token, e))
 
             except jwt.InvalidTokenError as e:

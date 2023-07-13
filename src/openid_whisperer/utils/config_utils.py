@@ -6,7 +6,7 @@ from typing import Dict, Any, Iterable, Callable, Tuple
 
 from dotenv import load_dotenv
 
-default_config_type = Dict[str, Tuple[Callable[[str], Any], str]]
+default_config_type = Dict[str, Tuple[Callable[[Any], Any], Any]]
 
 DEFAULT_LOGGING_FORMAT = "[%(levelname)1.1s %(asctime)s.%(msecs)03d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
 

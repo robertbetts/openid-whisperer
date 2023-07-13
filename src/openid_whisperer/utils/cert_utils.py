@@ -4,7 +4,7 @@ import logging
 import atexit
 import os
 import tempfile
-from typing import Optional, List, Type
+from typing import Optional, List, Type, Callable
 import ssl
 from ssl import SSLContext
 
@@ -78,9 +78,9 @@ def get_ssl_context(
 
 
 def dump_cert_and_ca_bundle(
-    private_key: Type[rsa.RSAPrivateKey],
-    certificate: Type[x509.Certificate],
-    ca_certificate: Type[x509.Certificate],
+    private_key: rsa.RSAPrivateKey,
+    certificate: x509.Certificate,
+    ca_certificate: Optional[x509.Certificate] = None,
     location: Optional[str] = None,
     cert_filename: Optional[str] = None,
     primary_key_filename: Optional[str] = None,

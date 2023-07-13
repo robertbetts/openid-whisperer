@@ -4,20 +4,21 @@ import importlib.resources
 import logging
 import os
 from uuid import uuid4
-from typing import Type, Optional, Tuple
+from typing import Type, Optional, Tuple, TextIO, Any, Dict, Iterable
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
+from openid_whisperer.utils.common import boolify
 from openid_whisperer.utils.config_utils import (
     load_environment_variables,
     default_config_type,
     initialize_logging,
 )
 
-_cached_config: Optional[Type['Config']] = None
+_cached_config: Optional["Config"] = None
 
 
 class ConfigurationException(Exception):
@@ -28,24 +29,33 @@ class Config:
     default_config: default_config_type = {
         "instance_id": (str, uuid4().hex),
         "log_level": (str, "info"),
-        "flask_debug": (bool, "False"),
-        "validate_certs": (bool, "False"),
+        "flask_debug": (boolify, False),
+        "validate_certs": (boolify, False),
         "id_service_prefix": (str, "/adfs"),
-        "id_service_port": (int, "5005"),
+        "id_service_port": (int, 5005),
         "id_service_host": (str, "localhost"),
         "id_service_bind": (str, "0.0.0.0"),
-        "id_service_port_gw": (int, "5005"),
+        "id_service_port_gw": (int, 5005),
         "id_service_host_gw": (str, "localhost"),
+
+        "validate_users": (boolify, False),
+        "json_user_file": (str, ""),
+        "session_expiry_seconds": (int, 0),
+        "maximum_login_attempts": (int, 0),
+
         "ca_cert_filename": (str, ""),
         "org_key_filename": (str, ""),
         "org_key_password": (str, ""),
         "org_cert_filename": (str, ""),
     }
-    env_target: str
+
+    # General configuration parameters
+    env_target: str | None
     log_level: str
     flask_debug: bool
     validate_certs: bool
 
+    # Networking related configuration
     id_service_prefix: str
     id_service_port: int
     id_service_host: str
@@ -53,9 +63,23 @@ class Config:
     id_service_port_gw: str
     id_service_host_gw: str
 
-    ca_cert: Optional[Type[x509.Certificate]]
-    org_key: Type[rsa.RSAPrivateKey]
-    org_cert: Type[x509.Certificate]
+    # Credential related configuration
+    validate_users: bool
+    json_user_file: str
+    session_expiry_seconds: int
+    maximum_login_attempts: int
+
+    # Credential and Web API related configuration. If not all the configuration entries
+    # for these filenames are entered, then the demo certs in this package are used.
+    ca_cert_filename: str  # this entry is not mandatory
+    org_key_filename: str
+    org_key_password: str
+    org_cert_filename: str
+
+    # These class properties are initialised by self.init_certs()
+    ca_cert: Optional[x509.Certificate]
+    org_key: rsa.RSAPrivateKey
+    org_cert: x509.Certificate
 
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
@@ -67,7 +91,7 @@ class Config:
             _, default = value
             if not key.isidentifier():
                 raise ValueError(
-                    "configuration property %s, is not a valid identifier name", key
+                    f"Configuration property {key}, is not valid."
                 )
             setattr(instance, key, default)
         return instance
@@ -90,16 +114,26 @@ class Config:
 
         # Checking for the required certificate/key file pair, if not found then default
         # to the package provided demo certificate files, including a ca cert file.
-        if not os.path.exists(self.org_key_filename) or not os.path.exists(self.org_cert_filename):
+        if not os.path.exists(self.org_key_filename) or not os.path.exists(
+            self.org_cert_filename
+        ):
             if self.org_key_filename and not os.path.exists(self.org_key_filename):
                 logging.critical(f"Private key file not found: {self.org_key_filename}")
             if self.org_cert_filename and not os.path.exists(self.org_cert_filename):
-                logging.critical(f"Certificate file not found: {self.org_cert_filename}")
+                logging.critical(
+                    f"Certificate file not found: {self.org_cert_filename}"
+                )
             logging.critical("Defaulting to packaged demo certificate/key pair")
             with importlib.resources.files("openid_whisperer") as module_resource:
-                self.ca_cert_filename = os.path.join(module_resource, "demo_certs", "ca_cert.pem")
-                self.org_key_filename = os.path.join(module_resource, "demo_certs", "key.pem")
-                self.org_cert_filename = os.path.join(module_resource, "demo_certs", "cert.pem")
+                self.ca_cert_filename = os.path.join(
+                    module_resource, "demo_certs", "ca_cert.pem"
+                )
+                self.org_key_filename = os.path.join(
+                    module_resource, "demo_certs", "key.pem"
+                )
+                self.org_cert_filename = os.path.join(
+                    module_resource, "demo_certs", "cert.pem"
+                )
 
         self.init_certs()
 
@@ -145,10 +179,11 @@ class Config:
 
         If any of the files are missing, none of the certificates or private key are instantiated.
         """
-        def load_cert_pair(cert_file, key_file=None, key_password=None) -> Tuple[x509.Certificate, Optional[rsa.RSAPrivateKey]]:
-            cert = x509.load_pem_x509_certificate(
-                cert_file.read(), default_backend()
-            )
+
+        def load_cert_pair(
+            cert_file: TextIO, key_file: Optional[TextIO] = None, key_password: Optional[str] = None
+        ) -> Tuple[x509.Certificate, Optional[rsa.RSAPrivateKey]]:
+            cert: x509.Certificate = x509.load_pem_x509_certificate(cert_file.read(), default_backend())
             if key_file is not None:
                 key_password = key_password.encode() if key_password else None
                 key = serialization.load_pem_private_key(
@@ -171,7 +206,9 @@ class Config:
 
         with open(self.org_key_filename, "rb") as org_key_file:
             with open(self.org_cert_filename, "rb") as org_cert_file:
-                self.org_cert, self.org_key = load_cert_pair(org_cert_file, org_key_file, self.org_key_password)
+                self.org_cert, self.org_key = load_cert_pair(
+                    org_cert_file, org_key_file, self.org_key_password
+                )
 
 
 def get_cached_config(*args, **kwargs) -> Config:
@@ -182,4 +219,6 @@ def get_cached_config(*args, **kwargs) -> Config:
     global _cached_config
     if _cached_config is None:
         _cached_config = Config(*args, **kwargs)
-    return _cached_config
+        return _cached_config
+    else:
+        return _cached_config

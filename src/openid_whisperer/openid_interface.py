@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Type
 import datetime
 import hashlib
 import secrets
@@ -17,6 +17,7 @@ from openid_whisperer.utils.common import (
 from openid_whisperer.utils.common import GeneralPackageException, get_seconds_epoch
 from openid_whisperer.utils.credential_store import UserCredentialStore
 from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
+from openid_whisperer.utils.user_info_ext import UserInfoExtensionTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +155,14 @@ class OpenidApiInterface:
         self.issuer_reference: str | None = None
         self.devicecode_expires_in: int | None = None
 
+        # Credential related configuration
+        self.validate_users: bool | None = None
+        self.json_users: str | None = None
+        self.session_expiry_seconds: int | None = None
+        self.maximum_login_attempts: int | None = None
+        self.user_info_extension: Type[UserInfoExtensionTemplate] | None = None
+
+        # Token issue related configuration
         self.ca_cert_filename: str = ""
         self.org_key_filename: str = ""
         self.org_key_password: str = ""
@@ -161,6 +170,9 @@ class OpenidApiInterface:
 
         # Update class properties from kwargs
         for key, value in kwargs.items():
+            if not hasattr(self, key):
+                logger.warning("Invalid initialization parameter, ignoring. %s: %s", key, str(value)[:100])
+                continue
             setattr(self, key, value)
 
         if self.issuer_reference is None or self.issuer_reference == "":
@@ -168,7 +180,13 @@ class OpenidApiInterface:
         if self.devicecode_expires_in is None or self.devicecode_expires_in <= 0:
             self.devicecode_expires_in = 15 * 60
 
-        self.credential_store = UserCredentialStore()
+        self.credential_store = UserCredentialStore(
+            validate_users=self.validate_users,
+            json_users=self.json_users,
+            session_expiry_second=self.session_expiry_seconds,
+            maximum_login_attempts=self.maximum_login_attempts,
+            user_info_extension=self.user_info_extension,
+        )
         self.token_store = TokenIssuerCertificateStore(
             ca_cert_filename=self.ca_cert_filename,
             org_key_filename=self.org_key_filename,
@@ -627,8 +645,8 @@ class OpenidApiInterface:
         else:
             scope = "openid profile email"
             return self.credential_store.get_user_scope_claims(
-                username=username,
-                scope=scope)
+                username=username, scope=scope
+            )
 
     def get_openid_configuration(self, tenant: str, base_url: str) -> Dict[str, Any]:
         openid_configuration: Dict[str, Any] = {
