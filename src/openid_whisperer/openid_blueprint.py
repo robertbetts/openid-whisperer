@@ -3,7 +3,6 @@
 import logging
 import json
 from typing import Dict, Any, Type
-from urllib.parse import urljoin
 
 from flask import (
     Blueprint,
@@ -29,19 +28,14 @@ from openid_whisperer.utils.token_store import (
 
 logger = logging.getLogger(__name__)
 
-config = get_cached_config()
-openid_api_interface = OpenidApiInterface()
-openid_blueprint: Blueprint = Blueprint(
-    "openid",
-    __name__,
-    url_prefix=config.id_service_prefix,
-    template_folder="templates",
-    static_folder="static",
-)
+
+class UserInfoExtensionTemplate:
+    pass
 
 
 def register_user_info_extension(
-    openid_api: Type[OpenidApiInterface], extension: str | Any | None = None
+    openid_api: Type[OpenidApiInterface],
+    extension: str | UserInfoExtensionTemplate | None = None,
 ) -> None:
     """Register an extension with the credential store that returns user_information claims
     :param openid_api:
@@ -62,16 +56,35 @@ def register_user_info_extension(
             f"Unsupported extension '{extension}', loading the UserInfoExtension"
         )
     elif isinstance(extension, UserInfoExtensionTemplate):
-        logger.info(
-            f"Loading custom UserInfoExtension, '{extension.__class__}'"
-        )
+        logger.info(f"Loading custom UserInfoExtension, '{extension.__class__}'")
         extension_instance = extension
 
     if extension_instance is None:
         logger.info("loading the default UserInfoExtensions")
         extension_instance = UserInfoExtension()
 
-    openid_api.credential_store.end_user_info = extension_instance
+    openid_api.credential_store.user_info_extension = extension_instance
+
+
+config = get_cached_config()
+openid_api_interface = OpenidApiInterface(
+    ca_cert_filename=config.ca_cert_filename,
+    org_key_filename=config.org_key_filename,
+    org_key_password=config.org_key_password,
+    org_cert_filename=config.org_cert_filename,
+    validate_users=config.validate_users,
+    json_user_file=config.json_user_file,
+    session_expiry_seconds=config.session_expiry_seconds,
+    maximum_login_attempts=config.maximum_login_attempts,
+)
+
+openid_blueprint: Blueprint = Blueprint(
+    "openid",
+    __name__,
+    url_prefix=config.id_service_prefix,
+    template_folder="templates",
+    static_folder="static",
+)
 
 
 def update_redirect_url_query(

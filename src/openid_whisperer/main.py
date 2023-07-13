@@ -18,12 +18,14 @@ def app() -> Flask:
 def main() -> None:  # pragma: no cover
     """Main entrypoint for a standalone Python running instance"""
     config = get_cached_config()
+    ca_certs = [config.ca_cert] if config.ca_cert else None
+
     flask_app: Flask = app()
     flask_app.run(
         ssl_context=get_ssl_context(
             certificate=config.org_cert,
             private_key=config.org_key,
-            issuer_certs=[config.ca_cert],
+            issuer_certs=ca_certs,
             verify=False,
         ),
         host=config.id_service_bind,

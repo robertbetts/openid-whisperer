@@ -73,14 +73,13 @@ def submit_credentials_with_challenge_code(config, challenge_info):
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
 logging.getLogger("msal").setLevel(logging.INFO)  # Optionally disable MSAL DEBUG logs
 
-# config = json.load(open(sys.argv[1]))
 config = {
     "authority": "https://localhost:5005/adfs",
-    "client_id": "PC-90274-SID-12655-DEV",
+    "client_id": "CLIENT-90274-DEV",
     "client_secret": "your_client_secret",
     "username": "your_username@your_tenant.com",
     "password": "This is a sample only. You better NOT persist your password.",
-    "scope": ["URI:API:RS-104134-21171-mock-api-PROD"],
+    "scope": ["URI:API:CLIENT-90274-API"],
     "endpoint": "https://localhost:5700/mock-api/api/private",
 }
 

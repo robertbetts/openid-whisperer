@@ -5,7 +5,6 @@ import pytest
 
 import openid_whisperer.config
 from openid_whisperer.utils.config_utils import (
-    default_config_type,
     initialize_logging,
     load_environment_variables,
     get_bind_address,
@@ -99,19 +98,14 @@ def test_load_environment_variables(caplog):
 
 
 def test_get_config():
-    openid_whisperer.config.cached_config = None
+    openid_whisperer.config._cached_config = None
     config = get_cached_config()
-    assert openid_whisperer.config.cached_config.instance_id == config.instance_id
+    assert openid_whisperer.config._cached_config.instance_id == config.instance_id
     config2 = get_cached_config()
     assert config.instance_id == config2.instance_id
 
 
-def test_init_config():
-    empty_defaults: default_config_type = {}
-    config = Config(defaults=empty_defaults, env_target="testing")
-    assert config.bind_address == ["0.0.0.0:5000", "[::]:5000"]
-    assert config.gateway_address == "localhost:8100"
-
+def test_get_bind_address():
     assert get_bind_address("bad-bind-address") == []
 
 

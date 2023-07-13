@@ -23,6 +23,5 @@ def test_extension_faker_user_info_requests(openid_api, input_scenario_one):
             tenant=input_scenario_one["tenant"],
             client_id=input_scenario_one["client_id"],
             client_secret=input_scenario_one["client_secret"],
-            username=input_scenario_one["username"]
+            username=input_scenario_one["username"],
         )
-

@@ -33,7 +33,7 @@ def public_keys_from_x509_certificates(keys: Dict[str, Any]) -> Dict[str, Any]:
         temp_cer = temp_cer + ret_char if ins_extra_ret else temp_cer
 
         tok_sign_cer = (
-            "-----BEGIN CERTIFICATE-----\r\n" + temp_cer + "-----END CERTIFICATE-----"
+            f"-----BEGIN CERTIFICATE-----\r\n{temp_cer}-----END CERTIFICATE-----"
         )
 
         cert = x509.load_pem_x509_certificate(tok_sign_cer.encode(), default_backend())

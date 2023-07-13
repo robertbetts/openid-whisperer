@@ -1,11 +1,16 @@
 from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
 
 
-def test_token_store_config():
+def test_token_store_config(config):
     config_settings = {
         "token_expiry_seconds": 605,
         "refresh_token_expiry_seconds": 3605,
+        "ca_cert_filename": config.ca_cert_filename,
+        "org_key_filename": config.org_key_filename,
+        "org_key_password": config.org_key_password,
+        "org_cert_filename": config.org_cert_filename,
     }
+
     token_store = TokenIssuerCertificateStore(**config_settings)
     for key, value in config_settings.items():
         assert getattr(token_store, key) == value
@@ -13,6 +18,10 @@ def test_token_store_config():
     config_settings = {
         "token_expiry_seconds": None,
         "refresh_token_expiry_seconds": 0,
+        "ca_cert_filename": config.ca_cert_filename,
+        "org_key_filename": config.org_key_filename,
+        "org_key_password": config.org_key_password,
+        "org_cert_filename": config.org_cert_filename,
     }
     token_store = TokenIssuerCertificateStore(**config_settings)
     assert token_store.token_expiry_seconds == 600
@@ -21,6 +30,16 @@ def test_token_store_config():
     issuer_certificate = token_store.token_issuer_certificate
     issuer_pair = token_store.token_certificates[token_store.token_issuer_key_id]
     assert issuer_certificate == issuer_pair["certificate"]
+
+    # Test ca_cert_filename=None code path
+    config_settings = {
+        "ca_cert_filename": None,
+        "ca_cert_filename": config.ca_cert_filename,
+        "org_key_filename": config.org_key_filename,
+        "org_key_password": config.org_key_password,
+        "org_cert_filename": config.org_cert_filename,
+    }
+    token_store = TokenIssuerCertificateStore(**config_settings)
 
 
 def test_token_issue_and_decode(openid_api, input_scenario_one):

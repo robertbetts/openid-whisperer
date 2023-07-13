@@ -110,9 +110,6 @@ poetry update
 ```
 6. Setup environment variables, default `.env` and `.env_${ENVIRONMENT:-TEST}`
 ```
-INTERNAL_HOST=${INTERNAL_HOST:-localhost}
-GATEWAY_HOST=${GATEWAY_HOST:-localhost}
-
 API_HOST=${INTERNAL_HOST:-localhost}
 API_PORT=${API_PORT:-5700}
 API_HOST_GW=${GATEWAY_HOST:-localhost}
@@ -148,6 +145,6 @@ poetry run python -m openid_whisperer.main
 
 Run within a Docker Container
 ```
-docker build -t opendid-whisperer:0.1.0 .
-docker run --name=openid-whisperer -p5005:5000  -eID_SERVICE_PORT_GW=5005 opendid-whisperer:0.1.0
+docker build -t opendid-whisperer:0.1.4 .
+docker run --name=openid-whisperer -p5005:5005  -eID_SERVICE_PORT_GW=5005 opendid-whisperer:0.1.4
 ```

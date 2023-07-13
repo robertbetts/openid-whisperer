@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openid-whisperer"
-version = "0.1.3"
+version = "0.1.4"
 description = "OpenID 1.0 Mock Identity Service"
 license = "MIT"
 authors = ["Robert Betts <betts_robert@yahoo.com>"]
@@ -44,7 +44,7 @@ exclude_lines = [
 [tool.mypy]
 ignore_missing_imports = true
 check_untyped_defs = true
-#files = "src, tests"
+#files = "src, example_src"
 files = "src"
 mypy_path = "src"
 namespace_packages = true
@@ -58,11 +58,10 @@ enable_error_code = [
 ]
 exclude = [
     "tests",
-    "src/mocking_examples"
 ]
 
 [tool.pylint]
-ignore-paths = "tests"
+#ignore-paths = "tests"
 
 [tool.poetry.dependencies]
 python = "^3.10"

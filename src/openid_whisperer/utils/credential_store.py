@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, Optional, Type
 
 from openid_whisperer.utils.user_info_ext import (
@@ -9,6 +10,8 @@ from openid_whisperer.utils.common import (
     GeneralPackageException,
     get_now_seconds_epoch,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class UserCredentialStoreException(GeneralPackageException):
@@ -24,18 +27,25 @@ class UserCredentialStore:
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
-        self.validate_user: bool | None = None
+        self.validate_users: bool | None = None
         self.json_users: str | None = None
         self.session_expiry_seconds: int | None = None
         self.maximum_login_attempts: int | None = None
-        self.end_user_info: Type[UserInfoExtensionTemplate] | None = None
+        self.user_info_extension: Type[UserInfoExtensionTemplate] | None = None
 
         # Update class properties from kwargs
         for key, value in kwargs.items():
+            if not hasattr(self, key):
+                logger.warning(
+                    "Invalid initialization parameter, ignoring. %s: %s",
+                    key,
+                    str(value)[:100],
+                )
+                continue
             setattr(self, key, value)
 
-        if self.end_user_info is None:
-            self.end_user_info = UserInfoExtension()
+        if self.user_info_extension is None:
+            self.user_info_extension = UserInfoExtension()
 
         self.authenticated_session: Dict[
             str, float
@@ -98,22 +108,21 @@ class UserCredentialStore:
         if not password:
             return self.count_failed_authentication(username)
 
-        if self.validate_user:
-            user = self.end_user_info.get_user_claims(username)
-            if user is None:
-                return False
+        if self.validate_users:
+            user = self.user_info_extension.get_user_claims(username, scope="openid")
+            if user:
+                return True
+            return False
 
         # existing session will be extended by session_expiry_seconds
         self.authenticated_session[username] = get_now_seconds_epoch()
 
         return True
 
-    def get_user_scope_claims(
-        self, username: str, scope: str
-    ) -> Dict[str, Any]:
+    def get_user_scope_claims(self, username: str, scope: str) -> Dict[str, Any]:
         _ = scope
 
-        openid_claims_payload = self.end_user_info.get_user_claims(
+        openid_claims_payload = self.user_info_extension.get_user_claims(
             username=username, scope=scope, including_empty=False
         )
         return openid_claims_payload

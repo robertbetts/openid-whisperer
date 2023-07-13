@@ -26,6 +26,8 @@ from openid_whisperer.utils.common import (
     get_seconds_epoch,
 )
 
+logger = logging.getLogger(__name__)
+
 TokenTypes = Literal["token", "refresh_token"]
 
 
@@ -68,17 +70,22 @@ class TokenIssuerCertificateStore:
         Parameters
         ----------
         """
-        self.ca_key_filename: str = "certs/ca_key.pem"
-        self.ca_key_password: str = ""
-        self.ca_cert_filename: str = "certs/ca_cert.pem"
-        self.org_key_filename: str = "certs/key.pem"
+        self.ca_cert_filename: str = ""
+        self.org_key_filename: str = ""
         self.org_key_password: str = ""
-        self.org_cert_filename: str = "certs/cert.pem"
+        self.org_cert_filename: str = ""
         self.token_expiry_seconds: int | None = 600
         self.refresh_token_expiry_seconds: int | None = 3600
 
         # Update class properties from kwargs
         for key, value in kwargs.items():
+            if not hasattr(self, key):
+                logger.warning(
+                    "Invalid initialization parameter, ignoring. %s: %s",
+                    key,
+                    str(value)[:100],
+                )
+                continue
             setattr(self, key, value)
 
         # Check config and update with reasonable defaults
@@ -125,23 +132,36 @@ class TokenIssuerCertificateStore:
 
     @classmethod
     def load_certificate_pair(
-        cls, cert_filename: str, key_filename: str | None, key_password: str | None
-    ) -> CertificatePairType:
+        cls,
+        cert_filename: str | None = None,
+        key_filename: str | None = None,
+        key_password: str | None = None,
+    ) -> Optional[CertificatePairType]:
+        """returns a Private Key / certificate pair, where:
+            * cert_filename is None, then return None
+            * key_filename is None, the return  CertificatePairType with only the certificate populated.
+
+        :param cert_filename:
+        :param key_filename:
+        :param key_password:
+        :return:
+        """
+        if cert_filename is None:
+            return None
         certificate: x509.Certificate
         with open(cert_filename, "rb") as cert_file:
             certificate = x509.load_pem_x509_certificate(
                 cert_file.read(), default_backend()
             )
-            # TODO: certificate validation
 
         private_key: CertificateIssuerPrivateKeyTypes | None = None
         if key_filename:
             with open(key_filename, "rb") as key_file:
-                key_password: bytes = key_password.encode() if key_password else None
+                password: bytes = key_password.encode() if key_password else None
                 private_key = serialization.load_pem_private_key(
                     data=key_file.read(),
                     backend=default_backend(),
-                    password=key_password,
+                    password=password,
                 )
                 if not isinstance(private_key, CertificateIssuerPrivateKeyTypes):
                     raise TokenIssuerCertificateStoreException(
@@ -156,13 +176,12 @@ class TokenIssuerCertificateStore:
 
     def init_certificate_store(self) -> None:
         """Loads ca certificate and org private keys and certificate pairs."""
-        # Loading ca certificate
-        certificate_pair = self.load_certificate_pair(
-            self.ca_cert_filename, self.ca_key_filename, self.ca_key_password
-        )
-        certificate = certificate_pair["certificate"]
-        certificate_id = str(certificate.serial_number)
-        self.ca_certificates[certificate_id] = certificate
+        # Loading ca certificate if provided
+        certificate_pair = self.load_certificate_pair(self.ca_cert_filename, None, None)
+        if certificate_pair is not None:
+            certificate = certificate_pair["certificate"]
+            certificate_id = str(certificate.serial_number)
+            self.ca_certificates[certificate_id] = certificate
 
         # Init org cert-key pairs
         certificate_pair = self.load_certificate_pair(
@@ -228,6 +247,7 @@ class TokenIssuerCertificateStore:
         :param sub:
         :param user_claims:
         :param audience:
+        :param nonce:
         :return:
         """
         auth_time = datetime.datetime.utcnow()
@@ -307,7 +327,7 @@ class TokenIssuerCertificateStore:
                     return False  # pragma: no cover
                 return True
             except Exception as e:
-                logging.exception(e)
+                logger.exception(e)
                 return False
         else:
             return token in self.refresh_tokens_issued
