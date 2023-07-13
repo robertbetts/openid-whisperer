@@ -100,7 +100,7 @@ class UserCredentialStore:
 
         if self.validate_user:
             user = self.end_user_info.get_user_claims(username)
-            if user is None:
+            if not user:
                 return False
 
         # existing session will be extended by session_expiry_seconds

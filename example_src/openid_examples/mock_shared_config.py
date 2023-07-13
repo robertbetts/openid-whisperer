@@ -15,18 +15,8 @@ ENVIRONMENT: str = os.getenv("ENVIRONMENT", "TEST")
 dotenv_file: str = f".env_{ENVIRONMENT.upper()}"
 load_dotenv(dotenv_file, override=True)
 dotenv_config.update(**dotenv_values(dotenv_file))
-print(f".env, {dotenv_file} loaded variables:")
 for key, value in dotenv_config.items():
     print(f"{key}={value}")
-print("\n")
-
-NO_PROXY: str = os.getenv("NO_PROXY", "")
-print(
-    f"""In enterprise environments,the NO_PROXY setting significantly affects the operation
-of these examples. make sure it is appropriate for your use case. Currently the setting is:
-NO_PROXY={NO_PROXY}
-"""
-)
 
 API_HOST: str = os.getenv("API_HOST", "10.95.55.84")
 API_PORT: int = int(os.getenv("API_PORT", "5007"))

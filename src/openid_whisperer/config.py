@@ -1,25 +1,23 @@
-""" Configuration module for OpenID Whisperer
+""" Configuration module for Openid_whisperer
 """
+import importlib.resources
 import logging
 import os
 from uuid import uuid4
+from typing import Type, Optional, Tuple
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric.types import (
-    PrivateKeyTypes,
-)
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
 from openid_whisperer.utils.config_utils import (
     load_environment_variables,
     default_config_type,
-    get_bind_address,
     initialize_logging,
 )
 
-cached_config = None
+_cached_config: Optional[Type['Config']] = None
 
 
 class ConfigurationException(Exception):
@@ -29,24 +27,35 @@ class ConfigurationException(Exception):
 class Config:
     default_config: default_config_type = {
         "instance_id": (str, uuid4().hex),
-        "gateway_address": (str, "localhost:8100"),
-        "bind_address": (get_bind_address, "0.0.0.0:5000,[::]:5000"),
         "log_level": (str, "info"),
         "flask_debug": (bool, "False"),
         "validate_certs": (bool, "False"),
         "id_service_prefix": (str, "/adfs"),
-        "id_service_port": (int, "5000"),
+        "id_service_port": (int, "5005"),
         "id_service_host": (str, "localhost"),
         "id_service_bind": (str, "0.0.0.0"),
-        "id_service_port_gw": (int, "8100"),
+        "id_service_port_gw": (int, "5005"),
         "id_service_host_gw": (str, "localhost"),
-        "ca_key_filename": (str, "certs/ca_key.pem"),
-        "ca_key_password": (str, ""),
-        "ca_cert_filename": (str, "certs/ca_cert.pem"),
-        "org_key_filename": (str, "certs/key.pem"),
+        "ca_cert_filename": (str, ""),
+        "org_key_filename": (str, ""),
         "org_key_password": (str, ""),
-        "org_cert_filename": (str, "certs/cert.pem"),
+        "org_cert_filename": (str, ""),
     }
+    env_target: str
+    log_level: str
+    flask_debug: bool
+    validate_certs: bool
+
+    id_service_prefix: str
+    id_service_port: int
+    id_service_host: str
+    id_service_bind: str
+    id_service_port_gw: str
+    id_service_host_gw: str
+
+    ca_cert: Optional[Type[x509.Certificate]]
+    org_key: Type[rsa.RSAPrivateKey]
+    org_cert: Type[x509.Certificate]
 
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
@@ -67,35 +76,31 @@ class Config:
         self, defaults: default_config_type | None = None, env_target: str | None = None
     ) -> None:
         defaults = {} if defaults is None else defaults
-        self.env_target: str | None = env_target
-        self.log_level: str = "info"
-        self.flask_debug: bool = False
-        self.validate_certs = False
+        self.env_target = env_target
 
-        self.id_service_prefix: str = "/adfs"
-        self.id_service_port: int = 8100
-        self.id_service_host: str = "localhost"
-        self.id_service_bind: str = "0.0.0.0"
-        self.id_service_port_gw = "5000"
-        self.id_service_host_gw = "localhost"
-
-        self.ca_key_filename: str = "certs/ca_key.pem"
-        self.ca_key_password: str = ""
-        self.ca_cert_filename: str = "certs/ca_cert.pem"
-        self.org_key_filename: str = "certs/key.pem"
+        self.ca_cert_filename: str = ""
+        self.org_key_filename: str = ""
         self.org_key_password: str = ""
-        self.org_cert_filename: str = "certs/cert.pem"
-
-        self.ca_key: rsa.RSAPrivateKey
-        self.ca_cert: x509.Certificate
-        self.org_key: rsa.RSAPrivateKey
-        self.org_cert: x509.Certificate
+        self.org_cert_filename: str = ""
 
         self.init_defaults = {}
         self.init_defaults.update(defaults)
         self.load_config()
-
         self.init_logging()
+
+        # Checking for the required certificate/key file pair, if not found then default
+        # to the package provided demo certificate files, including a ca cert file.
+        if not os.path.exists(self.org_key_filename) or not os.path.exists(self.org_cert_filename):
+            if self.org_key_filename and not os.path.exists(self.org_key_filename):
+                logging.critical(f"Private key file not found: {self.org_key_filename}")
+            if self.org_cert_filename and not os.path.exists(self.org_cert_filename):
+                logging.critical(f"Certificate file not found: {self.org_cert_filename}")
+            logging.critical("Defaulting to packaged demo certificate/key pair")
+            with importlib.resources.files("openid_whisperer") as module_resource:
+                self.ca_cert_filename = os.path.join(module_resource, "demo_certs", "ca_cert.pem")
+                self.org_key_filename = os.path.join(module_resource, "demo_certs", "key.pem")
+                self.org_cert_filename = os.path.join(module_resource, "demo_certs", "cert.pem")
+
         self.init_certs()
 
     @property
@@ -133,62 +138,48 @@ class Config:
         initialize_logging(log_level=log_level, logger_name="openid_whisperer")
 
     def init_certs(self) -> None:
-        """Loads from files, CA and Org private keys and certificates. filenames are defaulted from
-        the environment variables:
-           CA_KEY_FILENAME, CA_CERT_FILENAME, ORG_KEY_FILENAME, ORG_CERT_FILENAME
-        """
-        ca_key: PrivateKeyTypes
-        org_key: PrivateKeyTypes
-        with open(self.ca_key_filename, "rb") as ca_key_file:
-            with open(self.ca_cert_filename, "rb") as ca_cert_file:
-                with open(self.org_key_filename, "rb") as org_key_file:
-                    with open(self.org_cert_filename, "rb") as org_cert_file:
-                        ca_key_password = (
-                            self.ca_key_password.encode()
-                            if self.ca_key_password
-                            else None
-                        )
-                        ca_cert: x509.Certificate = x509.load_pem_x509_certificate(
-                            ca_cert_file.read(), default_backend()
-                        )
-                        ca_key = serialization.load_pem_private_key(
-                            data=ca_key_file.read(),
-                            backend=default_backend(),
-                            password=ca_key_password,
-                        )
-                        if not isinstance(ca_key, rsa.RSAPrivateKey):
-                            raise ConfigurationException(
-                                "Only RSA private keys supported"
-                            )  # pragma: no cover
-                        org_key_password = (
-                            self.org_key_password.encode()
-                            if self.org_key_password
-                            else None
-                        )
-                        org_cert: x509.Certificate = x509.load_pem_x509_certificate(
-                            org_cert_file.read(), default_backend()
-                        )
-                        org_key = serialization.load_pem_private_key(
-                            data=org_key_file.read(),
-                            backend=default_backend(),
-                            password=org_key_password,
-                        )
-                        if not isinstance(org_key, rsa.RSAPrivateKey):
-                            raise ConfigurationException(
-                                "Only RSA private keys supported"
-                            )  # pragma: no cover
+        """Loads CA certificate and Org private key and certificate from PEM formatted files.
 
-                        self.ca_key = ca_key
-                        self.ca_cert = ca_cert
-                        self.org_key = org_key
-                        self.org_cert = org_cert
+        Filenames are configured from the environment variables:
+           CA_CERT_FILENAME, ORG_KEY_FILENAME, ORG_CERT_FILENAME
+
+        If any of the files are missing, none of the certificates or private key are instantiated.
+        """
+        def load_cert_pair(cert_file, key_file=None, key_password=None) -> Tuple[x509.Certificate, Optional[rsa.RSAPrivateKey]]:
+            cert = x509.load_pem_x509_certificate(
+                cert_file.read(), default_backend()
+            )
+            if key_file is not None:
+                key_password = key_password.encode() if key_password else None
+                key = serialization.load_pem_private_key(
+                    data=key_file.read(),
+                    backend=default_backend(),
+                    password=key_password,
+                )
+                if not isinstance(key, rsa.RSAPrivateKey):
+                    raise ConfigurationException(
+                        "Only RSA private keys supported"
+                    )  # pragma: no cover
+            else:
+                key = None
+            return cert, key
+
+        self.ca_cert = None
+        if self.ca_cert_filename:
+            with open(self.ca_cert_filename, "rb") as ca_cert_file:
+                self.ca_cert, _ = load_cert_pair(ca_cert_file, None, None)
+
+        with open(self.org_key_filename, "rb") as org_key_file:
+            with open(self.org_cert_filename, "rb") as org_cert_file:
+                self.org_cert, self.org_key = load_cert_pair(org_cert_file, org_key_file, self.org_key_password)
 
 
 def get_cached_config(*args, **kwargs) -> Config:
-    """if an already cached config exists, then return an instance of that and if not then
-    initialise a new instance of the Config class.
+    """Returns a cached instance of Config, if one does not exist, then instantiate a new instance to the config cache.
+    :param args: positional arguments to instantiate Config
+    :param kwargs: Key-word arguments to instantiate Config
     """
-    global cached_config
-    if cached_config is None:
-        cached_config = Config(*args, **kwargs)
-    return cached_config
+    global _cached_config
+    if _cached_config is None:
+        _cached_config = Config(*args, **kwargs)
+    return _cached_config

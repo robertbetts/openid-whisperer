@@ -3,7 +3,6 @@
 import logging
 import json
 from typing import Dict, Any, Type
-from urllib.parse import urljoin
 
 from flask import (
     Blueprint,
@@ -30,7 +29,13 @@ from openid_whisperer.utils.token_store import (
 logger = logging.getLogger(__name__)
 
 config = get_cached_config()
-openid_api_interface = OpenidApiInterface()
+openid_api_interface = OpenidApiInterface(
+    ca_cert_filename=config.ca_cert_filename,
+    org_key_filename=config.org_key_filename,
+    org_key_password=config.org_key_password,
+    org_cert_filename=config.org_cert_filename,
+)
+
 openid_blueprint: Blueprint = Blueprint(
     "openid",
     __name__,

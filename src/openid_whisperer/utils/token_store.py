@@ -68,12 +68,10 @@ class TokenIssuerCertificateStore:
         Parameters
         ----------
         """
-        self.ca_key_filename: str = "certs/ca_key.pem"
-        self.ca_key_password: str = ""
-        self.ca_cert_filename: str = "certs/ca_cert.pem"
-        self.org_key_filename: str = "certs/key.pem"
+        self.ca_cert_filename: str = ""
+        self.org_key_filename: str = ""
         self.org_key_password: str = ""
-        self.org_cert_filename: str = "certs/cert.pem"
+        self.org_cert_filename: str = ""
         self.token_expiry_seconds: int | None = 600
         self.refresh_token_expiry_seconds: int | None = 3600
 
@@ -125,14 +123,27 @@ class TokenIssuerCertificateStore:
 
     @classmethod
     def load_certificate_pair(
-        cls, cert_filename: str, key_filename: str | None, key_password: str | None
-    ) -> CertificatePairType:
+        cls,
+        cert_filename: str | None = None,
+        key_filename: str | None = None,
+        key_password: str | None = None,
+    ) -> Optional[CertificatePairType]:
+        """ returns a Private Key / certificate pair, where:
+            * cert_filename is None, then return None
+            * key_filename is None, the return  CertificatePairType with only the certificate populated.
+
+        :param cert_filename:
+        :param key_filename:
+        :param key_password:
+        :return:
+        """
+        if cert_filename is None:
+            return None
         certificate: x509.Certificate
         with open(cert_filename, "rb") as cert_file:
             certificate = x509.load_pem_x509_certificate(
                 cert_file.read(), default_backend()
             )
-            # TODO: certificate validation
 
         private_key: CertificateIssuerPrivateKeyTypes | None = None
         if key_filename:
@@ -156,13 +167,14 @@ class TokenIssuerCertificateStore:
 
     def init_certificate_store(self) -> None:
         """Loads ca certificate and org private keys and certificate pairs."""
-        # Loading ca certificate
+        # Loading ca certificate if provided
         certificate_pair = self.load_certificate_pair(
-            self.ca_cert_filename, self.ca_key_filename, self.ca_key_password
+            self.ca_cert_filename, None, None
         )
-        certificate = certificate_pair["certificate"]
-        certificate_id = str(certificate.serial_number)
-        self.ca_certificates[certificate_id] = certificate
+        if certificate_pair is not None:
+            certificate = certificate_pair["certificate"]
+            certificate_id = str(certificate.serial_number)
+            self.ca_certificates[certificate_id] = certificate
 
         # Init org cert-key pairs
         certificate_pair = self.load_certificate_pair(
@@ -228,6 +240,7 @@ class TokenIssuerCertificateStore:
         :param sub:
         :param user_claims:
         :param audience:
+        :param nonce:
         :return:
         """
         auth_time = datetime.datetime.utcnow()

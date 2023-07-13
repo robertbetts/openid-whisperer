@@ -28,7 +28,6 @@ import json, logging, msal, requests
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
 logging.getLogger("msal").setLevel(logging.INFO)  # Optionally disable MSAL DEBUG logs
 
-# config = json.load(open(sys.argv[1]))
 config = {
     "authority": "https://localhost:5005/adfs",
     "client_id": "PC-90274-SID-12655-DEV",
@@ -72,7 +71,6 @@ if not result:
     print("A local browser window will be open for you to sign in. CTRL+C to cancel.")
     result = app.acquire_token_interactive(  # Only works if your app is registered with redirect_uri as http://localhost
         config["scope"],
-        # parent_window_handle=...,  # If broker is enabled, you will be guided to provide a window handle
         login_hint=config.get("username"),  # Optional.
         # If you know the username ahead of time, this parameter can pre-fill
         # the username (or email address) field of the sign-in page for the user,

@@ -153,16 +153,28 @@ class OpenidApiInterface:
     def __init__(self, **kwargs) -> None:
         self.issuer_reference: str | None = None
         self.devicecode_expires_in: int | None = None
+
+        self.ca_cert_filename: str = ""
+        self.org_key_filename: str = ""
+        self.org_key_password: str = ""
+        self.org_cert_filename: str = ""
+
         # Update class properties from kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
+
         if self.issuer_reference is None or self.issuer_reference == "":
             self.issuer_reference = "urn:issuer:name:openid-whisperer"
         if self.devicecode_expires_in is None or self.devicecode_expires_in <= 0:
             self.devicecode_expires_in = 15 * 60
 
         self.credential_store = UserCredentialStore()
-        self.token_store = TokenIssuerCertificateStore()
+        self.token_store = TokenIssuerCertificateStore(
+            ca_cert_filename=self.ca_cert_filename,
+            org_key_filename=self.org_key_filename,
+            org_key_password=self.org_key_password,
+            org_cert_filename=self.org_cert_filename,
+        )
 
         self.devicecode_requests: Dict[
             str, Any
@@ -353,8 +365,9 @@ class OpenidApiInterface:
                     )
                 logger.debug("device code retrieved from user_code")
 
-                devicecode_request = self.devicecode_requests.pop(device_code, None)
                 # TODO: Check details of original devicecode request against, the provided inputs to this function
+                devicecode_request = self.devicecode_requests.pop(device_code, None)
+                _ = devicecode_request
 
             """ With authentication successful for end user code response or device_code flow, a token is generated 
             that will be later retrieved by the client application.
@@ -518,9 +531,10 @@ class OpenidApiInterface:
         token_response: Dict[str, Any] | None = None
 
         if grant_type == "device_code":
-            devicecode_request = self.devicecode_requests.get(device_code, None)
             # TODO: check devicecode_request and handle additional unsuccessful
             #  error states, request expiry, authorization_declined etc.
+            devicecode_request = self.devicecode_requests.get(device_code, None)
+            _ = devicecode_request
 
             device_authorization = self.devicecode_authorization_codes.pop(
                 device_code, None

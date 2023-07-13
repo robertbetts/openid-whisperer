@@ -73,7 +73,6 @@ def submit_credentials_with_challenge_code(config, challenge_info):
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
 logging.getLogger("msal").setLevel(logging.INFO)  # Optionally disable MSAL DEBUG logs
 
-# config = json.load(open(sys.argv[1]))
 config = {
     "authority": "https://localhost:5005/adfs",
     "client_id": "PC-90274-SID-12655-DEV",
