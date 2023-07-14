@@ -1,7 +1,6 @@
 """ Module for Private Key and Certificate Management
 """
 import json
-import logging
 from typing import List, Dict, Any, Literal, Optional, Tuple, TypedDict
 import base64
 import datetime
@@ -18,15 +17,15 @@ from cryptography.hazmat.primitives.asymmetric.types import (
 import jwt
 from jwt.utils import to_base64url_uint
 
-
 from openid_whisperer.utils.common import (
     GeneralPackageException,
     generate_s256_hash,
     get_now_seconds_epoch,
     get_seconds_epoch,
 )
+from openid_whisperer.utils.common import package_get_logger
 
-logger = logging.getLogger(__name__)
+logger = package_get_logger(__name__)
 
 TokenTypes = Literal["token", "refresh_token"]
 

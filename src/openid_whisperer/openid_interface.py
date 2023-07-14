@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, Any, Optional, List, Type
 import datetime
 import hashlib
@@ -18,8 +17,9 @@ from openid_whisperer.utils.common import GeneralPackageException, get_seconds_e
 from openid_whisperer.utils.credential_store import UserCredentialStore
 from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
 from openid_whisperer.utils.user_info_ext import UserInfoExtensionTemplate
+from openid_whisperer.utils.common import package_get_logger
 
-logger = logging.getLogger(__name__)
+logger = package_get_logger(__name__)
 
 SCOPES_SUPPORTED = [
     "user_impersonation",

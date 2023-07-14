@@ -1,8 +1,8 @@
 from typing import TypedDict, Optional, Type
 
 from openid_whisperer.openid_interface import OpenidApiInterfaceException
-from openid_whisperer.utils.credential_store_utils import UserCredentialStoreException
-from openid_whisperer.utils.token_store_utils import (
+from openid_whisperer.utils.credential_store import UserCredentialStoreException
+from openid_whisperer.utils.token_store import (
     TokenIssuerCertificateStoreException,
 )
 

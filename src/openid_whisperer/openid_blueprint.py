@@ -1,8 +1,7 @@
 """ Flask Blueprint with OpenID compatible endpoints
 """
-import logging
 import json
-from typing import Dict, Any, Type
+from typing import Dict, Any
 
 from flask import (
     Blueprint,
@@ -25,8 +24,9 @@ from openid_whisperer.utils.credential_store import UserCredentialStoreException
 from openid_whisperer.utils.token_store import (
     TokenIssuerCertificateStoreException,
 )
+from openid_whisperer.utils.common import package_get_logger
 
-logger = logging.getLogger(__name__)
+logger = package_get_logger(__name__)
 
 
 class UserInfoExtensionTemplate:
@@ -34,7 +34,7 @@ class UserInfoExtensionTemplate:
 
 
 def register_user_info_extension(
-    openid_api: Type[OpenidApiInterface],
+    openid_api: OpenidApiInterface,
     extension: str | UserInfoExtensionTemplate | None = None,
 ) -> None:
     """Register an extension with the credential store that returns user_information claims
@@ -163,7 +163,7 @@ def authorize_get() -> ResponseReturnValue:
         abort(403, str(e))
 
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         error = f"server_error: Error {request.method} {request.url} {e}"
         abort(500, error)
 
@@ -233,7 +233,7 @@ def authorize_post() -> ResponseReturnValue:
         status_code = 403
 
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         openid_response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -360,7 +360,7 @@ def token() -> ResponseReturnValue:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -394,7 +394,7 @@ def userinfo() -> ResponseReturnValue:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -454,7 +454,7 @@ def devicecode() -> ResponseReturnValue:
         status_code = 403
 
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -494,7 +494,7 @@ def get_logout() -> ResponseReturnValue:
         status_code = 403
 
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -528,7 +528,7 @@ def post_logout() -> ResponseReturnValue:
         status_code = 403
 
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -552,7 +552,7 @@ def keys() -> ResponseReturnValue:
         response = e.to_dict()
         status_code = 403
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
@@ -585,7 +585,7 @@ def openid_configuration() -> ResponseReturnValue:
         response = e.to_dict()
         status_code = 403
     except Exception as e:  # pragma: no cover
-        logging.exception(e)
+        logger.exception(e)
         response = {
             "error_code": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
