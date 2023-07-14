@@ -1,14 +1,22 @@
+""" Module with package wide utility functions and constants.
+"""
+
 import base64
 import hashlib
+import logging
 from calendar import timegm
 from datetime import datetime, timezone
 from typing import Dict, overload, List, Optional
+
+LOGGER_NAME = "openid_whisperer"
 
 SCOPE_PROFILES = [
     "user_impersonation",
     "offline_access",
     "profile",
     "email",
+    "address",
+    "phone",
     "openid",
 ]
 RESPONSE_TYPES_SUPPORTED: List[str] = [
@@ -32,25 +40,27 @@ GRANT_TYPES_SUPPORTED: List[str] = [
     "urn:ietf:params:oauth:grant-type:device_code",
     "device_code",
 ]
-SCOPE_PROFILE_CLAIMS = [
-    "name",
-    "family_name",
-    "given_name",
-    "middle_name",
-    "nickname",
-    "preferred_username",
-    "profile",
-    "picture",
-    "website",
-    "gender",
-    "birthdate",
-    "zoneinfo",
-    "locale",
-    "updated_at",
-]
-SCOPE_EMAIL_CLAIMS = ["email", "email_verified"]
-SCOPE_ADDRESS_CLAIMS = ["address"]
-SCOPE_PHONE_CLAIMS = ["phone_number", "phone_number_verified"]
+
+
+def package_get_logger(name: str | None = None) -> logging.Logger:
+    """Returns a logger as appropriate for the package, name is None then returns LOGGER_NAME
+    This function has been designed with the assumption that __name__ would be passed in when
+    called.
+
+    Assuming name will be a package.path.module_name, we only want to report in terms of the path not the
+    module name.
+
+    :param name:
+    :return:
+    """
+    name = name if name else LOGGER_NAME
+    name_parts = name.split(".")
+    if len(name_parts) == 1:
+        logger_name = name
+    else:
+        logger_name = ".".join(name_parts[:-1])
+    logger_instance = logging.getLogger(logger_name)
+    return logger_instance
 
 
 class GeneralPackageException(Exception):
@@ -147,6 +157,7 @@ def get_audience(
 ) -> List[str]:
     audience: List[str] = [resource] if resource else []
     audience.append(client_id)
+    scope = scope if scope else "openid"
     for item in scope.split(" "):
         aud = item.strip()
         if item not in SCOPE_PROFILES and item != "":

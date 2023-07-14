@@ -62,6 +62,8 @@ exclude = [
 
 [tool.pylint]
 #ignore-paths = "tests"
+notes = "FIXME,XXX"
+
 
 [tool.poetry.dependencies]
 python = "^3.10"

@@ -19,7 +19,7 @@ def public_keys_from_x509_certificates(keys: Dict[str, Any]) -> Dict[str, Any]:
         x5c = key["x5c"][0]
         temp_cer = x5c.replace(
             "\/", "/"
-        )  # TODO: investigate why this fails certain code / lint checks
+        )  # pylint: disable=invalid-escape-sequence  # TODO: investigate why this fails certain code / lint checks
         ret_char = "\r\n"
         cer_len = len(temp_cer)
         count = 64

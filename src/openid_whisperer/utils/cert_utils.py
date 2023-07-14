@@ -1,20 +1,18 @@
 """ Certificate Generation and Utility Functions
 """
-import logging
 import atexit
 import os
 import tempfile
-from typing import Optional, List, Type, Callable
+from typing import Optional, List
 import ssl
 from ssl import SSLContext
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
+from openid_whisperer.utils.common import package_get_logger
 
-logger = logging.getLogger(__name__)
+logger = package_get_logger(__name__)
 
 
 class CertUtilsException(Exception):
@@ -101,10 +99,9 @@ def dump_cert_and_ca_bundle(
         ca_chain_filename = os.path.join(location, ca_chain_filename)
 
     cert_data: bytes = certificate.public_bytes(encoding=serialization.Encoding.PEM)
+    ca_cert_data: bytes = b""
     if ca_certificate:
-        ca_cert_data: bytes = ca_certificate.public_bytes(
-            encoding=serialization.Encoding.PEM
-        )
+        ca_cert_data = ca_certificate.public_bytes(encoding=serialization.Encoding.PEM)
 
     if overwrite_existing_files is False and os.path.exists(cert_filename):
         logger.warning("certificate exists, skipping. %s", cert_filename)

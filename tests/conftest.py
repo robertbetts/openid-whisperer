@@ -20,12 +20,14 @@ def app():
 
 @pytest.fixture
 def config():
-    yield get_cached_config()
+    _config = get_cached_config()
+    yield _config
 
 
 @pytest.fixture
 def client(app):
-    return app.test_client()
+    _test_client = app.test_client()
+    return _test_client
 
 
 @pytest.fixture

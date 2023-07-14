@@ -38,7 +38,7 @@ def test_config_type_renderer(caplog):
 def test_load_environment_variables(caplog):
     before_test = os.environ.get("ENVIRONMENT")
     try:
-        logger_name = "openid_whisperer.utils.config_utils"
+        logger_name = "openid_whisperer.utils"
 
         os.environ["ENVIRONMENT"] = ""
         caplog.clear()
@@ -108,7 +108,13 @@ def test_get_config():
 def test_get_bind_address():
     assert get_bind_address("bad-bind-address") == []
 
+    assert get_bind_address("localhost:5005,127.0.0.1:5000")
+
 
 def test_initialize_logging():
     """happy just to run through the code, trying to"""
     initialize_logging(log_level="DEBUG")
+
+    with pytest.raises(NotImplementedError):
+        initialize_logging(log_level="DEBUG", initialize_flask=True)
+

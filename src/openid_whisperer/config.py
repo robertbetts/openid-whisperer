@@ -4,7 +4,7 @@ import importlib.resources
 import logging
 import os
 from uuid import uuid4
-from typing import Type, Optional, Tuple, TextIO, Any, Dict, Iterable
+from typing import Optional, Tuple, BinaryIO, Any
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -18,7 +18,10 @@ from openid_whisperer.utils.config_utils import (
     initialize_logging,
 )
 
+# Config pre-initialisation
 _cached_config: Optional["Config"] = None
+initialize_logging()
+logging.getLogger("faker.factory").setLevel(logging.WARNING)
 
 
 class ConfigurationException(Exception):
@@ -149,7 +152,7 @@ class Config:
         config_to_initialise.update(self.init_defaults)
         for key, value in config_to_initialise.items():
             func, default = value
-            env_var: str = os.environ.get(key.upper(), default)
+            env_var: Any = os.environ.get(key.upper(), default)
             try:
                 key_value = func(env_var)
                 setattr(self, key, key_value)
@@ -177,8 +180,8 @@ class Config:
         """
 
         def load_cert_pair(
-            cert_file: TextIO,
-            key_file: Optional[TextIO] = None,
+            cert_file: BinaryIO,
+            key_file: Optional[BinaryIO] = None,
             key_password: Optional[str] = None,
         ) -> Tuple[x509.Certificate, Optional[rsa.RSAPrivateKey]]:
             cert: x509.Certificate = x509.load_pem_x509_certificate(
