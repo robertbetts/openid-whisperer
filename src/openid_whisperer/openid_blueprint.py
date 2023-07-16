@@ -73,7 +73,7 @@ openid_api_interface = OpenidApiInterface(
     org_key_password=config.org_key_password,
     org_cert_filename=config.org_cert_filename,
     validate_users=config.validate_users,
-    json_user_file=config.json_user_file,
+    json_users=config.json_users,
     session_expiry_seconds=config.session_expiry_seconds,
     maximum_login_attempts=config.maximum_login_attempts,
 )

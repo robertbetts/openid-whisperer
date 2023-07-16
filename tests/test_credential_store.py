@@ -26,7 +26,7 @@ def test_login_attempts(input_scenario_one):
     credential_store = UserCredentialStore(
         validate_users=validate_users,
         json_users=json_users,
-        session_expiry_second=session_expiry_seconds,
+        session_expiry_seconds=session_expiry_seconds,
         maximum_login_attempts=maximum_login_attempts
     )
 
@@ -55,7 +55,7 @@ def test_validating_login_attempts(input_scenario_one):
 
     credential_store = UserCredentialStore(
         validate_users=validate_users,
-        session_expiry_second=session_expiry_seconds,
+        session_expiry_seconds=session_expiry_seconds,
         maximum_login_attempts=maximum_login_attempts
     )
     username = "bbb"

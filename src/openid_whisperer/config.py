@@ -41,7 +41,7 @@ class Config:
         "id_service_port_gw": (int, 5005),
         "id_service_host_gw": (str, "localhost"),
         "validate_users": (boolify, False),
-        "json_user_file": (str, ""),
+        "json_users": (str, ""),
         "session_expiry_seconds": (int, 0),
         "maximum_login_attempts": (int, 0),
         "ca_cert_filename": (str, ""),
@@ -66,9 +66,13 @@ class Config:
 
     # Credential related configuration
     validate_users: bool
-    json_user_file: str
     session_expiry_seconds: int
     maximum_login_attempts: int
+
+    # this property is still under development and its type subject to change.
+    # Current thinking is that either it refers to a json text stream of user claim info,
+    # If the info is not valid json, then assume a file path containing json file content.
+    json_users: str
 
     # Credential and Web API related configuration. If not all the configuration entries
     # for these filenames are entered, then the demo certs in this package are used.

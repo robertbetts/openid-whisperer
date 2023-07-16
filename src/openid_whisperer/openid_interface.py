@@ -187,7 +187,7 @@ class OpenidApiInterface:
         self.credential_store = UserCredentialStore(
             validate_users=self.validate_users,
             json_users=self.json_users,
-            session_expiry_second=self.session_expiry_seconds,
+            session_expiry_seconds=self.session_expiry_seconds,
             maximum_login_attempts=self.maximum_login_attempts,
             user_info_extension=self.user_info_extension,
         )
