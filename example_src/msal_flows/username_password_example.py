@@ -44,6 +44,17 @@ config = {
     "endpoint": "https://localhost:5700/mock-api/api/private",
 }
 
+config = {
+    "authority": "https://chfar366c29n1.emea.ad.jpmorganchase.com:5005/adfs",
+    "client_id": "PC-ADFSSandbox-01",
+    "client_secret": "your_client_secret",
+    "username": "your_username@your_tenant.com",
+    "password": "This is a sample only. You better NOT persist your password.",
+    "scope": ["openid"],
+    "endpoint": "http://192.168.56.102:8000/",
+}
+
+
 # Create a preferably long-lived app instance which maintains a token cache.
 http_client = requests.session()
 http_client.verify = False

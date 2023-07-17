@@ -424,6 +424,7 @@ class OpenidApiInterface:
 
             return {
                 "authorization_code": authorization_code,
+                "access_token": token_response['access_token']
             }
 
         else:  # if "token" in response_type:

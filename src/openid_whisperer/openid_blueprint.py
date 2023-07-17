@@ -277,10 +277,14 @@ def authorize_post() -> ResponseReturnValue:
                 "state": state,
                 "nonce": nonce,
             }
-            #
-            ...
-        redirect_uri = update_redirect_url_query(redirect_uri, code_response)
-        authorize_get_resp = redirect(redirect_uri, code=302)
+        if response_mode == "form_post" and status_code == 200:
+            logger.debug("response_mode==form_post")
+            authorize_get_resp = make_response(
+                render_template("form_post_response.html", action=redirect_uri, id_token=openid_response["access_token"], state=state)
+            )
+        else:
+            redirect_uri = update_redirect_url_query(redirect_uri, code_response)
+            authorize_get_resp = redirect(redirect_uri, code=302)
         if kmsi:
             auth_cookie_token = json.dumps(
                 {
@@ -299,7 +303,7 @@ def authorize_post() -> ResponseReturnValue:
             )
         return authorize_get_resp
 
-    else:  # only other possible option is a response_type == "token":
+    else:  # only other possible option is a response_type is "token" or "id_token":
         if "error_code" in openid_response:
             response = openid_response
         else:
