@@ -1,9 +1,11 @@
+import logging
 from typing import Dict, Any, Optional, List, Type
 import datetime
 import hashlib
 import secrets
 from urllib.parse import urljoin
 import string
+import jwt
 
 from openid_whisperer.utils.common import (
     RESPONSE_TYPES_SUPPORTED,
@@ -141,6 +143,7 @@ def validate_grant_type(grant_type: str) -> str:
         "device_code",
         "authorization_code",
         "password",
+        "client_credentials"
     ):
         error_message = f"The grant_type of '{grant_type}' not as yet implemented"
 
@@ -218,6 +221,32 @@ class OpenidApiInterface:
         _ = client_secret
         if isinstance(client_id, str) and client_id != "":
             return True
+        return False
+
+    def validate_client_grant(
+            self, client_id: str,
+            client_assertion: str,
+            client_assertion_type: str,
+    ) -> bool:
+        """Returns True or False depending on whether the client assertion is validated.
+        """
+        input_claims = jwt.decode(client_assertion, options={"verify_signature": False})
+        token_client_id = input_claims["sub"]
+        token_audience = input_claims["aud"]
+
+        # TODO: Audience check, is token_audience a valid token endpoint url
+
+        token_headers = jwt.get_unverified_header(client_assertion)
+        token_algorith = token_headers["alg"]
+        token_key_id = token_headers.get("kid")
+        token_key_x5t = token_headers.get("x5t")
+        key_id = token_key_x5t if token_key_x5t else token_key_id
+        try:
+            validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+            if validated_claims:
+                return True
+        except Exception as e:
+            raise OpenidApiInterfaceException("invalid_client", str(e))
         return False
 
     def logoff(self, tenant: str, client_id: str, username: str) -> Dict[str, Any]:
@@ -526,11 +555,13 @@ class OpenidApiInterface:
         tenant: str,
         grant_type: str,
         client_id: str,
+        client_secret: str,
+        client_assertion: str,
+        client_assertion_type: str,
         refresh_token: str,
         token_type: str,
         expires_in: int | str,
         access_token: str,
-        client_secret: str,
         device_code: str,
         code: str,
         username: str,
@@ -547,6 +578,7 @@ class OpenidApiInterface:
         OpenidException could also be raised for various validation and processing errors
         """
         _ = (
+            tenant,
             redirect_uri,
             code_verifier,
             refresh_token,
@@ -555,7 +587,7 @@ class OpenidApiInterface:
             access_token,
         )  # interface variables provided for future features
 
-        if not self.validate_client(client_id, client_secret):
+        if grant_type != "client_credentials" and not self.validate_client(client_id, client_secret):
             raise OpenidApiInterfaceException(
                 "auth_processing_error", "A valid client_id is required"
             )
@@ -565,7 +597,33 @@ class OpenidApiInterface:
 
         token_response: Dict[str, Any] | None = None
 
-        if grant_type == "device_code":
+        logging.debug(client_assertion)
+        logging.debug(client_assertion_type)
+
+        if grant_type == "client_credentials":
+            logging.info(client_id)
+            logging.info(client_assertion)
+            logging.info(client_assertion_type)
+            logging.info(scope)
+            logging.info(resource)
+            try:
+                validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+                if validated_claims:
+                    logging.info(validated_claims)
+                audience = get_audience(client_id=client_id, scope=scope, resource=resource)
+                _, token_response = self.token_store.create_new_token(
+                    client_id=client_id,
+                    issuer=self.issuer_reference,
+                    sub=client_id,
+                    user_claims={},
+                    audience=audience,
+                    nonce=nonce,
+                )
+
+            except Exception as e:
+                raise OpenidApiInterfaceException("invalid_client", str(e))
+
+        elif grant_type == "device_code":
             # TODO: check devicecode_request and handle additional unsuccessful
             #  error states, request expiry, authorization_declined etc.
             devicecode_request = self.devicecode_requests.get(device_code, None)

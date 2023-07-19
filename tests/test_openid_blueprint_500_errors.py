@@ -33,8 +33,8 @@ def test_post_authorize_500_error(client, input_scenario_one, broken_openid_api)
         "Accept": "application/json",
     }
     response = client.post(auth_url, data=data, headers=headers)
-    assert "Internal Server Error" in response.text
-    assert response.status_code == 500
+    assert "broken_validate_client" in response.location
+    assert response.status_code == 302
 
 
 def test_post_token_500_error(client, input_scenario_one, broken_openid_api):

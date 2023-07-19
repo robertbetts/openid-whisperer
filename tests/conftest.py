@@ -44,13 +44,13 @@ def broken_openid_api():
     # Force runtime error when checking client_id validation
     def broken_validate_client(client_id: str, client_secret: str | None = None):
         _ = (client_id, client_secret)
-        assert "This is broken" == "very broken"
+        raise Exception("broken_validate_client")
 
     openid_api_interface.validate_client = broken_validate_client
 
     # Force runtime errors when accessing the token store from the openid_interface
     def get_keys():
-        assert "This is broken" == "very broken"
+        raise Exception("broken_key_keys")
 
     openid_api_interface.token_store.get_keys = get_keys
 

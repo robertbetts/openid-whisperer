@@ -1,5 +1,6 @@
 import json
 from uuid import uuid4
+import base64
 
 from openid_whisperer.utils.common import generate_s256_hash
 
@@ -18,8 +19,9 @@ def test_create_client_secret_token(openid_api):
     token_id = uuid4().hex
     token_algorithm = "HS256"
 
+    token_key_id = uuid4().hex
     client_key_info = {
-        "key_id": uuid4().hex,
+        "key_id": token_key_id,
         "key_issuer": id_client_id,
         "algorithm": token_algorithm,
     }
@@ -39,6 +41,7 @@ def test_create_client_secret_token(openid_api):
         ip_client_id=id_client_id,
         client_secret=client_key_info["public_key"],
         token_endpoint_url=token_endpoint_url,
+        token_key_id=token_key_id,
         token_expiry=token_expiry,
         token_algorithm=token_algorithm,
         token_id=token_id,
@@ -53,3 +56,43 @@ def test_create_client_secret_token(openid_api):
     assert isinstance(validated_claims, dict) and len(validated_claims) > 6
     for key, value in assert_claims.items():
         assert validated_claims[key] == value
+
+
+def test_grant_type_of_client_credentials(openid_api, input_scenario_one):
+
+    client_id = "CLIENT-90274-DEV"
+    client_algorithm = "RS256"
+    resource = input_scenario_one["resource"]
+    audience = [client_id, resource]
+    token_key_id = "dGh1bWJwcmludF92YWx1ZQ=="
+
+    token_response = openid_api.token_store.create_client_secret_token(
+        identity_provider_id="identity_provider_id",
+        ip_client_id=client_id,
+        client_secret=openid_api.token_store.token_issuer_private_key,
+        token_endpoint_url=audience,
+        token_key_id=token_key_id,
+        token_expiry=60,
+        token_algorithm=client_algorithm,
+        token_id=token_key_id,
+    )
+    print(token_response["token"])
+
+    client_assertion = token_response["token"]
+    client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
+    client_key_info = {
+        "key_id": token_key_id,
+        "key_issuer": client_id,
+        "algorithm": client_algorithm,
+        "public_key": openid_api.token_store.token_issuer_private_key.public_key()
+    }
+    openid_api.token_store.add_client_secret(client_id=client_id, **client_key_info)
+
+    result = openid_api.validate_client_grant(
+        client_id=client_id,
+        client_assertion=client_assertion,
+        client_assertion_type=client_assertion_type,
+    )
+
+    print(result)

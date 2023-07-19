@@ -281,11 +281,12 @@ class TokenIssuerCertificateStore:
         ip_client_id: str,
         client_secret: str,
         token_endpoint_url: str,
+        token_key_id: str,
         token_expiry: int = 60,
         token_algorithm: str = "RS256",
         ip_client_id_iss: Optional[str] = None,
         token_claims: Optional[Dict[str, Any]] = None,
-        token_id: Optional[str] = None,
+        token_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Returns a Dict that includes a JWT issued by the client to authenticate with an upstream identity provider.
         This would be used by the implementation of this class acting as an authentication relay service.
@@ -303,6 +304,8 @@ class TokenIssuerCertificateStore:
         :param token_endpoint_url:
             a value that identifies the authorization server as an intended audience. This is typically
             the url of the token endpoint at the IP for inspection or verification of the token
+        :param token_key_id:
+            a reference to the public key required to validate the token signature.
         :param token_expiry:
             time in seconds after which the token expires, defaults to 60
         :param token_algorithm:
@@ -341,6 +344,8 @@ class TokenIssuerCertificateStore:
         """
         headers = {
             "alg": token_algorithm,
+            "kid": token_key_id,
+            "x5t": token_key_id,
         }
         token = jwt.encode(
             payload=payload,
@@ -388,15 +393,19 @@ class TokenIssuerCertificateStore:
 
         token_headers = jwt.get_unverified_header(token)
         token_algorith = token_headers["alg"]
-        token_key_id = token_headers.get("kid")
+        _token_key_id = token_headers.get("kid")
+        _token_key_x5t = token_headers.get("x5t")
+        key_id = _token_key_x5t if _token_key_x5t else _token_key_id
+        if not key_id:
+            raise ValueError("Missing public key reference")
 
         issuer = None
         public_key = None
         algorithm = None
         for client_key in self.get_client_keys(token_client_id):
             if (
-                token_key_id
-                and client_key["key_id"] != token_key_id
+                key_id
+                and client_key["key_id"] != key_id
                 or token_algorith != client_key["algorithm"]
             ):
                 continue
