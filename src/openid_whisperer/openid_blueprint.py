@@ -277,7 +277,12 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
             # access token is passed into the form returned to the device.
             logger.debug("response_mode==form_post")
             authorize_get_resp = make_response(
-                render_template("form_post_response.html", action=redirect_uri, id_token=openid_response["access_token"], state=state)
+                render_template(
+                    "form_post_response.html",
+                    action=redirect_uri,
+                    id_token=openid_response["access_token"],
+                    state=state,
+                )
             )
         else:
             redirect_uri = update_redirect_url_query(redirect_uri, code_response)
@@ -539,6 +544,7 @@ def post_logout(tenant: str) -> ResponseReturnValue:
 @openid_blueprint.route("/<tenant>/discovery/keys", methods=["GET"])  # type: ignore[misc]
 def keys(tenant: str) -> ResponseReturnValue:
     """Returns the public keys used to sign tokens"""
+    _ = tenant
     status_code = 200
     try:
         response = openid_api_interface.token_store.get_keys()

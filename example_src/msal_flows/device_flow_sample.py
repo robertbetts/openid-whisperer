@@ -38,7 +38,9 @@ def submit_credentials_with_challenge_code(config, challenge_info):
             for item in [part for part in query.split("&")]
         ]
         query_params = dict(query_items)
-        print("Responding to the following authentication request:\n{pformat(query_params)}\n")
+        print(
+            "Responding to the following authentication request:\n{pformat(query_params)}\n"
+        )
 
         auth_url = f"{url_parts.scheme}://{url_parts.netloc}{url_parts.path}"
         headers = {
@@ -57,8 +59,12 @@ def submit_credentials_with_challenge_code(config, challenge_info):
             "code_challenge_method": query_params["code_challenge_method"],
             "code_challenge": challenge_info.get("code_challenge", ""),
         }
-        device_response = requests.post(auth_url, data=data, headers=headers, verify=False)
-        print(f"\nEnd User code_challenge submission response: {device_response.status_code}")
+        device_response = requests.post(
+            auth_url, data=data, headers=headers, verify=False
+        )
+        print(
+            f"\nEnd User code_challenge submission response: {device_response.status_code}"
+        )
 
         if device_response.status_code != 200:
             print("\nError processing end user verification of the user code")
@@ -72,6 +78,7 @@ def submit_credentials_with_challenge_code(config, challenge_info):
     except Exception as e:
         print("\nError during verification of the user code")
         logging.exception(e)
+
 
 # Optional logging
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
@@ -87,9 +94,11 @@ config = {
     "endpoint": "https://localhost:5700/mock-api/api/private",
 }
 
-config.update({
-    "endpoint": "https://bbb-mbp.local:9443/mock-api/api/private",
-})
+config.update(
+    {
+        "endpoint": "https://bbb-mbp.local:9443/mock-api/api/private",
+    }
+)
 
 # Create a preferably long-lived app instance which maintains a token cache.
 app = msal.PublicClientApplication(
@@ -158,7 +167,9 @@ if "access_token" in result:
         print("API call result: %s" % json.dumps(graph_data, indent=2))
     except Exception as e:
         print(e)
-        print(f"Expected JSON response from endpoint:\nstatus_code:{response.status_code}\nurl:{response.url}")
+        print(
+            f"Expected JSON response from endpoint:\nstatus_code:{response.status_code}\nurl:{response.url}"
+        )
 
 else:
     print(result.get("error"))

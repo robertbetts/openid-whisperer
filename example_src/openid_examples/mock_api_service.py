@@ -61,13 +61,20 @@ def handle_access_token() -> Response:
         access_token: str | None = request.form.get("id_token")
         state: str | None = request.form.get("state")
 
-    logger.debug("Incoming authorisation %s response:\ncode:%s\nstate:%s", request.method, code, state)
+    logger.debug(
+        "Incoming authorisation %s response:\ncode:%s\nstate:%s",
+        request.method,
+        code,
+        state,
+    )
 
     if request.method == "POST" and access_token is not None:
         logger.debug("Form-post with access_token")
 
     elif not state or state != session.get("state"):
-        message = "Unable to process authorization. Invalid response, request unverified."
+        message = (
+            "Unable to process authorization. Invalid response, request unverified."
+        )
         logger.debug(message)
 
     elif not code:
@@ -148,7 +155,11 @@ def handle_access_token() -> Response:
             logger.exception(message)
 
     # If the code reaches this point then the authentication has been unsuccessful
-    resp = make_response(render_template("mock_api_logout.html", message=message, logout_path=config.logout_path))
+    resp = make_response(
+        render_template(
+            "mock_api_logout.html", message=message, logout_path=config.logout_path
+        )
+    )
     session.clear()
     return resp, 401
 
@@ -159,7 +170,9 @@ def handle_access_token() -> Response:
 def index():
     raw_token = request.headers.get("Authorization", "")
     if raw_token.startswith("Bearer") and "access_token" not in session:
-        logging.debug("There is likely a Bearer token in the request Headers to verify and begin a new session with.")
+        logging.debug(
+            "There is likely a Bearer token in the request Headers to verify and begin a new session with."
+        )
         logging.debug(request.headers["Authorization"])
         try:
             claims = openid_client.validate_access_token(

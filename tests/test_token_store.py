@@ -10,9 +10,7 @@ def test_token_store_config(config):
         "org_key_password": config.org_key_password,
         "org_cert_filename": config.org_cert_filename,
     }
-    bad_settings = {
-        "invalid_property": "invalid_property_value"
-    }
+    bad_settings = {"invalid_property": "invalid_property_value"}
     test_settings = {}
     test_settings.update(config_settings)
     test_settings.update(bad_settings)
@@ -22,7 +20,6 @@ def test_token_store_config(config):
         assert getattr(token_store, key) == value
 
     assert token_store.load_certificate_pair() is None
-
 
     config_settings = {
         "token_expiry_seconds": None,

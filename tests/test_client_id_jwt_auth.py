@@ -5,7 +5,7 @@ from openid_whisperer.utils.common import generate_s256_hash
 
 
 def test_create_client_secret_token(openid_api):
-    """ Happy path test the TokenIssuerCertificateStore features for creating and validating client secret JWTs
+    """Happy path test the TokenIssuerCertificateStore features for creating and validating client secret JWTs
 
     Creating a client secret JWT is used for upstream identity providers and decoding client secret JWT's
     for validating incoming client requests.
@@ -21,7 +21,7 @@ def test_create_client_secret_token(openid_api):
     client_key_info = {
         "key_id": uuid4().hex,
         "key_issuer": id_client_id,
-        "algorithm": token_algorithm
+        "algorithm": token_algorithm,
     }
     client_key_info["public_key"] = generate_s256_hash(json.dumps(client_key_info))
 
@@ -53,4 +53,3 @@ def test_create_client_secret_token(openid_api):
     assert isinstance(validated_claims, dict) and len(validated_claims) > 6
     for key, value in assert_claims.items():
         assert validated_claims[key] == value
-

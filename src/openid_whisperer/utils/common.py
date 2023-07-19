@@ -42,7 +42,6 @@ GRANT_TYPES_SUPPORTED: List[str] = [
     "urn:ietf:params:oauth:grant-type:device_code",
     "urn:ietf:params:oauth:grant-type:jwt-bearer",
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-
 ]
 
 

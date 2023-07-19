@@ -1,7 +1,7 @@
 """ Module for Private Key and Certificate Management
 """
 import json
-from typing import List, Dict, Any, Literal, Optional, Tuple, TypedDict, Tuple
+from typing import List, Dict, Any, Literal, Optional, TypedDict, Tuple
 import base64
 import datetime
 from uuid import uuid4
@@ -101,13 +101,9 @@ class TokenIssuerCertificateStore:
         self.token_issuer_algorithm: str = "RS256"
 
         # ca certificates Indexed on certificate serial number
-        self.ca_certificates: Dict[
-            str, x509.Certificate
-        ] = {}
+        self.ca_certificates: Dict[str, x509.Certificate] = {}
         # org certificate/private key pairs Indexed on certificate serial number
-        self.token_certificates: Dict[
-            str, CertificatePairType
-        ] = {}
+        self.token_certificates: Dict[str, CertificatePairType] = {}
 
         # Required to be set during certificate initialisation
         self.token_issuer_key_id: str | None = None
@@ -130,9 +126,7 @@ class TokenIssuerCertificateStore:
         # Client secret keys, this is experimental, self.add_client_secret(client_id, algorithm, public_key)
         self.client_secret_keys: Dict[str, List[Dict[str, Any]]] = {}
 
-
         self.init_certificate_store()
-
 
     @property
     def token_issuer_private_key(self):
@@ -241,8 +235,15 @@ class TokenIssuerCertificateStore:
             )
         return {"keys": key_list}
 
-    def add_client_secret(self, client_id: str, key_id: str, algorithm: str, public_key: Any, key_issuer: Optional[str] = None) -> None:
-        """ Returns None after storing the information regarding a client's secret. if key_issuer is None,
+    def add_client_secret(
+        self,
+        client_id: str,
+        key_id: str,
+        algorithm: str,
+        public_key: Any,
+        key_issuer: Optional[str] = None,
+    ) -> None:
+        """Returns None after storing the information regarding a client's secret. if key_issuer is None,
         it is defaulted to client_id
 
         If the below are True, a KeyError is raised:
@@ -259,28 +260,32 @@ class TokenIssuerCertificateStore:
         for key_info in self.client_secret_keys.setdefault(client_id, []):
             if key_id == key_info["key_id"]:
                 raise KeyError("input key_id exists")
-            if algorithm == key_info["algorith"] and public_key == key_info["public_key"]:
+            if (
+                algorithm == key_info["algorith"]
+                and public_key == key_info["public_key"]
+            ):
                 raise KeyError("input public_key exists")
 
-        self.client_secret_keys.setdefault(client_id, []).append({
-            "key_id": key_id,
-            "key_issuer": key_issuer if key_issuer else client_id,
-            "algorithm": algorithm,
-            "public_key": public_key,
-        })
+        self.client_secret_keys.setdefault(client_id, []).append(
+            {
+                "key_id": key_id,
+                "key_issuer": key_issuer if key_issuer else client_id,
+                "algorithm": algorithm,
+                "public_key": public_key,
+            }
+        )
 
     def create_client_secret_token(
-            self,
-            identity_provider_id: str,
-            ip_client_id: str,
-            client_secret: str,
-            token_endpoint_url: str,
-            token_expiry: int = 60,
-            token_algorithm: str = "RS256",
-            ip_client_id_iss: Optional[str] = None,
-            token_claims: Optional[Dict[str, Any]] = None,
-            token_id: Optional[str] = None,
-
+        self,
+        identity_provider_id: str,
+        ip_client_id: str,
+        client_secret: str,
+        token_endpoint_url: str,
+        token_expiry: int = 60,
+        token_algorithm: str = "RS256",
+        ip_client_id_iss: Optional[str] = None,
+        token_claims: Optional[Dict[str, Any]] = None,
+        token_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Returns a Dict that includes a JWT issued by the client to authenticate with an upstream identity provider.
         This would be used by the implementation of this class acting as an authentication relay service.
@@ -348,11 +353,13 @@ class TokenIssuerCertificateStore:
             "exp": get_seconds_epoch(expires_in),
             "token": token,
         }
-        self.relay_ip_client_secrets[(identity_provider_id, ip_client_id)] = token_response
+        self.relay_ip_client_secrets[
+            (identity_provider_id, ip_client_id)
+        ] = token_response
         return token_response
 
     def get_client_keys(self, client_id: str) -> List[Dict[str, Any]]:
-        """ Returns a list if dictionaries with the keys:
+        """Returns a list if dictionaries with the keys:
                 key_issuer, key_id, algorithm, public_key | hashed_secret
 
         :param client_id:
@@ -362,7 +369,7 @@ class TokenIssuerCertificateStore:
         return client_keys
 
     def decode_client_secret_token(self, token: str) -> Dict[str, Any]:
-        """ Returns a dict of claims embedded in the token provided
+        """Returns a dict of claims embedded in the token provided
 
         exceptions raised are:
             KeyError = Missing required JWT headers and claims
@@ -387,8 +394,11 @@ class TokenIssuerCertificateStore:
         public_key = None
         algorithm = None
         for client_key in self.get_client_keys(token_client_id):
-            if token_key_id and client_key["key_id"] != token_key_id \
-               or token_algorith != client_key["algorithm"]:
+            if (
+                token_key_id
+                and client_key["key_id"] != token_key_id
+                or token_algorith != client_key["algorithm"]
+            ):
                 continue
             issuer = client_key["key_issuer"]
             algorithm = client_key["algorithm"]

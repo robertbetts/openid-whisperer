@@ -44,10 +44,12 @@ config = {
     "endpoint": "https://localhost:5700/mock-api/api/private",
 }
 
-config.update({
-    # "endpoint": "https://bbb-mbp.local:9443/mock-api/api/private",
-    "endpoint": "https://bbb-mbp.local:9443/mock-api/",
-})
+config.update(
+    {
+        # "endpoint": "https://bbb-mbp.local:9443/mock-api/api/private",
+        "endpoint": "https://bbb-mbp.local:9443/mock-api/",
+    }
+)
 
 
 # Create a preferably long-lived app instance which maintains a token cache.

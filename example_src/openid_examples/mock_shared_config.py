@@ -43,9 +43,7 @@ class Config:
     def __init__(self) -> None:
         self.logging = "debug"
 
-        self.identity_endpoint = (
-            f"https://{ID_SERVICE_HOST}:{ID_SERVICE_PORT}/adfs/"
-        )
+        self.identity_endpoint = f"https://{ID_SERVICE_HOST}:{ID_SERVICE_PORT}/adfs/"
         self.identity_endpoint_gw = (
             f"https://{ID_SERVICE_HOST_GW}:{ID_SERVICE_PORT_GW}/adfs/"
         )
@@ -60,7 +58,13 @@ class Config:
             (self.api_scheme, f"{self.api_host}:{self.api_port}", "adfs", "", "")
         )
         self.api_endpoint_gw = urlunsplit(
-            (self.api_scheme_gw, f"{self.api_host_gw}:{self.api_port_gw}", "adfs", "", "")
+            (
+                self.api_scheme_gw,
+                f"{self.api_host_gw}:{self.api_port_gw}",
+                "adfs",
+                "",
+                "",
+            )
         )
         self.authorize_path: str = "/mock-api/handleAccessToken"
         self.logout_path: str = "/mock-api/handleAccessToken"
@@ -88,7 +92,7 @@ class Config:
         return self.make_external_url(self.authorize_path, use_gw)
 
     def make_external_url(self, service_url: str = None, use_gw: bool = True):
-        """ Adjust the input service_url to have the correct scheme and network location. Assumed that by default,
+        """Adjust the input service_url to have the correct scheme and network location. Assumed that by default,
         incoming requests will come in through the gateway unless use_gw is False
         """
         if not service_url:
@@ -98,12 +102,24 @@ class Config:
         if use_gw:
             netloc = f"{self.api_host_gw}:{self.api_port_gw}"
             service_url = urlunsplit(
-                (self.api_scheme_gw, netloc, url_parts.path, url_parts.query, url_parts.fragment)
+                (
+                    self.api_scheme_gw,
+                    netloc,
+                    url_parts.path,
+                    url_parts.query,
+                    url_parts.fragment,
+                )
             )
         else:
             netloc = f"{self.api_host}:{self.api_port}"
             service_url = urlunsplit(
-                (self.api_scheme_gw, netloc, url_parts.path, url_parts.query, url_parts.fragment)
+                (
+                    self.api_scheme_gw,
+                    netloc,
+                    url_parts.path,
+                    url_parts.query,
+                    url_parts.fragment,
+                )
             )
 
         return service_url

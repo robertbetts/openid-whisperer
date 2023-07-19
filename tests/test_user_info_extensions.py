@@ -1,7 +1,11 @@
 from unittest import TestCase
 from openid_whisperer.openid_blueprint import register_user_info_extension
 from openid_whisperer import openid_blueprint
-from openid_whisperer.utils.user_info_ext import UserInfoExtension, ALL_TOKEN_CLAIMS, UserInfoFakerExtension
+from openid_whisperer.utils.user_info_ext import (
+    UserInfoExtension,
+    ALL_TOKEN_CLAIMS,
+    UserInfoFakerExtension,
+)
 
 
 def test_extension_registrations():
@@ -18,7 +22,6 @@ def test_extension_registrations():
 
 
 def test_scope_type_claims():
-
     user_info_extension = UserInfoExtension()
     scope_keys = user_info_extension.scope_claims(scope="profile address phone email")
     assert scope_keys == set(ALL_TOKEN_CLAIMS)
@@ -45,13 +48,16 @@ def test_update_user_info_claim_date():
     faker_extension = UserInfoFakerExtension()
     fake_info = faker_extension.get_user_claims(username=username, scope=all_scope)
     user_info_extension.update_user_claims(username=username, user_claims=fake_info)
-    check_user_info = user_info_extension.get_user_claims(username=username, scope=all_scope)
+    check_user_info = user_info_extension.get_user_claims(
+        username=username, scope=all_scope
+    )
 
     TestCase().assertDictEqual(check_user_info, fake_info)
 
 
 def test_missing_faker_import():
     from openid_whisperer.utils import user_info_ext
+
     faker = user_info_ext.faker
     user_info_ext.faker = None
     faker_extension = UserInfoFakerExtension()
@@ -59,9 +65,3 @@ def test_missing_faker_import():
         assert isinstance(faker_extension, UserInfoExtension)
     finally:
         user_info_ext.faker = faker
-
-
-
-
-
-

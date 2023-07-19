@@ -117,4 +117,3 @@ def test_initialize_logging():
 
     with pytest.raises(NotImplementedError):
         initialize_logging(log_level="DEBUG", initialize_flask=True)
-
