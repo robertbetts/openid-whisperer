@@ -38,23 +38,40 @@ openid_client: OpenIDClient = OpenIDClient(
 )
 
 
-@app.route("/mock-api/handleAccessToken")
+@app.route("/mock-api/handleAccessToken", methods=["GET", "POST"])
 def handle_access_token() -> Response:
     """After human authentication was handled by the Identity service, and after successful authentication,
     a redirect (302) is issued to this endpoint.
 
     If a valid access token (JWT) can not be retrieved from the Identity service on exchange of the code,
     then respond to the API service's login page.
+
+    With OpenID, this endpoint is always accessed from the end-user/device requiring authentication. As a result
+
     """
-    code: str | None = request.args.get("code")
-    state: str | None = request.args.get("state")
+    code: str | None = None
+    state: str | None = None
     message: str | None = None
     access_token: str | None = None
 
-    logger.debug("Incoming authorisation response:\ncode:%s\nstate:%s", code, state)
+    if request.method == "GET":
+        code: str | None = request.args.get("code")
+        state: str | None = request.args.get("state")
+    else:
+        access_token: str | None = request.form.get("id_token")
+        state: str | None = request.form.get("state")
 
-    if not code or not state or state != session.get("state"):
-        message = "Validation failed for the access_token response"
+    logger.debug("Incoming authorisation %s response:\ncode:%s\nstate:%s", request.method, code, state)
+
+    if request.method == "POST" and access_token is not None:
+        logger.debug("Form-post with access_token")
+
+    elif not state or state != session.get("state"):
+        message = "Unable to process authorization. Invalid response, request unverified."
+        logger.debug(message)
+
+    elif not code:
+        message = "Unable to process authorization. Invalid response, missing code."
         logger.debug(message)
 
     else:
@@ -65,10 +82,12 @@ def handle_access_token() -> Response:
             "content_type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
         }
+        # redirect is the original redirect send by client_id to initiate the authentication flow
+        redirect_url = config.get_authorize_cb()
         payload = {
             "client_id": config.client_id,
             "code": code,
-            "redirect_uri": config.redirect_url,
+            "redirect_uri": redirect_url,
             "resource": config.resource_uri,
             "grant_type": "authorization_code",
         }
@@ -98,46 +117,62 @@ def handle_access_token() -> Response:
                 logger.error(e)
                 message = "Error requesting token from access_code"
 
-        # If message is set then there has been an error requesting the access_token
-        if access_token is not None and message is None:
-            try:
-                claims = openid_client.validate_access_token(
-                    access_token=access_token,
-                    audience=config.audience,
-                    verify_server=config.validate_certs,
-                )
-                if claims["nonce"] != session["nonce"]:
-                    message = "Unable to pair nonce from the token request with the login redirect session"
-                else:
-                    # Cache the access token in the session for future use
-                    session["access_token"] = access_token
+    # If message is set then there has been an error requesting the access_token
+    if access_token is not None and message is None:
+        try:
+            claims = openid_client.validate_access_token(
+                access_token=access_token,
+                audience=config.audience,
+                verify_server=config.validate_certs,
+            )
+            if claims["nonce"] != session["nonce"]:
+                message = "Unable to pair nonce from the token request with the login redirect session"
+            else:
+                # Cache the access token in the session for future use
+                session["access_token"] = access_token
 
-                    # Redirect to the pre-authorisation endpoint requested
-                    redirect_url = session.get("pre_auth_redirect_url")
-                    redirect_url = redirect_url if redirect_url else "/"
-                    resp = redirect(redirect_url, code=302)
-                    return resp
+                # Redirect to the pre-authorisation endpoint requested, i.e. the original end-user / device request.
+                redirect_url = session.get("pre_auth_redirect_url")
+                redirect_url = redirect_url if redirect_url else "/"
+                resp = redirect(redirect_url, code=302)
+                return resp
 
-            except jwt.ExpiredSignatureError as e:
-                message = "Invalid token: %s" % e
-                logger.error(message)
-            except jwt.InvalidTokenError as e:
-                message = "Invalid token: %s" % e
-                logger.error(message)
-            except Exception as e:
-                message = "Error during token validation: %s" % e
-                logger.exception(message)
+        except jwt.ExpiredSignatureError as e:
+            message = "Invalid token: %s" % e
+            logger.error(message)
+        except jwt.InvalidTokenError as e:
+            message = "Invalid token: %s" % e
+            logger.error(message)
+        except Exception as e:
+            message = "Error during token validation: %s" % e
+            logger.exception(message)
 
     # If the code reaches this point then the authentication has been unsuccessful
-    resp = make_response(render_template("mock_api_logout.html", message=message))
+    resp = make_response(render_template("mock_api_logout.html", message=message, logout_path=config.logout_path))
     session.clear()
     return resp, 401
 
 
 @app.route("/")
 @app.route("/mock-api")
+@app.route("/mock-api/")
 def index():
+    raw_token = request.headers.get("Authorization", "")
+    if raw_token.startswith("Bearer") and "access_token" not in session:
+        logging.debug("There is likely a Bearer token in the request Headers to verify and begin a new session with.")
+        logging.debug(request.headers["Authorization"])
+        try:
+            claims = openid_client.validate_access_token(
+                access_token=raw_token[7:],
+                audience=config.audience,
+                verify_server=config.validate_certs,
+            )
+            logging.debug("valid user claims: %s", claims)
+        except Exception as e:
+            logging.error("Authorization header validation failed: %s", e)
+
     if session.new or "access_token" not in session:
+        logging.debug("Unauthenticated access request")
         # Make an authentication and authorisation request
         response_type = "code"
         scope = openid_client.scope
@@ -148,16 +183,26 @@ def index():
         state = session["state"] = secrets.token_hex()
 
         # Storing the url for this request in order to redirect back here after authorisation
-        session["pre_auth_redirect_url"] = request.url
+        # it might need to be adjusted to an external gateway scheme
+        pre_auth_redirect_url = config.make_external_url(request.url)
+        logging.debug(f"Remembering request for {pre_auth_redirect_url}")
+        session["pre_auth_redirect_url"] = pre_auth_redirect_url
+
+        redirect_url = config.get_authorize_cb()
+        logging.debug(f"url post authentication handling: {redirect_url}")
+
+        # response_mode = "form_post"
+        response_mode = "query"
 
         auth_url = openid_client.authorization_endpoint_url(use_gateway=True)
-        auth_url += "?scope={}&response_type={}&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
+        auth_url += "?scope={}&response_type={}&response_mode={}&client_id={}&resource={}&nonce={}&redirect_uri={}&state={}&nonce={}".format(
             scope,
             response_type,
+            response_mode,
             config.client_id,
             config.resource_uri,
             nonce,
-            config.redirect_url,
+            redirect_url,
             state,
             nonce,
         )
@@ -166,6 +211,7 @@ def index():
         return redirect(auth_url, code=302)
 
     else:
+        logging.debug("Authenticated access request")
         access_token = session["access_token"]
         try:
             claims = openid_client.validate_access_token(
@@ -191,6 +237,7 @@ def index():
             return resp
 
 
+@app.route("/mock-api/api/public")
 @app.route("/mock-api/api/public")
 def api_public():
     return '{"message": "This is a public endpoint, no access token is needed"}'
@@ -241,7 +288,7 @@ def logout():
 def main() -> None:
     config.initialize_logging()
     app.run(
-        ssl_context="adhoc",
+        # ssl_context="adhoc",
         debug=config.flask_debug,
         host="0.0.0.0",
         port=config.api_port,

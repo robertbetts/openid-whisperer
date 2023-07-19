@@ -305,7 +305,7 @@ class OpenidApiInterface:
             "code_challenge": code_challenge,
             "requires_user_code": requires_user_code,
             "requires_pkce": requires_pkce,
-            "submit_label": "Sing In",
+            "submit_label": "Sign In",
         }
 
     def post_authorize(
@@ -400,7 +400,6 @@ class OpenidApiInterface:
             )
             logger.debug((client_id, resource, user_claims))
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
-            logger.debug(audience)
             authorization_code, token_response = self.token_store.create_new_token(
                 client_id=client_id,
                 issuer=self.issuer_reference,
@@ -409,6 +408,8 @@ class OpenidApiInterface:
                 audience=audience,
                 nonce=nonce,
             )
+            logger.debug(f"aud: {audience}")
+            logger.debug(f"sub: {username}")
             logger.debug(f"token: {token_response['access_token']}")
 
             if device_code:
@@ -484,7 +485,7 @@ class OpenidApiInterface:
         )
         prompt = prompt if prompt else "login"
 
-        auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
+        auth_link = urljoin(base_url, f"/{tenant}/oauth2/authorize")
         auth_link = (
             f"{auth_link}?response_type={response_type}&client_id={client_id}&scope={scope}"
             f"&resource={resource}&prompt={prompt}&code_challenge_method={code_challenge_method}"
@@ -658,13 +659,13 @@ class OpenidApiInterface:
             "access_token_issuer": self.issuer_reference,
             "as_access_token_token_binding_supported": False,
             "as_refresh_token_token_binding_supported": False,
-            "authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/authorize"),
+            "authorization_endpoint": urljoin(base_url, f"/{tenant}/oauth2/authorize"),
             "capabilities": ["kdf_ver2"],
             "CLAIMS_SUPPORTED": CLAIMS_SUPPORTED,
             "device_authorization_endpoint": urljoin(
-                base_url, f"{tenant}/oauth2/devicecode"
+                base_url, f"/{tenant}/oauth2/devicecode"
             ),
-            "end_session_endpoint": urljoin(base_url, f"{tenant}/oauth2/logout"),
+            "end_session_endpoint": urljoin(base_url, f"/{tenant}/oauth2/logout"),
             "frontchannel_logout_session_supported": True,
             "frontchannel_logout_supported": True,
             "grant_types_supported": [
@@ -681,8 +682,8 @@ class OpenidApiInterface:
             "id_token_signing_alg_values_supported": [
                 self.token_store.token_issuer_algorithm
             ],
-            "issuer": urljoin(base_url, f"{tenant}"),
-            "jwks_uri": urljoin(base_url, f"{tenant}/discovery/keys"),
+            "issuer": urljoin(base_url, f"/{tenant}"),
+            "jwks_uri": urljoin(base_url, f"/{tenant}/discovery/keys"),
             "microsoft_multi_refresh_token": True,
             "op_id_token_token_binding_supported": False,
             "resource_access_token_token_binding_supported": False,
@@ -698,7 +699,7 @@ class OpenidApiInterface:
             "rp_id_token_token_binding_supported": False,
             "SCOPES_SUPPORTED": SCOPES_SUPPORTED,
             "subject_types_supported": ["pairwise"],
-            "token_endpoint": urljoin(base_url, f"{tenant}/oauth2/token"),
+            "token_endpoint": urljoin(base_url, f"/{tenant}/oauth2/token"),
             "token_endpoint_auth_methods_supported": [
                 "client_secret_post",
                 "client_secret_basic",
@@ -708,6 +709,6 @@ class OpenidApiInterface:
             "token_endpoint_auth_signing_alg_values_supported": [
                 self.token_store.token_issuer_algorithm
             ],
-            "userinfo_endpoint": urljoin(base_url, f"{tenant}/userinfo"),
+            "userinfo_endpoint": urljoin(base_url, f"/{tenant}/userinfo"),
         }
         return openid_configuration

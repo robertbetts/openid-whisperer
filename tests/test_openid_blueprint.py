@@ -29,7 +29,7 @@ def test_userinfo_call(client, input_scenario_one):
 def test_devicecode_call(client):
     response = client.post("/adfs/oauth2/devicecode")
     print(response.text)
-    assert response.json["error_code"] == "auth_processing_error"
+    assert response.json["error"] == "auth_processing_error"
     assert response.status_code == 403
 
 

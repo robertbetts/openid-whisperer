@@ -27,36 +27,39 @@ RESPONSE_TYPES_SUPPORTED: List[str] = [
     "code token",
     "code id_token token",
 ]
+# TODO: fragment not supported.
 RESPONSE_MODES_SUPPORTED: List[str] = ["fragment", "query", "form_post"]
+
 GRANT_TYPES_SUPPORTED: List[str] = [
     "authorization_code",
     "refresh_token",
-    "client_credentials",
-    "jwt-bearer",
-    "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    "client_credentials",  # assumed in context of client-assertion-type
+    "jwt-bearer",  # assumed in context of grant-type
     "implicit",
     "password",
     "srv_challenge",
+    "device_code",  # assumed in context of grant-type
     "urn:ietf:params:oauth:grant-type:device_code",
-    "device_code",
+    "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+
 ]
 
 
-def package_get_logger(name: str | None = None) -> logging.Logger:
-    """Returns a logger as appropriate for the package, name is None then returns LOGGER_NAME
-    This function has been designed with the assumption that __name__ would be passed in when
-    called.
+def package_get_logger(module_name: str | None = None) -> logging.Logger:
+    """Returns a logger named with a module's parent path. If module_name is None, then return
+    the value of LOGGER_NAME.
+    This function operates on the assumption that __name__ would be passed in when called.
 
-    Assuming name will be a package.path.module_name, we only want to report in terms of the path not the
-    module name.
+    special case: if len(name.split(".")) == 1, then use name as input.
 
-    :param name:
+    :param module_name:
     :return:
     """
-    name = name if name else LOGGER_NAME
-    name_parts = name.split(".")
+    module_name = module_name if module_name else LOGGER_NAME
+    name_parts = module_name.split(".")
     if len(name_parts) == 1:
-        logger_name = name
+        logger_name = module_name
     else:
         logger_name = ".".join(name_parts[:-1])
     logger_instance = logging.getLogger(logger_name)
@@ -66,14 +69,14 @@ def package_get_logger(name: str | None = None) -> logging.Logger:
 class GeneralPackageException(Exception):
     """Exception Recipe for API error responses"""
 
-    def __init__(self, error_code: str, error_description: str):
-        Exception.__init__(self, f"{error_code}: {error_description}")
-        self.error_code: str = error_code
+    def __init__(self, error: str, error_description: str):
+        Exception.__init__(self, f"{error}: {error_description}")
+        self.error: str = error
         self.error_description: str = error_description
 
     def to_dict(self) -> Dict[str, str]:
         return {
-            "error_code": self.error_code,
+            "error": self.error,
             "error_description": self.error_description,
         }
 

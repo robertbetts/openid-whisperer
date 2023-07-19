@@ -53,8 +53,8 @@ def test_device_code_flow(app, input_scenario_one):
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     token_response = json.loads(response.text)
-    # TODO: double check the error_code below
-    assert token_response["error_code"] == "devicecode_authorization_pending"
+    # TODO: double check the error below
+    assert token_response["error"] == "devicecode_authorization_pending"
 
     # Test pending token
     response_type = "code"
@@ -71,7 +71,7 @@ def test_device_code_flow(app, input_scenario_one):
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     token_response = json.loads(response.text)
-    assert token_response["error_code"] == "devicecode_authorization_pending"
+    assert token_response["error"] == "devicecode_authorization_pending"
 
     # Authenticate with user_code
     response = end_user_authorise_post(

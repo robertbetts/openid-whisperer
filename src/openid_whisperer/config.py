@@ -34,7 +34,6 @@ class Config:
         "log_level": (str, "info"),
         "flask_debug": (boolify, False),
         "validate_certs": (boolify, False),
-        "id_service_prefix": (str, "/adfs"),
         "id_service_port": (int, 5005),
         "id_service_host": (str, "localhost"),
         "id_service_bind": (str, "0.0.0.0"),
@@ -57,7 +56,6 @@ class Config:
     validate_certs: bool
 
     # Networking related configuration
-    id_service_prefix: str
     id_service_port: int
     id_service_host: str
     id_service_bind: str

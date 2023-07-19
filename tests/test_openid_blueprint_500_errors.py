@@ -51,7 +51,7 @@ def test_post_token_500_error(client, input_scenario_one, broken_openid_api):
     }
     response = client.post(api_url, data=data, headers=headers)
     result = response.json
-    assert "server_error" in result["error_code"]
+    assert "server_error" in result["error"]
     assert response.status_code == 500
 
 
@@ -69,7 +69,7 @@ def test_post_userinfo_500_error(client, input_scenario_one, broken_openid_api):
     }
     response = client.post(api_url, data=data, headers=headers)
     result = response.json
-    assert "server_error" in result["error_code"]
+    assert "server_error" in result["error"]
     assert response.status_code == 500
 
 
@@ -87,7 +87,7 @@ def test_post_devicecode_500_error(client, input_scenario_one, broken_openid_api
     }
     response = client.post(api_url, data=data, headers=headers)
     result = response.json
-    assert "server_error" in result["error_code"]
+    assert "server_error" in result["error"]
     assert response.status_code == 500
 
 
@@ -105,7 +105,7 @@ def test_post_logout_500_error(client, input_scenario_one, broken_openid_api):
     }
     response = client.post(api_url, data=data, headers=headers)
     result = response.json
-    assert "server_error" in result["error_code"]
+    assert "server_error" in result["error"]
     assert response.status_code == 500
 
 

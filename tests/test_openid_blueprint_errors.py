@@ -47,7 +47,7 @@ def test_post_authorize_code_error(client, input_scenario_one):
     }
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 302
-    assert "error_code" in response.location
+    assert "error" in response.location
 
 
 def test_post_authorize_token_error(client):
@@ -85,7 +85,7 @@ def test_post_authorize_token_error(client):
     }
     response = client.post(auth_url, data=data, headers=headers)
     result = json.loads(response.text)
-    assert "error_code" in result
+    assert "error" in result
     assert "Valid credentials are required" in result["error_description"]
     assert response.status_code == 403
 
@@ -93,7 +93,7 @@ def test_post_authorize_token_error(client):
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 403
     result = json.loads(response.text)
-    assert "error_code" in result
+    assert "error" in result
     assert "Valid credentials are required" in result["error_description"]
 
     response_type = "BadValue"
@@ -106,7 +106,7 @@ def test_post_authorize_token_error(client):
     response = client.post(auth_url, data=data, headers=headers)
     assert response.status_code == 403
     result = json.loads(response.text)
-    assert "api_validation_error" in result["error_code"]
+    assert "api_validation_error" in result["error"]
 
     response_type = "token"
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
@@ -134,7 +134,7 @@ def test_post_get_token_error(client, input_scenario_one):
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     result = json.loads(response.text)
-    assert "api_validation_error" in result["error_code"]
+    assert "api_validation_error" in result["error"]
     assert (
         result["error_description"]
         == f"The grant_type of '{data['grant_type']}' is not supported"
@@ -186,5 +186,5 @@ def test_post_userinfo_403_error(client, input_scenario_one, openid_api):
     }
     response = client.post(api_url, data=data, headers=headers)
     result = response.json
-    assert "auth_processing_error" in result["error_code"]
+    assert "auth_processing_error" in result["error"]
     assert response.status_code == 403
