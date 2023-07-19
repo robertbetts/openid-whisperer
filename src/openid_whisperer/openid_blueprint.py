@@ -333,12 +333,14 @@ def token(tenant: str) -> ResponseReturnValue:
     access_token: str = request.form.get("access_token", "")
     refresh_token: str = request.form.get("refresh_token", "")
     token_type: str = request.form.get("token_type", "")
-    expires_in: int | str = request.form.get("token_type", "")
+    expires_in: int | str = request.form.get("expires_in", "")
+    requested_token_use: str = request.form.get("requested_token_use", "")
 
     client_id: str = request.form.get("client_id", "")
     client_secret: str = request.form.get("client_secret", "")
     client_assertion: str = request.form.get("client_assertion", "")
     client_assertion_type: str = request.form.get("client_assertion_type", "")
+    assertion: str = request.form.get("assertion", "")
 
     redirect_uri: str = request.args.get("redirect_uri", "")
 
@@ -358,8 +360,10 @@ def token(tenant: str) -> ResponseReturnValue:
         "client_secret": client_secret,
         "client_assertion": client_assertion,
         "client_assertion_type": client_assertion_type,
+        "assertion" : assertion,
         "refresh_token": refresh_token,
         "token_type": token_type,
+        "requested_token_use": requested_token_use,
         "expires_in": expires_in,
         "access_token": access_token,
         "device_code": device_code,

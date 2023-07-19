@@ -560,6 +560,8 @@ class OpenidApiInterface:
         client_assertion_type: str,
         refresh_token: str,
         token_type: str,
+        requested_token_use: str,
+        assertion: str,
         expires_in: int | str,
         access_token: str,
         device_code: str,
@@ -593,6 +595,7 @@ class OpenidApiInterface:
             )
 
         # OpenidApiInterfaceException is raised below for an invalid grant_type
+        raw_grant_type = grant_type
         grant_type = validate_grant_type(grant_type)
 
         token_response: Dict[str, Any] | None = None
@@ -600,7 +603,7 @@ class OpenidApiInterface:
         logging.debug(client_assertion)
         logging.debug(client_assertion_type)
 
-        if grant_type == "client_credentials":
+        if grant_type == "client_credentials" and client_assertion_type == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer":
             logging.info(client_id)
             logging.info(client_assertion)
             logging.info(client_assertion_type)
@@ -622,6 +625,9 @@ class OpenidApiInterface:
 
             except Exception as e:
                 raise OpenidApiInterfaceException("invalid_client", str(e))
+
+        elif raw_grant_type == "urn:ietf:params:oauth:grant-type:jwt-bearer" and requested_token_use == "on_behalf_of" and  raw_grant_type == "urn:ietf:params:oauth:grant-type:jwt-bearer":
+            raise OpenidApiInterfaceException("invalid_request", "on_behalf_of flow no implemented")
 
         elif grant_type == "device_code":
             # TODO: check devicecode_request and handle additional unsuccessful
