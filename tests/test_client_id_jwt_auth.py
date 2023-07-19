@@ -2,6 +2,8 @@ import json
 from uuid import uuid4
 import base64
 
+import pytest
+
 from openid_whisperer.utils.common import generate_s256_hash
 
 
@@ -28,6 +30,15 @@ def test_create_client_secret_token(openid_api):
     client_key_info["public_key"] = generate_s256_hash(json.dumps(client_key_info))
 
     openid_api.token_store.add_client_secret(client_id=id_client_id, **client_key_info)
+    with pytest.raises(KeyError) as e:
+        openid_api.token_store.add_client_secret(client_id=id_client_id, **client_key_info)
+    print(e)
+
+    with pytest.raises(KeyError) as e:
+        client_key_info2 = client_key_info.copy()
+        client_key_info2["key_id"] = "12345"
+        openid_api.token_store.add_client_secret(client_id=id_client_id, **client_key_info2)
+    print(e)
 
     assert_claims = {
         "jti": token_id,
@@ -58,7 +69,7 @@ def test_create_client_secret_token(openid_api):
         assert validated_claims[key] == value
 
 
-def test_grant_type_of_client_credentials(openid_api, input_scenario_one):
+def test_grant_type_of_client_credentials(openid_api, client, input_scenario_one):
 
     client_id = "CLIENT-90274-DEV"
     client_algorithm = "RS256"
@@ -81,13 +92,16 @@ def test_grant_type_of_client_credentials(openid_api, input_scenario_one):
     client_assertion = token_response["token"]
     client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
-    client_key_info = {
-        "key_id": token_key_id,
-        "key_issuer": client_id,
-        "algorithm": client_algorithm,
-        "public_key": openid_api.token_store.token_issuer_private_key.public_key()
-    }
-    openid_api.token_store.add_client_secret(client_id=client_id, **client_key_info)
+    try:
+        client_key_info = {
+            "key_id": token_key_id,
+            "key_issuer": client_id,
+            "algorithm": client_algorithm,
+            "public_key": openid_api.token_store.token_issuer_private_key.public_key()
+        }
+        openid_api.token_store.add_client_secret(client_id=client_id, **client_key_info)
+    except KeyError:
+        pass
 
     result = openid_api.validate_client_grant(
         client_id=client_id,
@@ -96,3 +110,20 @@ def test_grant_type_of_client_credentials(openid_api, input_scenario_one):
     )
 
     print(result)
+
+    token_url = "/adfs/oauth2/token"
+    data = {
+        "client_id": input_scenario_one["client_id"],
+        "grant_type": "client_credentials",
+        "client_assertion": client_assertion,
+        "client_assertion_type": client_assertion_type,
+        "scope": input_scenario_one["scope"],
+        "resource": input_scenario_one["resource"],
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    response = client.post(token_url, data=data, headers=headers)
+    print(response.text)
+    assert response.status_code == 200

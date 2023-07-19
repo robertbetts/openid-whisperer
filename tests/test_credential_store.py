@@ -10,6 +10,10 @@ def credential_store():
     yield store
 
 
+def test_unsupported_inputs():
+    store = UserCredentialStore(bad_parameter=None)
+
+
 def test_authorisation_code(input_scenario_one, credential_store):
     assert credential_store.authenticate(
         input_scenario_one["tenant"],

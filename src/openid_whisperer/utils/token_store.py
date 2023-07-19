@@ -35,6 +35,7 @@ class CertificatePairType(TypedDict):
     private_key: Optional[CertificateIssuerPrivateKeyTypes]
 
 
+""" This code is not currently in use
 class TokenKeyType(TypedDict):
     kty: str
     use: str
@@ -44,6 +45,7 @@ class TokenKeyType(TypedDict):
     n: str
     e: str
     x5c: List[str]
+"""
 
 
 class TokenIssuerCertificateStoreException(GeneralPackageException):
