@@ -272,21 +272,33 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
                 "state": state,
                 "nonce": nonce,
             }
+
         if response_mode == "form_post" and status_code == 200:
-            # TODO: Analyze whether to remove the code from the code / authorization index. as the
-            # access token is passed into the form returned to the device.
-            logger.debug("response_mode==form_post")
+            # TODO: for form_post render user friendly error to form if not 200
+            logger.debug("response_mode: form_post")
             authorize_get_resp = make_response(
                 render_template(
                     "form_post_response.html",
                     action=redirect_uri,
                     id_token=openid_response["access_token"],
                     state=state,
+                    nonce=nonce,
                 )
             )
+        elif response_mode == "form_post" and status_code != 200:
+            abort(403, code_response)
+
         else:
+            if response_mode == "fragment" and status_code == 200:
+                code_response = {
+                    "action": redirect_uri,
+                    "id_token": openid_response["access_token"],
+                    "state": state,
+                    "nonce": nonce,
+                }
             redirect_uri = update_redirect_url_query(redirect_uri, code_response)
             authorize_get_resp = redirect(redirect_uri, code=302)
+
         if kmsi:
             auth_cookie_token = json.dumps(
                 {

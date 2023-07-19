@@ -323,6 +323,17 @@ class OpenidApiInterface:
     ) -> Dict[str, Any]:
         """Processes the information from a post submission to the authorize endpoint
 
+        Notes on the response_modes: query, form_post and fragment in the context of response_type code.
+        * query: After successful authorisation, the a redirect to the client / resource owner is made
+                 containing state and code to be used by the resource owner to fetch the end user's token.
+        * form_post: After successful authorisation, HTML is returned to the end user device where the
+                 end user has to accept the authorisation. The authentication token is embedded in the
+                 HTML form. the action is directed to the RO's redirect_uri.
+        * fragment: Similar to query, in that the the end user device receives the redirect response. However
+                 at this point it more similar with the form_post mode, where the use user device is responsible
+                 for unpacking the fragments from the url and then posting them to the RO.
+        * TODO: disable the token code lookup by the RO, as it is now redundant.
+
         TODO: Complete validation code_challenge s256 checks and originating redirect_uri
         """
         _ = (
