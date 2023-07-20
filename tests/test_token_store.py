@@ -48,19 +48,19 @@ def test_token_store_config(config):
     token_store = TokenIssuerCertificateStore(**config_settings)
 
 
-def test_token_issue_and_decode(openid_api, input_scenario_one):
+def test_token_issue_and_decode(openid_api, scenario_api_a):
     user_claims = openid_api.credential_store.get_user_scope_claims(
-        username=input_scenario_one["username"],
-        scope=input_scenario_one["scope"],
+        username=scenario_api_a["username"],
+        scope=scenario_api_a["scope"],
     )
-    audience = [input_scenario_one["client_id"]]
+    audience = [scenario_api_a["client_id"]]
     _, token_response = openid_api.token_store.create_new_token(
-        client_id=input_scenario_one["client_id"],
+        client_id=scenario_api_a["client_id"],
         issuer=openid_api.issuer_reference,
-        sub=input_scenario_one["username"],
+        sub=scenario_api_a["username"],
         user_claims=user_claims,
         audience=audience,
-        nonce=input_scenario_one["nonce"],
+        nonce=scenario_api_a["nonce"],
     )
     decoded_claims = openid_api.token_store.decode_token(
         token=token_response["access_token"],
@@ -68,7 +68,7 @@ def test_token_issue_and_decode(openid_api, input_scenario_one):
         audience=audience,
     )
     assert isinstance(decoded_claims, dict) and len(decoded_claims) > 5
-    assert decoded_claims["nonce"] == input_scenario_one["nonce"]
+    assert decoded_claims["nonce"] == scenario_api_a["nonce"]
 
     assert (
         openid_api.token_store.validate_jwt_token(

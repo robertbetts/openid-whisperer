@@ -10,10 +10,9 @@ import jwt
 from openid_whisperer.utils.common import (
     RESPONSE_TYPES_SUPPORTED,
     RESPONSE_MODES_SUPPORTED,
-    GRANT_TYPES_SUPPORTED,
     stringify,
     get_audience,
-    boolify,
+    boolify, validate_grant_type,
 )
 from openid_whisperer.utils.common import GeneralPackageException, get_seconds_epoch
 from openid_whisperer.utils.credential_store import UserCredentialStore
@@ -119,40 +118,6 @@ def validate_response_mode(response_type: str, response_mode: str) -> str:
     return response_mode
 
 
-def validate_grant_type(grant_type: str) -> str:
-    """Returns a tuple of (adjusted_grant_type, error_message)
-    Where the input grant_typ is in the forman of an urn e.g."urn:ietf:params:oauth:grant-type:jwt-bearer",
-    grant type is updated to only the grant_type reference.
-
-    OpenidException is raised for validation and processing errors
-
-    Parameters
-    ----------
-    grant_type:
-        required str
-    """
-    error_message: str | None = None
-    if grant_type is None or grant_type == "":
-        error_message = "An empty input for grant_type is not supported"
-    elif grant_type not in GRANT_TYPES_SUPPORTED:
-        error_message = f"The grant_type of '{grant_type}' is not supported"
-    elif grant_type.startswith("urn:ietf:params:oauth:grant-type:"):
-        grant_type = grant_type.split(":")[-1].strip()
-
-    if error_message is None and grant_type not in (
-        "device_code",
-        "authorization_code",
-        "password",
-        "client_credentials"
-    ):
-        error_message = f"The grant_type of '{grant_type}' not as yet implemented"
-
-    if error_message is not None:
-        raise OpenidApiInterfaceException("api_validation_error", error_message)
-
-    return grant_type
-
-
 class OpenidApiInterface:
     def __init__(self, **kwargs) -> None:
         self.issuer_reference: str | None = None
@@ -224,12 +189,12 @@ class OpenidApiInterface:
         return False
 
     def validate_client_grant(
-            self, client_id: str,
-            client_assertion: str,
-            client_assertion_type: str,
+        self,
+        client_id: str,
+        client_assertion: str,
+        client_assertion_type: str,
     ) -> bool:
-        """Returns True or False depending on whether the client assertion is validated.
-        """
+        """Returns True or False depending on whether the client assertion is validated."""
         input_claims = jwt.decode(client_assertion, options={"verify_signature": False})
         token_client_id = input_claims["sub"]
         token_audience = input_claims["aud"]
@@ -242,7 +207,9 @@ class OpenidApiInterface:
         token_key_x5t = token_headers.get("x5t")
         key_id = token_key_x5t if token_key_x5t else token_key_id
         try:
-            validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+            validated_claims = self.token_store.decode_client_secret_token(
+                client_assertion
+            )
             if validated_claims:
                 return True
         except Exception as e:
@@ -589,13 +556,14 @@ class OpenidApiInterface:
             access_token,
         )  # interface variables provided for future features
 
-        if grant_type != "client_credentials" and not self.validate_client(client_id, client_secret):
+        if grant_type != "client_credentials" and not self.validate_client(
+            client_id, client_secret
+        ):
             raise OpenidApiInterfaceException(
                 "auth_processing_error", "A valid client_id is required"
             )
 
         # OpenidApiInterfaceException is raised below for an invalid grant_type
-        raw_grant_type = grant_type
         grant_type = validate_grant_type(grant_type)
 
         token_response: Dict[str, Any] | None = None
@@ -603,17 +571,25 @@ class OpenidApiInterface:
         logging.debug(client_assertion)
         logging.debug(client_assertion_type)
 
-        if grant_type == "client_credentials" and client_assertion_type == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer":
+        if (
+            grant_type == "client_credentials"
+            and client_assertion_type
+            == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        ):
             logging.info(client_id)
             logging.info(client_assertion)
             logging.info(client_assertion_type)
             logging.info(scope)
             logging.info(resource)
             try:
-                validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+                validated_claims = self.token_store.decode_client_secret_token(
+                    client_assertion
+                )
                 if validated_claims:
                     logging.info(validated_claims)
-                audience = get_audience(client_id=client_id, scope=scope, resource=resource)
+                audience = get_audience(
+                    client_id=client_id, scope=scope, resource=resource
+                )
                 _, token_response = self.token_store.create_new_token(
                     client_id=client_id,
                     issuer=self.issuer_reference,
@@ -626,10 +602,16 @@ class OpenidApiInterface:
             except Exception as e:
                 raise OpenidApiInterfaceException("invalid_client", str(e))
 
-        elif raw_grant_type == "urn:ietf:params:oauth:grant-type:jwt-bearer" and requested_token_use == "on_behalf_of" and  raw_grant_type == "urn:ietf:params:oauth:grant-type:jwt-bearer":
-            raise OpenidApiInterfaceException("invalid_request", "on_behalf_of flow no implemented")
+        elif (
+            grant_type in ("urn:ietf:params:oauth:grant-type:jwt-bearer",)
+            and requested_token_use == "on_behalf_of"
+            and grant_type == "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ):
+            raise OpenidApiInterfaceException(
+                "invalid_request", "on_behalf_of flow no implemented"
+            )
 
-        elif grant_type == "device_code":
+        elif grant_type in ("urn:ietf:params:oauth:grant-type:device_code", "device_code"):
             # TODO: check devicecode_request and handle additional unsuccessful
             #  error states, request expiry, authorization_declined etc.
             devicecode_request = self.devicecode_requests.get(device_code, None)

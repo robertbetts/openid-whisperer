@@ -4,22 +4,22 @@ from openid_whisperer.utils.common import get_audience
 from openid_whisperer.utils.token_utils import validate_access_token
 
 
-def test_pkce_flow(input_scenario_one, openid_api):
+def test_pkce_flow(scenario_api_a, openid_api):
     code_challenge_method = "plain"
     code_challenge = "my code challenge"
 
     authenticate_code_input = {
-        "tenant": input_scenario_one["tenant"],
+        "tenant": scenario_api_a["tenant"],
         "response_type": "code",
         "response_mode": "query",
-        "redirect_uri": input_scenario_one["redirect_uri"],
-        "client_id": input_scenario_one["client_id"],
-        "client_secret": input_scenario_one["client_secret"],
-        "resource": input_scenario_one["resource"],
-        "username": input_scenario_one["username"],
-        "password": input_scenario_one["password"],
-        "nonce": input_scenario_one["nonce"],
-        "scope": input_scenario_one["scope"],
+        "redirect_uri": scenario_api_a["redirect_uri"],
+        "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
+        "resource": scenario_api_a["resource"],
+        "username": scenario_api_a["username"],
+        "password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
+        "scope": scenario_api_a["scope"],
         "code_challenge_method": code_challenge_method,
         "code_challenge": code_challenge,
         "user_code": None,
@@ -31,10 +31,10 @@ def test_pkce_flow(input_scenario_one, openid_api):
 
     # Get access_token using authentication_code
     token_response = openid_api.get_token(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         grant_type="authorization_code",
-        client_id=input_scenario_one["client_id"],
-        client_secret=input_scenario_one["client_secret"],
+        client_id=scenario_api_a["client_id"],
+        client_secret=scenario_api_a["client_secret"],
         client_assertion="",
         client_assertion_type="",
         refresh_token="",
@@ -56,14 +56,14 @@ def test_pkce_flow(input_scenario_one, openid_api):
     assert "access_token" in token_response
 
 
-def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
+def test_device_code_flow(scenario_api_a, endpoint_jwks_keys, openid_api):
     devicecode_request_inputs = {
-        "tenant": input_scenario_one["tenant"],
+        "tenant": scenario_api_a["tenant"],
         "base_url": "",
-        "client_id": input_scenario_one["client_id"],
-        "client_secret": input_scenario_one["client_secret"],
-        "scope": input_scenario_one["scope"],
-        "nonce": input_scenario_one["nonce"],
+        "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
+        "scope": scenario_api_a["scope"],
+        "nonce": scenario_api_a["nonce"],
         "code_challenge_method": "plain",
     }
     response = openid_api.get_devicecode_request(**devicecode_request_inputs)
@@ -78,17 +78,17 @@ def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
     )
     redirect_uri = "http://test/api/handleAccessToken"
     authentication_response = openid_api.post_authorize(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         response_type="code",
         response_mode="query",
         redirect_uri=redirect_uri,
-        client_id=input_scenario_one["client_id"],
-        client_secret=input_scenario_one["client_secret"],
-        resource=input_scenario_one["resource"],
-        username=input_scenario_one["username"],
-        password=input_scenario_one["password"],
-        nonce=input_scenario_one["nonce"],
-        scope=input_scenario_one["scope"],
+        client_id=scenario_api_a["client_id"],
+        client_secret=scenario_api_a["client_secret"],
+        resource=scenario_api_a["resource"],
+        username=scenario_api_a["username"],
+        password=scenario_api_a["password"],
+        nonce=scenario_api_a["nonce"],
+        scope=scenario_api_a["scope"],
         code_challenge_method="plain",
         code_challenge=None,
         user_code=response["user_code"],
@@ -98,10 +98,10 @@ def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
     print(response)
     # Get access_token using authentication_code
     response = openid_api.get_token(
-        tenant=input_scenario_one["tenant"],
-        grant_type="device_code",
-        client_id=input_scenario_one["client_id"],
-        client_secret=input_scenario_one["client_secret"],
+        tenant=scenario_api_a["tenant"],
+        grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        client_id=scenario_api_a["client_id"],
+        client_secret=scenario_api_a["client_secret"],
         client_assertion="",
         client_assertion_type="",
         refresh_token="",
@@ -122,8 +122,8 @@ def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
     )
     access_token = response["access_token"]
 
-    audience = get_audience(input_scenario_one["scope"], input_scenario_one["resource"])
-    # audience = [input_scenario_one["client_id"]]
+    audience = get_audience(scenario_api_a["scope"], scenario_api_a["resource"])
+    # audience = [scenario_api_a["client_id"]]
     claims = validate_access_token(
         access_token=access_token,
         jwks_keys=endpoint_jwks_keys,
@@ -131,4 +131,4 @@ def test_device_code_flow(input_scenario_one, endpoint_jwks_keys, openid_api):
         audience=audience,
         issuer=None,
     )
-    assert input_scenario_one["client_id"] in claims["appid"]
+    assert scenario_api_a["client_id"] in claims["appid"]

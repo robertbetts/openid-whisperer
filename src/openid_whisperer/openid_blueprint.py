@@ -360,7 +360,7 @@ def token(tenant: str) -> ResponseReturnValue:
         "client_secret": client_secret,
         "client_assertion": client_assertion,
         "client_assertion_type": client_assertion_type,
-        "assertion" : assertion,
+        "assertion": assertion,
         "refresh_token": refresh_token,
         "token_type": token_type,
         "requested_token_use": requested_token_use,
@@ -387,6 +387,7 @@ def token(tenant: str) -> ResponseReturnValue:
     ) as e:
         response = e.to_dict()
         logger.error(response)
+        logger.exception(e)
         status_code = 403
     except Exception as e:
         logger.exception(e)

@@ -288,7 +288,7 @@ class TokenIssuerCertificateStore:
         token_algorithm: str = "RS256",
         ip_client_id_iss: Optional[str] = None,
         token_claims: Optional[Dict[str, Any]] = None,
-        token_id: Optional[str] = None
+        token_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Returns a Dict that includes a JWT issued by the client to authenticate with an upstream identity provider.
         This would be used by the implementation of this class acting as an authentication relay service.

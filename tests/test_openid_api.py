@@ -2,25 +2,24 @@ import pytest
 from openid_whisperer.openid_interface import (
     validate_response_type,
     validate_response_mode,
-    validate_grant_type,
     OpenidApiInterfaceException,
 )
-from openid_whisperer.utils.common import get_audience
+from openid_whisperer.utils.common import get_audience, validate_grant_type
 
 
-def test_assemble_audience(input_scenario_one):
+def test_assemble_audience(scenario_api_a):
     audience = get_audience(
-        client_id=input_scenario_one["client_id"],
-        scope=input_scenario_one["scope"],
-        resource=input_scenario_one["resource"],
+        client_id=scenario_api_a["client_id"],
+        scope=scenario_api_a["scope"],
+        resource=scenario_api_a["resource"],
     )
     print(audience)
     assert all(
         [
             item in audience
             for item in [
-                input_scenario_one["client_id"],
-                input_scenario_one["resource"],
+                scenario_api_a["client_id"],
+                scenario_api_a["resource"],
             ]
         ]
     )
@@ -91,22 +90,22 @@ def test_validate_response_mode():
     assert adjusted_response_mode == response_mode
 
 
-def test_logoff(openid_api, input_scenario_one):
+def test_logoff(openid_api, scenario_api_a):
     openid_api.logoff(
-        tenant=input_scenario_one["tenant"],
-        client_id=input_scenario_one["client_id"],
-        username=input_scenario_one["username"],
+        tenant=scenario_api_a["tenant"],
+        client_id=scenario_api_a["client_id"],
+        username=scenario_api_a["username"],
     )
     with pytest.raises(OpenidApiInterfaceException):
         openid_api.logoff(
-            tenant=input_scenario_one["tenant"],
+            tenant=scenario_api_a["tenant"],
             client_id="",
-            username=input_scenario_one["username"],
+            username=scenario_api_a["username"],
         )
     with pytest.raises(OpenidApiInterfaceException):
         openid_api.logoff(
-            tenant=input_scenario_one["tenant"],
-            client_id=input_scenario_one["client_id"],
+            tenant=scenario_api_a["tenant"],
+            client_id=scenario_api_a["client_id"],
             username="",
         )
 
@@ -133,14 +132,25 @@ def test_validate_grant_type():
         )
 
     grant_type = "urn:ietf:params:oauth:grant-type:device_code"
-    grant_type = validate_grant_type(grant_type)
-    assert grant_type == "device_code"
+    grant_type_echo = validate_grant_type(grant_type)
+    assert grant_type_echo == grant_type
 
-    grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+    grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer-unsupported"
     try:
         validate_grant_type(grant_type)
+        assert False, "validate_grant_type test failed"  # pragma: no cover
     except OpenidApiInterfaceException as e:
         assert (
             e.error_description
-            == "The grant_type of 'jwt-bearer' not as yet implemented"
+            == f"The grant_type of '{grant_type}' is not supported"
+        )
+
+    grant_type = "implicit"
+    try:
+        validate_grant_type(grant_type)
+        assert False, "validate_grant_type test failed"  # pragma: no cover
+    except OpenidApiInterfaceException as e:
+        assert (
+                e.error_description
+                == f"The grant_type of '{grant_type}' is not implemented"
         )

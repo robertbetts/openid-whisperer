@@ -27,14 +27,14 @@ def test_scope_type_claims():
     assert scope_keys == set(ALL_TOKEN_CLAIMS)
 
 
-def test_extension_faker_user_info_requests(openid_api, input_scenario_one):
+def test_extension_faker_user_info_requests(openid_api, scenario_api_a):
     register_user_info_extension(openid_api, "Faker")
     for _ in range(1000):
         user_info = openid_api.post_userinfo(
-            tenant=input_scenario_one["tenant"],
-            client_id=input_scenario_one["client_id"],
-            client_secret=input_scenario_one["client_secret"],
-            username=input_scenario_one["username"],
+            tenant=scenario_api_a["tenant"],
+            client_id=scenario_api_a["client_id"],
+            client_secret=scenario_api_a["client_secret"],
+            username=scenario_api_a["username"],
         )
 
 

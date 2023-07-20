@@ -3,13 +3,13 @@ from uuid import uuid4
 import secrets
 
 
-def test_get_authorize_403_error(client, input_scenario_one):
+def test_get_authorize_403_error(client, scenario_api_a):
     """Test missing query parameter client_id"""
-    scope = input_scenario_one["scope"]
+    scope = scenario_api_a["scope"]
     response_type = "code"
-    resource = input_scenario_one["resource"]
-    redirect_uri = input_scenario_one["redirect_uri"]
-    nonce = input_scenario_one["nonce"]
+    resource = scenario_api_a["resource"]
+    redirect_uri = scenario_api_a["redirect_uri"]
+    nonce = scenario_api_a["nonce"]
     state = secrets.token_hex()
     auth_url = "/adfs/oauth2/authorize?"
     auth_url += "scope={}&response_type={}&resource={}&redirect_uri={}&state={}&nonce={}".format(
@@ -20,20 +20,20 @@ def test_get_authorize_403_error(client, input_scenario_one):
     assert "A valid client_id is required" in response.text
 
 
-def test_post_authorize_code_error(client, input_scenario_one):
+def test_post_authorize_code_error(client, scenario_api_a):
     # 1) Test missing / empty UserName
-    client_id = input_scenario_one["client_id"]
-    scope = input_scenario_one["scope"]
+    client_id = scenario_api_a["client_id"]
+    scope = scenario_api_a["scope"]
     response_type = "code"
-    resource = input_scenario_one["resource"]
-    redirect_uri = input_scenario_one["redirect_uri"]
-    nonce = input_scenario_one["nonce"]
+    resource = scenario_api_a["resource"]
+    redirect_uri = scenario_api_a["redirect_uri"]
+    nonce = scenario_api_a["nonce"]
     state = secrets.token_hex()
     auth_url = "/adfs/oauth2/authorize?"
     auth_url += "scope={}&response_type={}&client_id={}&resource={}&redirect_uri={}&nonce={}&state={}".format(
         scope, response_type, client_id, resource, redirect_uri, nonce, state
     )
-    password = input_scenario_one["password"]
+    password = scenario_api_a["password"]
     data = {
         "response_type": response_type,
         "grant_type": "password",
@@ -118,13 +118,13 @@ def test_post_authorize_token_error(client):
     assert response.status_code == 405
 
 
-def test_post_get_token_error(client, input_scenario_one):
+def test_post_get_token_error(client, scenario_api_a):
     """1) Test invalid grant_type
     2) when grant_type is password with invalid credentials
     """
     token_url = "/adfs/oauth2/token"
     data = {
-        "client_id": input_scenario_one["client_id"],
+        "client_id": scenario_api_a["client_id"],
         "grant_type": "invalid",
     }
     headers = {
@@ -143,12 +143,12 @@ def test_post_get_token_error(client, input_scenario_one):
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "password",
-        "username": input_scenario_one["username"],
-        "password": input_scenario_one["password"],
-        "nonce": input_scenario_one["nonce"],
-        "scope": input_scenario_one["scope"],
-        "client_id": input_scenario_one["client_id"],
-        "resource": input_scenario_one["resource"],
+        "username": scenario_api_a["username"],
+        "password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
+        "scope": scenario_api_a["scope"],
+        "client_id": scenario_api_a["client_id"],
+        "resource": scenario_api_a["resource"],
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -172,7 +172,7 @@ def test_logout_call(client):
     assert response.status_code == 403
 
 
-def test_post_userinfo_403_error(client, input_scenario_one, openid_api):
+def test_post_userinfo_403_error(client, scenario_api_a, openid_api):
     """Use broken openid_interface to force unhandled runtime exception"""
 
     api_url = "/adfs/oauth2/userinfo"

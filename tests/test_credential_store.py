@@ -14,15 +14,15 @@ def test_unsupported_inputs():
     store = UserCredentialStore(bad_parameter=None)
 
 
-def test_authorisation_code(input_scenario_one, credential_store):
+def test_authorisation_code(scenario_api_a, credential_store):
     assert credential_store.authenticate(
-        input_scenario_one["tenant"],
-        input_scenario_one["username"],
-        input_scenario_one["password"],
+        scenario_api_a["tenant"],
+        scenario_api_a["username"],
+        scenario_api_a["password"],
     )
 
 
-def test_login_attempts(input_scenario_one):
+def test_login_attempts(scenario_api_a):
     validate_users = False
     json_users = None
     session_expiry_seconds = 0
@@ -40,20 +40,20 @@ def test_login_attempts(input_scenario_one):
         username=username, scope=all_scope
     )
     auth_result = credential_store.authenticate(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         username=username,
         password=None,
     )
     assert auth_result is False
     auth_result = credential_store.authenticate(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         username=username,
-        password=input_scenario_one["password"],
+        password=scenario_api_a["password"],
     )
     assert auth_result
 
 
-def test_validating_login_attempts(input_scenario_one):
+def test_validating_login_attempts(scenario_api_a):
     session_expiry_seconds = 0
     maximum_login_attempts = 0
     validate_users = True
@@ -67,9 +67,9 @@ def test_validating_login_attempts(input_scenario_one):
     all_scope = "profile address phone email"
 
     auth_result = credential_store.authenticate(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         username=username,
-        password=input_scenario_one["password"],
+        password=scenario_api_a["password"],
     )
     assert auth_result is False
 
@@ -97,14 +97,14 @@ def test_validating_login_attempts(input_scenario_one):
     assert result is False
 
     auth_result = credential_store.authenticate(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         username=username,
-        password=input_scenario_one["password"],
+        password=scenario_api_a["password"],
     )
     assert auth_result is True
 
 
-def test_authentication_failures(input_scenario_one):
+def test_authentication_failures(scenario_api_a):
     maximum_login_attempts = 3
     validate_users = True
 
@@ -124,15 +124,15 @@ def test_authentication_failures(input_scenario_one):
 
     # User no exists and should be able to authenticate when providing a set of valid credentials
     auth_result = credential_store.authenticate(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         username=username,
-        password=input_scenario_one["password"],
+        password=scenario_api_a["password"],
     )
     assert auth_result is True
 
     for _ in range(maximum_login_attempts):
         auth_result = credential_store.authenticate(
-            tenant=input_scenario_one["tenant"],
+            tenant=scenario_api_a["tenant"],
             username=username,
             password="",
         )
@@ -140,8 +140,8 @@ def test_authentication_failures(input_scenario_one):
 
     # After 3 failed login attempts the user should be allowed not further attempts even with valid credentials
     auth_result = credential_store.authenticate(
-        tenant=input_scenario_one["tenant"],
+        tenant=scenario_api_a["tenant"],
         username=username,
-        password=input_scenario_one["password"],
+        password=scenario_api_a["password"],
     )
     assert auth_result is False

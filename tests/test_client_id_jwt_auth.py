@@ -69,11 +69,11 @@ def test_create_client_secret_token(openid_api):
         assert validated_claims[key] == value
 
 
-def test_grant_type_of_client_credentials(openid_api, client, input_scenario_one):
+def test_grant_type_of_client_credentials(openid_api, client, scenario_api_a):
 
     client_id = "CLIENT-90274-DEV"
     client_algorithm = "RS256"
-    resource = input_scenario_one["resource"]
+    resource = scenario_api_a["resource"]
     audience = [client_id, resource]
     token_key_id = "dGh1bWJwcmludF92YWx1ZQ=="
 
@@ -100,7 +100,7 @@ def test_grant_type_of_client_credentials(openid_api, client, input_scenario_one
             "public_key": openid_api.token_store.token_issuer_private_key.public_key()
         }
         openid_api.token_store.add_client_secret(client_id=client_id, **client_key_info)
-    except KeyError:
+    except KeyError:  # pragma: no cover
         pass
 
     result = openid_api.validate_client_grant(
@@ -113,12 +113,12 @@ def test_grant_type_of_client_credentials(openid_api, client, input_scenario_one
 
     token_url = "/adfs/oauth2/token"
     data = {
-        "client_id": input_scenario_one["client_id"],
+        "client_id": scenario_api_a["client_id"],
         "grant_type": "client_credentials",
         "client_assertion": client_assertion,
         "client_assertion_type": client_assertion_type,
-        "scope": input_scenario_one["scope"],
-        "resource": input_scenario_one["resource"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",

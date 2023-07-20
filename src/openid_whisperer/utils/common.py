@@ -27,18 +27,20 @@ RESPONSE_TYPES_SUPPORTED: List[str] = [
     "code token",
     "code id_token token",
 ]
-# TODO: fragment not supported.
-RESPONSE_MODES_SUPPORTED: List[str] = ["fragment", "query", "form_post"]
-
+RESPONSE_MODES_SUPPORTED: List[str] = [
+    "fragment",
+    "query",
+    "form_post"
+]
 GRANT_TYPES_SUPPORTED: List[str] = [
     "authorization_code",
     "refresh_token",
     "client_credentials",  # assumed in context of client-assertion-type
-    "jwt-bearer",  # assumed in context of grant-type
+    # "jwt-bearer",  # assumed in context of grant-type
     "implicit",
     "password",
     "srv_challenge",
-    "device_code",  # assumed in context of grant-type
+    "device_code",  # equivalent to urn:ietf:params:oauth:grant-type:device_code
     "urn:ietf:params:oauth:grant-type:device_code",
     "urn:ietf:params:oauth:grant-type:jwt-bearer",
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
@@ -157,11 +159,63 @@ def boolify(value: str | None) -> bool:
 def get_audience(
     client_id: str, scope: str, resource: Optional[str] = None
 ) -> List[str]:
-    audience: List[str] = [resource] if resource else []
-    audience.append(client_id)
+    """Returns a list of resources, a token holder is authorised for. As scope is used to both specify
+    claim fields included in the token and resources to be authorised, the standard SCOPE_PROFILES are excluded from
+    the returned audience list.
+
+    data cleanup rules: comma values are replaced by spaces, all preceding and training spaces are removed from
+    the returned audience items.
+
+    :param client_id:
+    :param scope: space separated string of profile scopes and resource references
+    :param resource: a list of resource names
+    :return:
+    """
+    resource = resource if resource else ""
+    resource_list = (
+        resource
+        if isinstance(resource, list)
+        else [item.strip() for item in resource.replace(",", " ").split(" ")]
+    )
     scope = scope if scope else "openid"
-    for item in scope.split(" "):
-        aud = item.strip()
-        if item not in SCOPE_PROFILES and item != "":
-            audience.append(aud)
-    return audience
+    scope_list = [item.strip() for item in scope.replace(",", " ").split(" ")]
+    resource_list.extend(scope_list)
+    audience = {client_id}
+    for item in resource_list:
+        if item != "" and item.lower() not in SCOPE_PROFILES:
+            audience.add(item)
+    return list(audience)
+
+
+def validate_grant_type(grant_type: str) -> str:
+    """Returns an echo of grant_type if it is valid and supported
+
+    OpenidException is raised for validation and processing errors
+
+    Parameters
+    ----------
+    grant_type:
+        required str
+    """
+    error_message: str | None = None
+    if grant_type is None or grant_type == "":
+        error_message = "An empty input for grant_type is not supported"
+    elif grant_type not in GRANT_TYPES_SUPPORTED:
+        error_message = f"The grant_type of '{grant_type}' is not supported"
+
+    if error_message is None and grant_type not in (
+        "authorization_code",
+        "password",
+        "client_credentials",
+        "device_code",  # associated with urn:ietf:params:oauth:grant-type:device_code
+        "urn:ietf:params:oauth:grant-type:device_code",
+        "jwt-bearer",  # associated with urn:ietf:params:oauth:grant-type:jwt-bearer
+        "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    ):
+        error_message = f"The grant_type of '{grant_type}' is not implemented"
+
+    if error_message is not None:
+        from openid_whisperer.openid_interface import OpenidApiInterfaceException
+        raise OpenidApiInterfaceException("api_validation_error", error_message)
+
+    return grant_type

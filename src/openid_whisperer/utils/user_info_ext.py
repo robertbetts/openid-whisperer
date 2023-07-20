@@ -158,7 +158,7 @@ class UserInfoExtension(UserInfoExtensionTemplate):
     def get_user_claims(
         self, username: str, scope: str, include_empty: bool = False
     ) -> Dict[str, Dict[str, Any]]:
-        """ Returns a set of compliant ida claims for the input username, if there are no claims for the
+        """Returns a set of compliant ida claims for the input username, if there are no claims for the
         input username, then a set is created, cached and returned.
 
         :param username:  username in format SID or SID@DOMAIN (0728000@EMEA)
