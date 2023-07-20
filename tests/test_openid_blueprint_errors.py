@@ -59,6 +59,7 @@ def test_post_authorize_token_error(client):
     scope = "openid profile"
     response_type = "token id_token"
     client_id = "ID_12345"
+    client_secret = uuid4().hex
     resource_uri = "TEST:URI:RS-104134-21171-test-api"
     redirect_url = "http://test/api/handleAccessToken"
     nonce = uuid4().hex
@@ -75,6 +76,7 @@ def test_post_authorize_token_error(client):
         "response_type": response_type,
         "grant_type": "password",
         "client_id": client_id,
+        "client_secret": client_secret,
         "resource": resource_uri,
         # "UserName": domain_username,
         "Password": secret,
@@ -125,6 +127,7 @@ def test_post_get_token_error(client, scenario_api_a):
     token_url = "/adfs/oauth2/token"
     data = {
         "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
         "grant_type": "invalid",
     }
     headers = {
@@ -148,6 +151,7 @@ def test_post_get_token_error(client, scenario_api_a):
         "nonce": scenario_api_a["nonce"],
         "scope": scenario_api_a["scope"],
         "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
         "resource": scenario_api_a["resource"],
     }
     headers = {

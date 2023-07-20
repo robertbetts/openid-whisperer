@@ -91,7 +91,7 @@ config = {
     "username": "your_username@your_tenant.com",
     "password": "This is a sample only. You better NOT persist your password.",
     "scope": ["URI:API:CLIENT-90274-API"],
-    "endpoint": "https://localhost:5700/mock-api/api/private",
+    "endpoint": "http://localhost:5700/mock-api/api/private",
 }
 
 

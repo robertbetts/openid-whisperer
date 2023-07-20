@@ -121,10 +121,6 @@ class TokenIssuerCertificateStore:
             str, Dict[str, Any]
         ] = {}  # token_request Dict indexed by authorisation_code
 
-        # Cache of client_secrets used to authenticate to upstream identity providers
-        # {jti:str, exp:int, token:str} indexed by (identity_provider_id, ip_client_id)
-        self.relay_ip_client_secrets: Dict[Tuple[str, str], Dict[str, Any]] = {}
-
         # Client secret keys, this is experimental, self.add_client_secret(client_id, algorithm, public_key)
         self.client_secret_keys: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -279,28 +275,25 @@ class TokenIssuerCertificateStore:
 
     def create_client_secret_token(
         self,
-        identity_provider_id: str,
-        ip_client_id: str,
+        client_id: str,
         client_secret: str,
         token_endpoint_url: str,
         token_key_id: str,
         token_expiry: int = 60,
         token_algorithm: str = "RS256",
-        ip_client_id_iss: Optional[str] = None,
+        client_id_iss: Optional[str] = None,
         token_claims: Optional[Dict[str, Any]] = None,
         token_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Returns a Dict that includes a JWT issued by the client to authenticate with an upstream identity provider.
-        This would be used by the implementation of this class acting as an authentication relay service.
+        This would typically be used by the implementation of this class when acting as a authentication relay.
 
         The claims iss, sub, sud, exp, nbf, iat, jti are included in the token created.
 
         https://datatracker.ietf.org/doc/html/rfc7523
 
-        :param identity_provider_id:
-            identity provider id
-        :param ip_client_id:
-            the valued used as "client_id" in requests to the upstream identity provider
+        :param client_id:
+            the valued for client_id in requests to the upstream identity provider
         :param client_secret:
             a secret shared only with the Identity provider
         :param token_endpoint_url:
@@ -312,7 +305,7 @@ class TokenIssuerCertificateStore:
             time in seconds after which the token expires, defaults to 60
         :param token_algorithm:
             cryptographic algorithm for signing, defaults to RS256
-        :param ip_client_id_iss:
+        :param client_id_iss:
             an alternative client identifier, defaults to client_id
         :param token_claims:
             optional additional claims to embed in the token
@@ -321,7 +314,7 @@ class TokenIssuerCertificateStore:
         :return:
             Dict that includes the JWT client_secret
         """
-        ip_client_id_iss = ip_client_id_iss if ip_client_id_iss else ip_client_id
+        client_id_iss = client_id_iss if client_id_iss else client_id
         jti = token_id if token_id else uuid4().hex
 
         auth_time = datetime.datetime.utcnow()
@@ -330,8 +323,8 @@ class TokenIssuerCertificateStore:
 
         payload.update(
             {
-                "sub": ip_client_id,
-                "iss": ip_client_id_iss,
+                "sub": client_id,
+                "iss": client_id_iss,
                 "aud": token_endpoint_url,
                 "exp": get_seconds_epoch(expires_in),
                 "nbf": get_seconds_epoch(auth_time),
@@ -345,6 +338,7 @@ class TokenIssuerCertificateStore:
             "kid": some_issuer_key_id
         """
         headers = {
+            "typ": "JWT",
             "alg": token_algorithm,
             "kid": token_key_id,
             "x5t": token_key_id,
@@ -360,9 +354,6 @@ class TokenIssuerCertificateStore:
             "exp": get_seconds_epoch(expires_in),
             "token": token,
         }
-        self.relay_ip_client_secrets[
-            (identity_provider_id, ip_client_id)
-        ] = token_response
         return token_response
 
     def get_client_keys(self, client_id: str) -> List[Dict[str, Any]]:
@@ -470,6 +461,7 @@ class TokenIssuerCertificateStore:
             }
         )
         headers = {
+            "typ": "JWT",
             "alg": self.token_issuer_algorithm,
             "kid": self.token_issuer_key_id,
             "x5t": self.token_issuer_key_id,

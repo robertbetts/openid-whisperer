@@ -70,6 +70,7 @@ def endpoint_jwks_keys(openid_api: OpenidApiInterface):
 @pytest.fixture
 def api_a_settings(openid_api):
     client_id = "CLIENT-API-A"
+    client_secret = uuid4().hex
     algorithm = "RS256"
     key_id = uuid4().hex
     # cert, key = create_self_signed_certificate_pair(
@@ -90,8 +91,7 @@ def api_a_settings(openid_api):
     )
     token_endpoint_url = "https://idp/oauth/token"
     token_response = openid_api.token_store.create_client_secret_token(
-        identity_provider_id="identity_provider_id",
-        ip_client_id=client_id,
+        client_id=client_id,
         client_secret=openid_api.token_store.token_issuer_private_key,
         token_endpoint_url=token_endpoint_url,
         token_key_id=key_id,
@@ -99,10 +99,11 @@ def api_a_settings(openid_api):
         token_algorithm=algorithm,
         token_id=uuid4().hex,
     )
-    client_secret = token_response["token"]
+    client_assertion = token_response["token"]
     return {
         "client_id": client_id,
         "client_secret": client_secret,
+        "client_assertion": client_assertion,
         "key_id": key_id,
         "client_cert": cert,
         "client_private_key": key,
@@ -116,6 +117,7 @@ def api_a_settings(openid_api):
 @pytest.fixture
 def api_b_settings():
     client_id = "CLIENT-API-B"
+    client_secret = uuid4().hex
     algorithm = "RS256"
     key_id = uuid4().hex
     # cert, key = create_self_signed_certificate_pair(
@@ -136,8 +138,7 @@ def api_b_settings():
     )
     token_endpoint_url = "https://idp/oauth/token"
     token_response = openid_api.token_store.create_client_secret_token(
-        identity_provider_id="identity_provider_id",
-        ip_client_id=client_id,
+        client_id=client_id,
         client_secret=openid_api.token_store.token_issuer_private_key,
         token_endpoint_url=token_endpoint_url,
         token_key_id=key_id,
@@ -145,10 +146,11 @@ def api_b_settings():
         token_algorithm=algorithm,
         token_id=uuid4().hex,
     )
-    client_secret = token_response["token"]
+    client_assertion = token_response["token"]
     return {
         "client_id": client_id,
         "client_secret": client_secret,
+        "client_assertion": client_assertion,
         "key_id": key_id,
         "client_cert": cert,
         "client_private_key": key,

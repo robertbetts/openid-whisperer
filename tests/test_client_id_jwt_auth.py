@@ -48,8 +48,7 @@ def test_create_client_secret_token(openid_api):
     }
 
     token_response = openid_api.token_store.create_client_secret_token(
-        identity_provider_id=identity_provider_id,
-        ip_client_id=id_client_id,
+        client_id=id_client_id,
         client_secret=client_key_info["public_key"],
         token_endpoint_url=token_endpoint_url,
         token_key_id=token_key_id,
@@ -78,8 +77,7 @@ def test_grant_type_of_client_credentials(openid_api, client, scenario_api_a):
     token_key_id = "dGh1bWJwcmludF92YWx1ZQ=="
 
     token_response = openid_api.token_store.create_client_secret_token(
-        identity_provider_id="identity_provider_id",
-        ip_client_id=client_id,
+        client_id=client_id,
         client_secret=openid_api.token_store.token_issuer_private_key,
         token_endpoint_url=audience,
         token_key_id=token_key_id,
@@ -103,8 +101,9 @@ def test_grant_type_of_client_credentials(openid_api, client, scenario_api_a):
     except KeyError:  # pragma: no cover
         pass
 
-    result = openid_api.validate_client_grant(
+    result = openid_api.validate_client(
         client_id=client_id,
+        client_secret=None,
         client_assertion=client_assertion,
         client_assertion_type=client_assertion_type,
     )

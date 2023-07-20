@@ -8,10 +8,12 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from typing import Dict, Any, Optional, List, Type
-import math
+
 
 import requests
 import jwt
+
+from openid_whisperer.utils.common import get_audience
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,7 @@ class OpenIDClient:
         self.client_id: str = client_id
         self.scope: str = scope if scope else "openid"
         self.resource: str = resource if resource else ""
+        self.audience = get_audience(client_id=self.client_id, scope=self.scope, resource=self.resource)
         self.use_gateway: bool = use_gateway
         self.verify_server = verify_server
 
@@ -149,14 +152,8 @@ class OpenIDClient:
                 )
             access_token = token
 
-        token_parts = access_token.split(".")
-        # Adjust the left padding to avoid the base64 padding error
-        token_header = token_parts[0].ljust(
-            int(math.ceil(len(token_parts[0]) / 4)) * 4, "="
-        )
-        header = json.loads(base64.b64decode(token_header).decode("utf-8"))
+        header = jwt.get_unverified_header(access_token)
         tok_x5t = header["x5t"]
-
         issuer: str = self.identity_config["access_token_issuer"]
 
         claims: Dict[str, Any] = {}

@@ -176,20 +176,39 @@ class OpenidApiInterface:
             str, Any
         ] = {}  # authorization_codes Indexed by device_code
 
-    @classmethod
     def validate_client(
-        cls, client_id: str, client_secret: Optional[str] = None
+        self,
+        client_id: str,
+        client_secret: Optional[str] = None,
+        client_assertion: Optional[str] = None,
+        client_assertion_type: Optional[str] = None,
     ) -> bool:
         """Returns True or False depending on where client_id validated. Validation currently
         is a non-empty string for client_id
         """
         _ = client_secret
+        if client_assertion_type == 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer':
+            return self.validate_client_assertion(
+                client_id=client_id,
+                client_assertion=client_assertion,
+                client_assertion_type=client_assertion_type
+            )
+        elif client_assertion_type:
+            raise OpenidApiInterfaceException("invalid_client_assertion", "Client assertion_type not supported")
+
+        """ for the purposes of this implementation the check below is not needed
+        if not (client_secret or client_assertion):
+            return False
+        """
+
         if isinstance(client_id, str) and client_id != "":
             return True
+
         return False
 
-    def validate_client_grant(
-        self,
+    @classmethod
+    def validate_client_assertion(
+        cls,
         client_id: str,
         client_assertion: str,
         client_assertion_type: str,
@@ -207,9 +226,8 @@ class OpenidApiInterface:
         token_key_x5t = token_headers.get("x5t")
         key_id = token_key_x5t if token_key_x5t else token_key_id
         try:
-            validated_claims = self.token_store.decode_client_secret_token(
-                client_assertion
-            )
+            # validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+            validated_claims = jwt.decode(client_assertion, options={"verify_signature": False})
             if validated_claims:
                 return True
         except Exception as e:
@@ -334,14 +352,13 @@ class OpenidApiInterface:
         """
         _ = (
             tenant,
-            client_secret,
             response_mode,
         )  # interface variables provided for future features
 
         # raises OpenidApiInterfaceException on failed validation
         response_type = validate_response_type(response_type)
 
-        if not self.validate_client(client_id):
+        if not self.validate_client(client_id, client_secret):
             raise OpenidApiInterfaceException(
                 "client_auth_error",
                 "Unable to validate the referring client application.",
@@ -560,7 +577,7 @@ class OpenidApiInterface:
             client_id, client_secret
         ):
             raise OpenidApiInterfaceException(
-                "auth_processing_error", "A valid client_id is required"
+                "auth_processing_error", "A valid client credentials are required"
             )
 
         # OpenidApiInterfaceException is raised below for an invalid grant_type
@@ -582,9 +599,8 @@ class OpenidApiInterface:
             logging.info(scope)
             logging.info(resource)
             try:
-                validated_claims = self.token_store.decode_client_secret_token(
-                    client_assertion
-                )
+                # validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+                validated_claims = jwt.decode(client_assertion, options={"verify_signature": False})
                 if validated_claims:
                     logging.info(validated_claims)
                 audience = get_audience(
@@ -605,10 +621,40 @@ class OpenidApiInterface:
         elif (
             grant_type in ("urn:ietf:params:oauth:grant-type:jwt-bearer",)
             and requested_token_use == "on_behalf_of"
-            and grant_type == "urn:ietf:params:oauth:grant-type:jwt-bearer"
         ):
-            raise OpenidApiInterfaceException(
-                "invalid_request", "on_behalf_of flow no implemented"
+            """ During this step the following is required:
+            
+                Creates a token that will allow client_id(A) to access a different client_id(B)'s resource, using
+                the authorisation provided by an end-user token which is in the possession of client_id(A)
+                
+                For the purposes of the flow implemented here, it is assumed that the end-user has consented
+                to the on-behalf-of flow. 
+            """
+            logging.debug("on-behalf-of flow")
+            # TODO: A full implementation might implement the following:
+            # * validate the client_assertion
+            # * validate the assertion
+            # * authenticate the end user
+            logging.info(client_assertion)
+            # client_claims = self.token_store.decode_client_secret_token(client_assertion)
+            client_claims = jwt.decode(client_assertion, options={"verify_signature": False})
+            user_claims = jwt.decode(assertion, options={"verify_signature": False})
+            if not all([(client_id == client_claims["sub"]),
+                        (client_id in user_claims["aud"])]):
+                raise OpenidApiInterfaceException("client_validation_failed", "client_id not consistent across tokens")
+
+            # NOTE: Some claims inherited from client_claims will be overridden in create_new_token(...)
+            new_token_claims = {}
+            new_token_claims.update(client_claims)
+            audience = get_audience(client_id=client_id, scope=scope, resource=resource)
+
+            _, token_response = self.token_store.create_new_token(
+                client_id=client_id,
+                issuer=self.issuer_reference,
+                sub=username,
+                user_claims=new_token_claims,
+                audience=audience,
+                nonce=nonce,
             )
 
         elif grant_type in ("urn:ietf:params:oauth:grant-type:device_code", "device_code"):

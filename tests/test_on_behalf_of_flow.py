@@ -11,8 +11,7 @@ def create_client_secret(
 ):
     audience = [client_id, resource]
     token_response = openid_api.token_store.create_client_secret_token(
-        identity_provider_id="identity_provider_id",
-        ip_client_id=client_id,
+        client_id=client_id,
         client_secret=openid_api.token_store.token_issuer_private_key,
         token_endpoint_url=audience,
         token_key_id=token_key_id,
@@ -23,7 +22,7 @@ def create_client_secret(
     return token_response["token"]
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_on_behalf_request(client, openid_api, scenario_api_a):
     """
     # 1. end-user requests token IP to access API-A
@@ -39,25 +38,8 @@ def test_on_behalf_request(client, openid_api, scenario_api_a):
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
     }
-    # Test to access the state of the current support
-
-    # end_user_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUz...."
-    # token_url = "/adfs/oauth2/token"
-    # data = {
-    #     "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-    #     "client_id": scenario_api_a["client_id"],
-    #     "client_secret": "sampleCredentials",
-    #     "assertion": end_user_token,
-    #     "requested_token_use": "on_behalf_of",
-    #     "scope": scenario_api_a["scope"],
-    #     "resource": scenario_api_a["resource"],
-    # }
-    # response = client.post(token_url, data=data, headers=form_post_headers)
-    # # print(response.text)
-    # assert response.status_code == 403
 
     # 1. end-user requests token IP to access API-A
-
     # 1.a leaving this here as need to check the response of a single token string???
     auth_url = "/adfs/oauth2/authorize"
     data = {
@@ -74,7 +56,7 @@ def test_on_behalf_request(client, openid_api, scenario_api_a):
     print(response.text)
     assert response.status_code == 200
 
-    # 1.b using token password grant to fetch end user token for API-A
+    # 1.b use token password grant to fetch end user token for API-A
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "password",
@@ -95,7 +77,7 @@ def test_on_behalf_request(client, openid_api, scenario_api_a):
     # 2. API-A validates end-user token, API-A request is own token and then requests an on-behalf token from IP to access API-B
     # 2.a API-A will need to generate a secret to request it own access token
 
-    client_assertion = scenario_api_a["client_secret"]
+    client_assertion = scenario_api_a["client_assertion"]
     client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
     token_url = "/adfs/oauth2/token"
@@ -113,22 +95,26 @@ def test_on_behalf_request(client, openid_api, scenario_api_a):
     print(response.text)
     assert response.status_code == 200
     client_token = response.json["access_token"]
-    
+    check_claims = jwt.decode(client_token, options={"verify_signature": False})
+    print(client_token)
+    print(check_claims)
+
     # 2.b API-A will use this client_token to request an on-behalf-of token from the IP
 
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        "client_assertion": client_token,
+        "client_assertion_type": "",
         "client_id": scenario_api_a["client_id"],
-        "client_secret": "sampleCredentials",
         "assertion": end_user_token_api_a,
         "requested_token_use": "on_behalf_of",
         "scope": scenario_api_a["scope"],
         "resource": scenario_api_a["resource"],
     }
     response = client.post(token_url, data=data, headers=form_post_headers)
-    # print(response.text)
-    assert response.status_code == 403
+    print(response.text)
+    assert response.status_code == 200
 
     # 3. API-A uses new token to access API-B
     # 4. Test to see if API-B can determine that the token is an on-behalf token?

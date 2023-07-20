@@ -172,6 +172,7 @@ def test_authorize_code_and_fetch_token_flow(client, scenario_api_a):
     token_url = "/adfs/oauth2/token"
     data = {
         "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
         "grant_type": "authorization_code",
         "code": query_params["code"],
     }
@@ -250,6 +251,7 @@ def test_fetch_token_with_password_flow(client, scenario_api_a):
         "nonce": scenario_api_a["nonce"],
         "scope": scenario_api_a["scope"],
         "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
         "resource": scenario_api_a["resource"],
     }
     headers = {
