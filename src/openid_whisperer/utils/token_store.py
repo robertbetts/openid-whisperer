@@ -1,7 +1,7 @@
 """ Module for Private Key and Certificate Management
 """
 import json
-from typing import List, Dict, Any, Literal, Optional, Tuple, TypedDict
+from typing import List, Dict, Any, Literal, Optional, TypedDict, Tuple
 import base64
 import datetime
 from uuid import uuid4
@@ -35,6 +35,7 @@ class CertificatePairType(TypedDict):
     private_key: Optional[CertificateIssuerPrivateKeyTypes]
 
 
+""" This code is not currently in use
 class TokenKeyType(TypedDict):
     kty: str
     use: str
@@ -44,6 +45,7 @@ class TokenKeyType(TypedDict):
     n: str
     e: str
     x5c: List[str]
+"""
 
 
 class TokenIssuerCertificateStoreException(GeneralPackageException):
@@ -69,6 +71,7 @@ class TokenIssuerCertificateStore:
         Parameters
         ----------
         """
+        self.token_issuer_key_id: str | None = None
         self.ca_cert_filename: str = ""
         self.org_key_filename: str = ""
         self.org_key_password: str = ""
@@ -96,19 +99,18 @@ class TokenIssuerCertificateStore:
         ):
             self.refresh_token_expiry_seconds = 3600  # 1 hour
 
-        self.ca_certificates: Dict[
-            str, x509.Certificate
-        ] = {}  # ca certificates Indexed on certificate serial number
-        self.token_certificates: Dict[
-            str, CertificatePairType
-        ] = {}  # org certificate/private key pairs Indexed on certificate serial number
-
-        self.token_issuer_key_id: str | None = (
-            None  # expected to be set during certificate initialisation
-        )
+        # This value is hardcoded to RS256 and should not be changed after class initialisation
         self.token_issuer_algorithm: str = "RS256"
 
-        # TODO: Track these
+        # ca certificates Indexed on certificate serial number
+        self.ca_certificates: Dict[str, x509.Certificate] = {}
+        # org certificate/private key pairs Indexed on certificate serial number
+        self.token_certificates: Dict[str, CertificatePairType] = {}
+
+        # Required to be set during certificate initialisation
+        self.token_issuer_key_id: str | None = None
+
+        # TODO: Track these in the background, processing expiry, revocation etc.
         self.tokens_issued: Dict[
             str, Tuple[Any, str]
         ] = {}  # (expires_in, authorization_code) indexed by jti
@@ -118,6 +120,9 @@ class TokenIssuerCertificateStore:
         self.token_requests: Dict[
             str, Dict[str, Any]
         ] = {}  # token_request Dict indexed by authorisation_code
+
+        # Client secret keys, this is experimental, self.add_client_secret(client_id, algorithm, public_key)
+        self.client_secret_keys: Dict[str, List[Dict[str, Any]]] = {}
 
         self.init_certificate_store()
 
@@ -228,6 +233,192 @@ class TokenIssuerCertificateStore:
             )
         return {"keys": key_list}
 
+    def add_client_secret(
+        self,
+        client_id: str,
+        key_id: str,
+        algorithm: str,
+        public_key: Any,
+        key_issuer: Optional[str] = None,
+    ) -> None:
+        """Returns None after storing the information regarding a client's secret. if key_issuer is None,
+        it is defaulted to client_id
+
+        If the below are True, a KeyError is raised:
+            * existing key id
+            * existing (algorithm, public_key) combination
+
+        :param client_id:
+        :param key_id:
+        :param algorithm:
+        :param public_key:
+        :param key_issuer:
+        :return: None
+        """
+        for key_info in self.client_secret_keys.setdefault(client_id, []):
+            if key_id == key_info["key_id"]:
+                raise KeyError("input key_id exists")
+            if (
+                algorithm == key_info["algorith"]
+                and public_key == key_info["public_key"]
+            ):
+                raise KeyError("input public_key exists")
+
+        self.client_secret_keys.setdefault(client_id, []).append(
+            {
+                "key_id": key_id,
+                "key_issuer": key_issuer if key_issuer else client_id,
+                "algorithm": algorithm,
+                "public_key": public_key,
+            }
+        )
+
+    def create_client_secret_token(
+        self,
+        client_id: str,
+        client_secret: str,
+        token_endpoint_url: str,
+        token_key_id: str,
+        token_expiry: int = 60,
+        token_algorithm: str = "RS256",
+        client_id_iss: Optional[str] = None,
+        token_claims: Optional[Dict[str, Any]] = None,
+        token_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Returns a Dict that includes a JWT issued by the client to authenticate with an upstream identity provider.
+        This would typically be used by the implementation of this class when acting as a authentication relay.
+
+        The claims iss, sub, sud, exp, nbf, iat, jti are included in the token created.
+
+        https://datatracker.ietf.org/doc/html/rfc7523
+
+        :param client_id:
+            the valued for client_id in requests to the upstream identity provider
+        :param client_secret:
+            a secret shared only with the Identity provider
+        :param token_endpoint_url:
+            a value that identifies the authorization server as an intended audience. This is typically
+            the url of the token endpoint at the IP for inspection or verification of the token
+        :param token_key_id:
+            a reference to the public key required to validate the token signature.
+        :param token_expiry:
+            time in seconds after which the token expires, defaults to 60
+        :param token_algorithm:
+            cryptographic algorithm for signing, defaults to RS256
+        :param client_id_iss:
+            an alternative client identifier, defaults to client_id
+        :param token_claims:
+            optional additional claims to embed in the token
+        :param token_id:
+            a unique reference for identifying the token, defaulted to uuid4()
+        :return:
+            Dict that includes the JWT client_secret
+        """
+        client_id_iss = client_id_iss if client_id_iss else client_id
+        jti = token_id if token_id else uuid4().hex
+
+        auth_time = datetime.datetime.utcnow()
+        expires_in = auth_time + datetime.timedelta(seconds=token_expiry)
+        payload = token_claims if token_claims else {}
+
+        payload.update(
+            {
+                "sub": client_id,
+                "iss": client_id_iss,
+                "aud": token_endpoint_url,
+                "exp": get_seconds_epoch(expires_in),
+                "nbf": get_seconds_epoch(auth_time),
+                "iat": get_seconds_epoch(auth_time),
+                "jti": jti,
+            }
+        )
+        """ TODO: this may be upstream identity provider specific, however it should be assessed
+            what key identifier fields are required or optional for client secret JWTs.
+            
+            "kid": some_issuer_key_id
+        """
+        headers = {
+            "typ": "JWT",
+            "alg": token_algorithm,
+            "kid": token_key_id,
+            "x5t": token_key_id,
+        }
+        token = jwt.encode(
+            payload=payload,
+            key=client_secret,
+            algorithm=token_algorithm,
+            headers=headers,
+        )
+        token_response = {
+            "jti": jti,
+            "exp": get_seconds_epoch(expires_in),
+            "token": token,
+        }
+        return token_response
+
+    def get_client_keys(self, client_id: str) -> List[Dict[str, Any]]:
+        """Returns a list if dictionaries with the keys:
+                key_issuer, key_id, algorithm, public_key | hashed_secret
+
+        :param client_id:
+        :return:
+        """
+        client_keys = self.client_secret_keys.setdefault(client_id, [])
+        return client_keys
+
+    def decode_client_secret_token(self, token: str) -> Dict[str, Any]:
+        """Returns a dict of claims embedded in the token provided
+
+        exceptions raised are:
+            KeyError = Missing required JWT headers and claims
+            ValueError = unknown client or Missing client secret
+            jwt token validation exceptions
+
+        :param token:
+        :return:
+        """
+
+        input_claims = jwt.decode(token, options={"verify_signature": False})
+        token_client_id = input_claims["sub"]
+        token_audience = input_claims["aud"]
+
+        # TODO: Audience check, is token_audience a valid token endpoint url
+
+        token_headers = jwt.get_unverified_header(token)
+        token_algorith = token_headers["alg"]
+        _token_key_id = token_headers.get("kid")
+        _token_key_x5t = token_headers.get("x5t")
+        key_id = _token_key_x5t if _token_key_x5t else _token_key_id
+        if not key_id:
+            raise ValueError("Missing public key reference")
+
+        issuer = None
+        public_key = None
+        algorithm = None
+        for client_key in self.get_client_keys(token_client_id):
+            if (
+                key_id
+                and client_key["key_id"] != key_id
+                or token_algorith != client_key["algorithm"]
+            ):
+                continue
+            issuer = client_key["key_issuer"]
+            algorithm = client_key["algorithm"]
+            public_key = client_key["public_key"]
+
+        if issuer is None or algorithm is None or public_key is None:
+            raise ValueError("No valid key to validate the client secret JWT")
+
+        claims = jwt.decode(
+            jwt=token,
+            key=public_key,
+            algorithms=[algorithm],
+            issuer=issuer,
+            audience=token_audience,
+        )
+        logger.debug(claims)
+        return claims
+
     def create_new_token(
         self,
         client_id,
@@ -237,7 +428,7 @@ class TokenIssuerCertificateStore:
         audience: List[str],
         nonce: str,
     ) -> Tuple[str, Dict[str, Any]]:
-        """Returns a new JWT response using the parameters given.
+        """Returns a response that include JWT.
 
         The claims iss, sun, exp, iat, auth_time, appid, ver are overriden by the TokenIssuerCertificateStore
 
@@ -270,6 +461,8 @@ class TokenIssuerCertificateStore:
             }
         )
         headers = {
+            "typ": "JWT",
+            "alg": self.token_issuer_algorithm,
             "kid": self.token_issuer_key_id,
             "x5t": self.token_issuer_key_id,
         }

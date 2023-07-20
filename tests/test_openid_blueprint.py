@@ -5,7 +5,7 @@ from typing import List
 from openid_whisperer.main import app
 
 
-def test_userinfo_call(client, input_scenario_one):
+def test_userinfo_call(client, scenario_api_a):
     response = client.post("/adfs/oauth2/userinfo")
     assert response.status_code == 403
 
@@ -14,8 +14,8 @@ def test_userinfo_call(client, input_scenario_one):
         "Accept": "application/json",
     }
     data = {
-        "client_id": input_scenario_one["client_id"],
-        "username": input_scenario_one["username"],
+        "client_id": scenario_api_a["client_id"],
+        "username": scenario_api_a["username"],
     }
     response = client.post(
         "/adfs/oauth2/userinfo",
@@ -29,13 +29,13 @@ def test_userinfo_call(client, input_scenario_one):
 def test_devicecode_call(client):
     response = client.post("/adfs/oauth2/devicecode")
     print(response.text)
-    assert response.json["error_code"] == "auth_processing_error"
+    assert response.json["error"] == "auth_processing_error"
     assert response.status_code == 403
 
 
-def test_logout_call(client, input_scenario_one):
-    client_id = input_scenario_one["client_id"]
-    username = input_scenario_one["username"]
+def test_logout_call(client, scenario_api_a):
+    client_id = scenario_api_a["client_id"]
+    username = scenario_api_a["username"]
 
     response = client.get(
         f"/adfs/oauth2/logout?client_id={client_id}&username={username}&post_logout_redirect_uri=http://test/api/logout"
@@ -86,7 +86,7 @@ def test_openid_configuration_call():
     assert response.status_code == 200
 
 
-def test_post_authorize_kmsi_with_code(client, input_scenario_one):
+def test_post_authorize_kmsi_with_code(client, scenario_api_a):
     response_type = "code"
     redirect_uri = "http://test/api/handleAccessToken"
     state = secrets.token_hex()
@@ -94,13 +94,13 @@ def test_post_authorize_kmsi_with_code(client, input_scenario_one):
     data = {
         "response_type": response_type,
         "grant_type": "password",
-        "client_id": input_scenario_one["client_id"],
-        "scope": input_scenario_one["scope"],
-        "resource": input_scenario_one["resource"],
-        "UserName": input_scenario_one["username"],
-        "Password": input_scenario_one["password"],
+        "client_id": scenario_api_a["client_id"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
+        "UserName": scenario_api_a["username"],
+        "Password": scenario_api_a["password"],
         "Kmsi": "1",
-        "nonce": input_scenario_one["nonce"],
+        "nonce": scenario_api_a["nonce"],
         "state": state,
         "redirect_uri": redirect_uri,
     }
@@ -113,7 +113,7 @@ def test_post_authorize_kmsi_with_code(client, input_scenario_one):
 
     # cookie_header = response.headers['Set-Cookie']
     assert (
-        f"openid-whisperer-token-{input_scenario_one['client_id']}"
+        f"openid-whisperer-token-{scenario_api_a['client_id']}"
         in response.headers.get("Set-Cookie")
     )
 
@@ -135,7 +135,45 @@ def test_authorize_get_call():
     assert response.status_code == 200
 
 
-def test_authorize_code_and_fetch_token_flow(client, input_scenario_one):
+def test_authorize_post_with_form_post_and_fragment(client, scenario_api_a):
+    response_type = "code"
+    redirect_uri = "http://test/api/handleAccessToken"
+    state = secrets.token_hex()
+    auth_url = f"/adfs/oauth2/authorize"
+    data = {
+        "response_type": response_type,
+        "response_mode": "form_post",
+        "grant_type": "password",
+        "client_id": scenario_api_a["client_id"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
+        "UserName": scenario_api_a["username"],
+        "Password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
+        "state": state,
+        "redirect_uri": redirect_uri,
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    response = client.post(auth_url, data=data, headers=headers)
+    if response.status_code != 200:
+        print(response.text)  # pragma: no cover
+    print(response.text)
+    assert '<body onload="javascript:document.forms[0].submit()">' in response.text
+    assert response.status_code == 200
+
+    data["response_mode"] = "fragment"
+    response = client.post(auth_url, data=data, headers=headers)
+    if response.status_code != 302:
+        print(response.text)  # pragma: no cover
+    print(response.text)
+    assert 'id_token' in response.location
+    assert response.status_code == 302
+
+
+def test_authorize_code_and_fetch_token_flow(client, scenario_api_a):
     response_type = "code"
     redirect_uri = "http://test/api/handleAccessToken"
     state = secrets.token_hex()
@@ -143,12 +181,12 @@ def test_authorize_code_and_fetch_token_flow(client, input_scenario_one):
     data = {
         "response_type": response_type,
         "grant_type": "password",
-        "client_id": input_scenario_one["client_id"],
-        "scope": input_scenario_one["scope"],
-        "resource": input_scenario_one["resource"],
-        "UserName": input_scenario_one["username"],
-        "Password": input_scenario_one["password"],
-        "nonce": input_scenario_one["nonce"],
+        "client_id": scenario_api_a["client_id"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
+        "UserName": scenario_api_a["username"],
+        "Password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
         "state": state,
         "redirect_uri": redirect_uri,
     }
@@ -171,7 +209,8 @@ def test_authorize_code_and_fetch_token_flow(client, input_scenario_one):
 
     token_url = "/adfs/oauth2/token"
     data = {
-        "client_id": input_scenario_one["client_id"],
+        "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
         "grant_type": "authorization_code",
         "code": query_params["code"],
     }
@@ -218,20 +257,20 @@ def test_authorize_token_flow(client):
     assert response.status_code == 200
 
 
-def test_fetch_token_with_password_flow(client, input_scenario_one):
+def test_fetch_token_with_password_flow(client, scenario_api_a):
     response_type = "token id_token"
     auth_url = "/adfs/oauth2/authorize"
 
     data = {
         "response_type": response_type,
         "grant_type": "password",
-        "client_id": input_scenario_one["client_id"],
-        "scope": input_scenario_one["scope"],
-        "resource": input_scenario_one["resource"],
-        "UserName": input_scenario_one["username"],
-        "Password": input_scenario_one["password"],
-        "nonce": input_scenario_one["nonce"],
-        "Kmsi": input_scenario_one["kmsi"],
+        "client_id": scenario_api_a["client_id"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
+        "UserName": scenario_api_a["username"],
+        "Password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
+        "Kmsi": "",
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -245,12 +284,13 @@ def test_fetch_token_with_password_flow(client, input_scenario_one):
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "password",
-        "username": input_scenario_one["username"],
-        "password": input_scenario_one["password"],
-        "nonce": input_scenario_one["nonce"],
-        "scope": input_scenario_one["scope"],
-        "client_id": input_scenario_one["client_id"],
-        "resource": input_scenario_one["resource"],
+        "username": scenario_api_a["username"],
+        "password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
+        "scope": scenario_api_a["scope"],
+        "client_id": scenario_api_a["client_id"],
+        "client_secret": scenario_api_a["client_secret"],
+        "resource": scenario_api_a["resource"],
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",

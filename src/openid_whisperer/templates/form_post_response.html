@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Submit This Form</title>
+</head>
+<body onload="javascript:document.forms[0].submit()">
+<form method="post" action="{{ action }}">
+    <input type="hidden" name="state"
+           value="{{ state }}"/>
+    <input type="hidden" name="id_token"
+           value="{{ id_token }}"/>
+    <input type="hidden" name="nonce"
+           value="{{ nonce }}"/>
+</form>
+</body>
+</html>

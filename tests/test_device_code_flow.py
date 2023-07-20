@@ -22,13 +22,13 @@ def end_user_authorise_post(
     return response
 
 
-def test_device_code_flow(app, input_scenario_one):
+def test_device_code_flow(app, scenario_api_a):
     client = app.test_client()
 
     data = {
-        "client_id": input_scenario_one["client_id"],
-        "scope": input_scenario_one["scope"],
-        "resource": input_scenario_one["resource"],
+        "client_id": scenario_api_a["client_id"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
     }
     devicecode_url = "/adfs/oauth2/devicecode"
     headers = {
@@ -43,7 +43,7 @@ def test_device_code_flow(app, input_scenario_one):
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": input_scenario_one["client_id"],
+        "client_id": scenario_api_a["client_id"],
         "device_code": "BadCode",
     }
     headers = {
@@ -53,15 +53,15 @@ def test_device_code_flow(app, input_scenario_one):
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     token_response = json.loads(response.text)
-    # TODO: double check the error_code below
-    assert token_response["error_code"] == "devicecode_authorization_pending"
+    # TODO: double check the error below
+    assert token_response["error"] == "devicecode_authorization_pending"
 
     # Test pending token
     response_type = "code"
     auth_end_point = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": input_scenario_one["client_id"],
+        "client_id": scenario_api_a["client_id"],
         "device_code": devicecode_response["device_code"],
     }
     headers = {
@@ -71,18 +71,18 @@ def test_device_code_flow(app, input_scenario_one):
     response = client.post(token_url, data=data, headers=headers)
     assert response.status_code == 403
     token_response = json.loads(response.text)
-    assert token_response["error_code"] == "devicecode_authorization_pending"
+    assert token_response["error"] == "devicecode_authorization_pending"
 
     # Authenticate with user_code
     response = end_user_authorise_post(
         client,
         user_code=devicecode_response["user_code"],
         response_type=response_type,
-        client_id=input_scenario_one["client_id"],
-        username=input_scenario_one["username"],
-        password=input_scenario_one["password"],
-        resource=input_scenario_one["resource"],
-        scope=input_scenario_one["scope"],
+        client_id=scenario_api_a["client_id"],
+        username=scenario_api_a["username"],
+        password=scenario_api_a["password"],
+        resource=scenario_api_a["resource"],
+        scope=scenario_api_a["scope"],
     )
     assert "Success, you have validated the user code provided to you." in response.text
     assert "text/html" in response.content_type
@@ -93,7 +93,7 @@ def test_device_code_flow(app, input_scenario_one):
     token_url = "/adfs/oauth2/token"
     data = {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": input_scenario_one["client_id"],
+        "client_id": scenario_api_a["client_id"],
         "device_code": devicecode_response["device_code"],
     }
     headers = {
@@ -113,10 +113,10 @@ def test_device_code_flow(app, input_scenario_one):
         client=client,
         user_code=devicecode_response["user_code"],
         response_type=response_type,
-        client_id=input_scenario_one["client_id"],
-        username=input_scenario_one["username"],
-        password=input_scenario_one["password"],
-        resource=input_scenario_one["resource"],
-        scope=input_scenario_one["scope"],
+        client_id=scenario_api_a["client_id"],
+        username=scenario_api_a["username"],
+        password=scenario_api_a["password"],
+        resource=scenario_api_a["resource"],
+        scope=scenario_api_a["scope"],
     )
     assert response.status_code == 403

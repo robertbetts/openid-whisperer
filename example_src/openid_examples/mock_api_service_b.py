@@ -30,9 +30,9 @@ openid_client: OpenIDClient = OpenIDClient(
     provider_url=config.identity_endpoint,
     provider_url_gw=config.identity_endpoint_gw,
     tenant=config.tenant,
-    client_id=config.client_id,
+    client_id="CLIENT-5800-DEV",
     scope=config.scope,
-    resource=config.resource_uri,
+    resource="URI:API:CLIENT-5800-API",
     use_gateway=False,
     verify_server=config.validate_certs,
 )
@@ -129,7 +129,7 @@ def handle_access_token() -> Response:
         try:
             claims = openid_client.validate_access_token(
                 access_token=access_token,
-                audience=config.audience,
+                audience=openid_client.audience,
                 verify_server=config.validate_certs,
             )
             if claims["nonce"] != session["nonce"]:
@@ -177,7 +177,7 @@ def index():
         try:
             claims = openid_client.validate_access_token(
                 access_token=raw_token[7:],
-                audience=config.audience,
+                audience=openid_client.audience,
                 verify_server=config.validate_certs,
             )
             logging.debug("valid user claims: %s", claims)
@@ -229,7 +229,7 @@ def index():
         try:
             claims = openid_client.validate_access_token(
                 access_token=access_token,
-                audience=config.audience,
+                audience=openid_client.audience,
                 verify_server=config.validate_certs,
             )
             exp_date = datetime.utcfromtimestamp(claims["exp"])
@@ -269,7 +269,7 @@ def api_private():
             token = raw_token[7:]
             openid_client.validate_access_token(
                 access_token=token,
-                audience=config.audience,
+                audience=openid_client.audience,
                 verify_server=config.validate_certs,
             )
             result = {
@@ -304,7 +304,7 @@ def main() -> None:
         # ssl_context="adhoc",
         debug=config.flask_debug,
         host="0.0.0.0",
-        port=config.api_port,
+        port=5800,
     )
 
 

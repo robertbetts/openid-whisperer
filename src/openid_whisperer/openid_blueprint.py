@@ -25,12 +25,9 @@ from openid_whisperer.utils.token_store import (
     TokenIssuerCertificateStoreException,
 )
 from openid_whisperer.utils.common import package_get_logger
+from openid_whisperer.utils.user_info_ext import UserInfoExtensionTemplate
 
 logger = package_get_logger(__name__)
-
-
-class UserInfoExtensionTemplate:
-    pass
 
 
 def register_user_info_extension(
@@ -73,7 +70,7 @@ openid_api_interface = OpenidApiInterface(
     org_key_password=config.org_key_password,
     org_cert_filename=config.org_cert_filename,
     validate_users=config.validate_users,
-    json_user_file=config.json_user_file,
+    json_users=config.json_users,
     session_expiry_seconds=config.session_expiry_seconds,
     maximum_login_attempts=config.maximum_login_attempts,
 )
@@ -81,7 +78,6 @@ openid_api_interface = OpenidApiInterface(
 openid_blueprint: Blueprint = Blueprint(
     "openid",
     __name__,
-    url_prefix=config.id_service_prefix,
     template_folder="templates",
     static_folder="static",
 )
@@ -98,10 +94,9 @@ def update_redirect_url_query(
     return redirect_uri
 
 
-@openid_blueprint.route("/oauth2/authorize", methods=["GET"])  # type: ignore[misc]
-def authorize_get() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/authorize", methods=["GET"])  # type: ignore[misc]
+def authorize_get(tenant: str) -> ResponseReturnValue:
     """Handles GET requests to the authorization endpoint"""
-    tenant: str = openid_blueprint.url_prefix
     # Mandatory query string arguments
     response_type: str = request.args.get("response_type", "")
     client_id: str = request.args.get("client_id", "")
@@ -142,7 +137,7 @@ def authorize_get() -> ResponseReturnValue:
         )
         template_parameters.update(
             {
-                "tenant": openid_blueprint.url_prefix,
+                "tenant": tenant,
                 "resource": resource,
                 "state": state,
                 "scope": scope,
@@ -168,11 +163,11 @@ def authorize_get() -> ResponseReturnValue:
         abort(500, error)
 
 
-@openid_blueprint.route("/oauth2/authorize", methods=["POST"])  # type: ignore[misc]
-def authorize_post() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/authorize", methods=["POST"])  # type: ignore[misc]
+def authorize_post(tenant: str) -> ResponseReturnValue:
     """Handles an authorization POST request and returns an authorization response
 
-    Where an error arises relating to the processing this request, error_code and error_description are
+    Where an error arises relating to the processing this request, error and error_description are
     appended to the response.
     """
     response_type: str = request.form.get("response_type", "")
@@ -204,7 +199,7 @@ def authorize_post() -> ResponseReturnValue:
 
     try:
         openid_response = openid_api_interface.post_authorize(
-            tenant=openid_blueprint.url_prefix,
+            tenant=tenant,
             response_type=response_type,
             response_mode=response_mode,
             client_id=client_id,
@@ -235,13 +230,13 @@ def authorize_post() -> ResponseReturnValue:
     except Exception as e:
         logger.exception(e)
         openid_response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
 
     if code_challenge_method != "" and redirect_uri == "":
-        if "error_code" in openid_response:
+        if "error" in openid_response:
             termination_reply = openid_response["error_description"]
         else:
             termination_reply = (
@@ -269,7 +264,7 @@ def authorize_post() -> ResponseReturnValue:
 
     if "code" in response_type:
         # TODO: Handling cases where redirect should be replaced by a form_post
-        if "error_code" in openid_response:
+        if "error" in openid_response:
             code_response = openid_response
         else:
             code_response = {
@@ -277,10 +272,33 @@ def authorize_post() -> ResponseReturnValue:
                 "state": state,
                 "nonce": nonce,
             }
-            #
-            ...
-        redirect_uri = update_redirect_url_query(redirect_uri, code_response)
-        authorize_get_resp = redirect(redirect_uri, code=302)
+
+        if response_mode == "form_post" and status_code == 200:
+            # TODO: for form_post render user friendly error to form if not 200
+            logger.debug("response_mode: form_post")
+            authorize_get_resp = make_response(
+                render_template(
+                    "form_post_response.html",
+                    action=redirect_uri,
+                    id_token=openid_response["access_token"],
+                    state=state,
+                    nonce=nonce,
+                )
+            )
+        elif response_mode == "form_post" and status_code != 200:  # pragma: no cover
+            abort(403, code_response)
+
+        else:
+            if response_mode == "fragment" and status_code == 200:
+                code_response = {
+                    "action": redirect_uri,
+                    "id_token": openid_response["access_token"],
+                    "state": state,
+                    "nonce": nonce,
+                }
+            redirect_uri = update_redirect_url_query(redirect_uri, code_response)
+            authorize_get_resp = redirect(redirect_uri, code=302)
+
         if kmsi:
             auth_cookie_token = json.dumps(
                 {
@@ -299,25 +317,31 @@ def authorize_post() -> ResponseReturnValue:
             )
         return authorize_get_resp
 
-    else:  # only other possible option is a response_type == "token":
-        if "error_code" in openid_response:
+    else:  # only other possible option is a response_type is "token" or "id_token":
+        if "error" in openid_response:
             response = openid_response
         else:
             response = openid_response["access_token"]
         return json.dumps(response), status_code
 
 
-@openid_blueprint.route("/oauth2/token", methods=["POST"])  # type: ignore[misc]
-def token() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/token", methods=["POST"])  # type: ignore[misc]
+def token(tenant: str) -> ResponseReturnValue:
     """Returns a token response payload for the support grant_types"""
     grant_type: str = request.form.get("grant_type", "")
     device_code: str = request.form.get("device_code", "")
     access_token: str = request.form.get("access_token", "")
     refresh_token: str = request.form.get("refresh_token", "")
     token_type: str = request.form.get("token_type", "")
-    expires_in: int | str = request.form.get("token_type", "")
+    expires_in: int | str = request.form.get("expires_in", "")
+    requested_token_use: str = request.form.get("requested_token_use", "")
+
     client_id: str = request.form.get("client_id", "")
     client_secret: str = request.form.get("client_secret", "")
+    client_assertion: str = request.form.get("client_assertion", "")
+    client_assertion_type: str = request.form.get("client_assertion_type", "")
+    assertion: str = request.form.get("assertion", "")
+
     redirect_uri: str = request.args.get("redirect_uri", "")
 
     code: str = request.form.get("code", "")
@@ -330,14 +354,18 @@ def token() -> ResponseReturnValue:
     resource: str = request.form.get("resource", "")
 
     process_token_request_inputs = {
-        "tenant": openid_blueprint.url_prefix,
+        "tenant": tenant,
         "grant_type": grant_type,
         "client_id": client_id,
+        "client_secret": client_secret,
+        "client_assertion": client_assertion,
+        "client_assertion_type": client_assertion_type,
+        "assertion": assertion,
         "refresh_token": refresh_token,
         "token_type": token_type,
+        "requested_token_use": requested_token_use,
         "expires_in": expires_in,
         "access_token": access_token,
-        "client_secret": client_secret,
         "device_code": device_code,
         "code": code,
         "username": username,
@@ -358,11 +386,13 @@ def token() -> ResponseReturnValue:
         UserCredentialStoreException,
     ) as e:
         response = e.to_dict()
+        logger.error(response)
+        logger.exception(e)
         status_code = 403
     except Exception as e:
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
@@ -370,10 +400,9 @@ def token() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/oauth2/userinfo", methods=["POST"])  # type: ignore[misc]
-def userinfo() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/userinfo", methods=["POST"])  # type: ignore[misc]
+def userinfo(tenant: str) -> ResponseReturnValue:
     """Returns claims about the authenticated user"""
-    tenant: str = openid_blueprint.url_prefix
     client_id: str = request.form.get("client_id", "")
     client_secret: str = request.form.get("client_secret", "")
     username: str = request.form.get("username", "")
@@ -396,7 +425,7 @@ def userinfo() -> ResponseReturnValue:
     except Exception as e:
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
@@ -404,8 +433,8 @@ def userinfo() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/oauth2/devicecode", methods=["POST"])  # type: ignore[misc]
-def devicecode() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/devicecode", methods=["POST"])  # type: ignore[misc]
+def devicecode(tenant: str) -> ResponseReturnValue:
     """Returns a response including a device code, uri for end user verification and user code for
     the end user to enter.
 
@@ -430,7 +459,6 @@ def devicecode() -> ResponseReturnValue:
      }
     """
     try:
-        tenant: str = openid_blueprint.url_prefix
         client_id = request.form.get("client_id", "")
         client_secret = request.form.get("client_secret", "")
         scope = request.form.get("scope", "")
@@ -456,7 +484,7 @@ def devicecode() -> ResponseReturnValue:
     except Exception as e:
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
@@ -464,14 +492,13 @@ def devicecode() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/oauth2/v2.0/logout", methods=["GET"])  # type: ignore[misc]
-@openid_blueprint.route("/oauth2/logout", methods=["GET"])  # type: ignore[misc]
-def get_logout() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/v2.0/logout", methods=["GET"])  # type: ignore[misc]
+@openid_blueprint.route("/<tenant>/oauth2/logout", methods=["GET"])  # type: ignore[misc]
+def get_logout(tenant: str) -> ResponseReturnValue:
     """logs out the end user, the client is also responsible for clearing out
     any cached authenticated session info held. The end uer is then redirected to the
     given post_logout_redirect_uri
     """
-    tenant: str = openid_blueprint.url_prefix
     client_id: str = request.args.get("client_id", "")
     username: str = request.args.get("username", "")
     post_logout_redirect_uri: str = request.args.get("post_logout_redirect_uri", "")
@@ -496,7 +523,7 @@ def get_logout() -> ResponseReturnValue:
     except Exception as e:
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
@@ -504,14 +531,13 @@ def get_logout() -> ResponseReturnValue:
     abort(status_code, response)
 
 
-@openid_blueprint.route("/oauth2/v2.0/logout", methods=["POST"])  # type: ignore[misc]
-@openid_blueprint.route("/oauth2/logout", methods=["POST"])  # type: ignore[misc]
-def post_logout() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/oauth2/v2.0/logout", methods=["POST"])  # type: ignore[misc]
+@openid_blueprint.route("/<tenant>/oauth2/logout", methods=["POST"])  # type: ignore[misc]
+def post_logout(tenant: str) -> ResponseReturnValue:
     """logs out the end user, the client is also responsible for clearing out
     any cached authenticated session info held. The end uer is then redirected to the
     given post_logout_redirect_uri
     """
-    tenant: str = openid_blueprint.url_prefix
     client_id: str = request.form.get("client_id", "")
     username: str = request.form.get("username", "")
     try:
@@ -530,7 +556,7 @@ def post_logout() -> ResponseReturnValue:
     except Exception as e:
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
@@ -538,9 +564,10 @@ def post_logout() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/discovery/keys", methods=["GET"])  # type: ignore[misc]
-def keys() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/discovery/keys", methods=["GET"])  # type: ignore[misc]
+def keys(tenant: str) -> ResponseReturnValue:
     """Returns the public keys used to sign tokens"""
+    _ = tenant
     status_code = 200
     try:
         response = openid_api_interface.token_store.get_keys()
@@ -554,7 +581,7 @@ def keys() -> ResponseReturnValue:
     except Exception as e:
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500
@@ -562,8 +589,8 @@ def keys() -> ResponseReturnValue:
     return jsonify(response), status_code
 
 
-@openid_blueprint.route("/.well-known/openid-configuration", methods=["GET"])  # type: ignore[misc]
-def openid_configuration() -> ResponseReturnValue:
+@openid_blueprint.route("/<tenant>/.well-known/openid-configuration", methods=["GET"])  # type: ignore[misc]
+def openid_configuration(tenant: str) -> ResponseReturnValue:
     """returns OpenID Connect metadata"""
     # TODO: look at better way of determining this url, depending on the network location of
     #  the client_id and end user. i.e. if the endpoint is is accessible from different networks
@@ -573,7 +600,7 @@ def openid_configuration() -> ResponseReturnValue:
     try:
         id_provider_base_url = config.id_provider_base_url_external
         response = openid_api_interface.get_openid_configuration(
-            tenant=config.id_service_prefix,
+            tenant=tenant,
             base_url=id_provider_base_url,
         )
         status_code = 200
@@ -587,7 +614,7 @@ def openid_configuration() -> ResponseReturnValue:
     except Exception as e:  # pragma: no cover
         logger.exception(e)
         response = {
-            "error_code": "server_error",
+            "error": "server_error",
             "error_description": f"Error {request.method} {request.url} {e}",
         }
         status_code = 500

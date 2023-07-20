@@ -1,5 +1,6 @@
 """ token unittests
 """
+from unittest import TestCase
 from uuid import uuid4
 from typing import Dict, Any
 
@@ -22,30 +23,30 @@ def test_hash_codes():
 
 
 def test_authorisation_code(
-    input_scenario_one: Dict[str, Any],
+    scenario_api_a: Dict[str, Any],
     openid_api: OpenidApiInterface,
     endpoint_jwks_keys: Dict[str, Any],
 ):
     user_claims = openid_api.credential_store.get_user_scope_claims(
-        username=input_scenario_one["username"],
-        scope=input_scenario_one["scope"],
+        username=scenario_api_a["username"],
+        scope=scenario_api_a["scope"],
     )
     assert isinstance(user_claims, dict)
     assert len(user_claims) > 1
     audience = get_audience(
-        client_id=input_scenario_one["client_id"],
-        scope=input_scenario_one["scope"],
-        resource=input_scenario_one["resource"],
+        client_id=scenario_api_a["client_id"],
+        scope=scenario_api_a["scope"],
+        resource=scenario_api_a["resource"],
     )
     assert isinstance(audience, list)
     assert len(audience) > 1
     authorisation_code, token_response = openid_api.token_store.create_new_token(
-        client_id=input_scenario_one["client_id"],
+        client_id=scenario_api_a["client_id"],
         issuer=openid_api.issuer_reference,
-        sub=input_scenario_one["username"],
+        sub=scenario_api_a["username"],
         user_claims=user_claims,
         audience=audience,
-        nonce=input_scenario_one["nonce"],
+        nonce=scenario_api_a["nonce"],
     )
 
     token_response = openid_api.token_store.token_requests.get(authorisation_code, None)
@@ -55,28 +56,35 @@ def test_authorisation_code(
         access_token=token_response["access_token"],
         jwks_keys=endpoint_jwks_keys,
         algorithms=algorithms,
-        audience=input_scenario_one["resource"],
+        audience=scenario_api_a["resource"],
         issuer=openid_api.issuer_reference,
     )
+    test_case = TestCase()
+    claims["aud"].sort()
+    compare_claims = [scenario_api_a["resource"], scenario_api_a["client_id"]]
+    compare_claims.sort()
+    test_case.assertListEqual(claims["aud"], compare_claims)
     assert (
-        claims["aud"]
-        == [input_scenario_one["resource"], input_scenario_one["client_id"]]
-        and claims["iss"] == openid_api.issuer_reference
-        and claims["appid"] == input_scenario_one["client_id"]
-        and claims["nonce"] == input_scenario_one["nonce"]
+        claims["iss"] == openid_api.issuer_reference
+        and claims["appid"] == scenario_api_a["client_id"]
+        and claims["nonce"] == scenario_api_a["nonce"]
     )
+
     # Test proxy function of validate_access_token
     claims = validate_jwt_token(
         access_token=token_response["access_token"],
         jwks_keys=endpoint_jwks_keys,
         algorithms=algorithms,
-        audience=input_scenario_one["resource"],
+        audience=scenario_api_a["resource"],
         issuer=openid_api.issuer_reference,
     )
+    test_case = TestCase()
+    claims["aud"].sort()
+    compare_claims = [scenario_api_a["resource"], scenario_api_a["client_id"]]
+    compare_claims.sort()
+    test_case.assertListEqual(claims["aud"], compare_claims)
     assert (
-        claims["aud"]
-        == [input_scenario_one["resource"], input_scenario_one["client_id"]]
-        and claims["iss"] == openid_api.issuer_reference
-        and claims["appid"] == input_scenario_one["client_id"]
-        and claims["nonce"] == input_scenario_one["nonce"]
+        claims["iss"] == openid_api.issuer_reference
+        and claims["appid"] == scenario_api_a["client_id"]
+        and claims["nonce"] == scenario_api_a["nonce"]
     )

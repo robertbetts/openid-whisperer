@@ -1,17 +1,18 @@
+import logging
 from typing import Dict, Any, Optional, List, Type
 import datetime
 import hashlib
 import secrets
 from urllib.parse import urljoin
 import string
+import jwt
 
 from openid_whisperer.utils.common import (
     RESPONSE_TYPES_SUPPORTED,
     RESPONSE_MODES_SUPPORTED,
-    GRANT_TYPES_SUPPORTED,
     stringify,
     get_audience,
-    boolify,
+    boolify, validate_grant_type,
 )
 from openid_whisperer.utils.common import GeneralPackageException, get_seconds_epoch
 from openid_whisperer.utils.credential_store import UserCredentialStore
@@ -117,39 +118,6 @@ def validate_response_mode(response_type: str, response_mode: str) -> str:
     return response_mode
 
 
-def validate_grant_type(grant_type: str) -> str:
-    """Returns a tuple of (adjusted_grant_type, error_message)
-    Where the input grant_typ is in the forman of an urn e.g."urn:ietf:params:oauth:grant-type:jwt-bearer",
-    grant type is updated to only the grant_type reference.
-
-    OpenidException is raised for validation and processing errors
-
-    Parameters
-    ----------
-    grant_type:
-        required str
-    """
-    error_message: str | None = None
-    if grant_type is None or grant_type == "":
-        error_message = "An empty input for grant_type is not supported"
-    elif grant_type not in GRANT_TYPES_SUPPORTED:
-        error_message = f"The grant_type of '{grant_type}' is not supported"
-    elif grant_type.startswith("urn:ietf:params:oauth:grant-type:"):
-        grant_type = grant_type.split(":")[-1].strip()
-
-    if error_message is None and grant_type not in (
-        "device_code",
-        "authorization_code",
-        "password",
-    ):
-        error_message = f"The grant_type of '{grant_type}' not as yet implemented"
-
-    if error_message is not None:
-        raise OpenidApiInterfaceException("api_validation_error", error_message)
-
-    return grant_type
-
-
 class OpenidApiInterface:
     def __init__(self, **kwargs) -> None:
         self.issuer_reference: str | None = None
@@ -187,7 +155,7 @@ class OpenidApiInterface:
         self.credential_store = UserCredentialStore(
             validate_users=self.validate_users,
             json_users=self.json_users,
-            session_expiry_second=self.session_expiry_seconds,
+            session_expiry_seconds=self.session_expiry_seconds,
             maximum_login_attempts=self.maximum_login_attempts,
             user_info_extension=self.user_info_extension,
         )
@@ -208,16 +176,62 @@ class OpenidApiInterface:
             str, Any
         ] = {}  # authorization_codes Indexed by device_code
 
-    @classmethod
     def validate_client(
-        cls, client_id: str, client_secret: Optional[str] = None
+        self,
+        client_id: str,
+        client_secret: Optional[str] = None,
+        client_assertion: Optional[str] = None,
+        client_assertion_type: Optional[str] = None,
     ) -> bool:
         """Returns True or False depending on where client_id validated. Validation currently
         is a non-empty string for client_id
         """
         _ = client_secret
+        if client_assertion_type == 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer':
+            return self.validate_client_assertion(
+                client_id=client_id,
+                client_assertion=client_assertion,
+                client_assertion_type=client_assertion_type
+            )
+        elif client_assertion_type:
+            raise OpenidApiInterfaceException("invalid_client_assertion", "Client assertion_type not supported")
+
+        """ for the purposes of this implementation the check below is not needed
+        if not (client_secret or client_assertion):
+            return False
+        """
+
         if isinstance(client_id, str) and client_id != "":
             return True
+
+        return False
+
+    @classmethod
+    def validate_client_assertion(
+        cls,
+        client_id: str,
+        client_assertion: str,
+        client_assertion_type: str,
+    ) -> bool:
+        """Returns True or False depending on whether the client assertion is validated."""
+        input_claims = jwt.decode(client_assertion, options={"verify_signature": False})
+        token_client_id = input_claims["sub"]
+        token_audience = input_claims["aud"]
+
+        # TODO: Audience check, is token_audience a valid token endpoint url
+
+        token_headers = jwt.get_unverified_header(client_assertion)
+        token_algorith = token_headers["alg"]
+        token_key_id = token_headers.get("kid")
+        token_key_x5t = token_headers.get("x5t")
+        key_id = token_key_x5t if token_key_x5t else token_key_id
+        try:
+            # validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+            validated_claims = jwt.decode(client_assertion, options={"verify_signature": False})
+            if validated_claims:
+                return True
+        except Exception as e:
+            raise OpenidApiInterfaceException("invalid_client", str(e))
         return False
 
     def logoff(self, tenant: str, client_id: str, username: str) -> Dict[str, Any]:
@@ -305,7 +319,7 @@ class OpenidApiInterface:
             "code_challenge": code_challenge,
             "requires_user_code": requires_user_code,
             "requires_pkce": requires_pkce,
-            "submit_label": "Sing In",
+            "submit_label": "Sign In",
         }
 
     def post_authorize(
@@ -323,18 +337,28 @@ class OpenidApiInterface:
     ) -> Dict[str, Any]:
         """Processes the information from a post submission to the authorize endpoint
 
+        Notes on the response_modes: query, form_post and fragment in the context of response_type code.
+        * query: After successful authorisation, the a redirect to the client / resource owner is made
+                 containing state and code to be used by the resource owner to fetch the end user's token.
+        * form_post: After successful authorisation, HTML is returned to the end user device where the
+                 end user has to accept the authorisation. The authentication token is embedded in the
+                 HTML form. the action is directed to the RO's redirect_uri.
+        * fragment: Similar to query, in that the the end user device receives the redirect response. However
+                 at this point it more similar with the form_post mode, where the use user device is responsible
+                 for unpacking the fragments from the url and then posting them to the RO.
+        * TODO: disable the token code lookup by the RO, as it is now redundant.
+
         TODO: Complete validation code_challenge s256 checks and originating redirect_uri
         """
         _ = (
             tenant,
-            client_secret,
             response_mode,
         )  # interface variables provided for future features
 
         # raises OpenidApiInterfaceException on failed validation
         response_type = validate_response_type(response_type)
 
-        if not self.validate_client(client_id):
+        if not self.validate_client(client_id, client_secret):
             raise OpenidApiInterfaceException(
                 "client_auth_error",
                 "Unable to validate the referring client application.",
@@ -400,7 +424,6 @@ class OpenidApiInterface:
             )
             logger.debug((client_id, resource, user_claims))
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
-            logger.debug(audience)
             authorization_code, token_response = self.token_store.create_new_token(
                 client_id=client_id,
                 issuer=self.issuer_reference,
@@ -409,6 +432,8 @@ class OpenidApiInterface:
                 audience=audience,
                 nonce=nonce,
             )
+            logger.debug(f"aud: {audience}")
+            logger.debug(f"sub: {username}")
             logger.debug(f"token: {token_response['access_token']}")
 
             if device_code:
@@ -424,6 +449,7 @@ class OpenidApiInterface:
 
             return {
                 "authorization_code": authorization_code,
+                "access_token": token_response["access_token"],
             }
 
         else:  # if "token" in response_type:
@@ -483,7 +509,7 @@ class OpenidApiInterface:
         )
         prompt = prompt if prompt else "login"
 
-        auth_link = urljoin(base_url, f"{tenant}/oauth2/authorize")
+        auth_link = urljoin(base_url, f"/{tenant}/oauth2/authorize")
         auth_link = (
             f"{auth_link}?response_type={response_type}&client_id={client_id}&scope={scope}"
             f"&resource={resource}&prompt={prompt}&code_challenge_method={code_challenge_method}"
@@ -513,11 +539,15 @@ class OpenidApiInterface:
         tenant: str,
         grant_type: str,
         client_id: str,
+        client_secret: str,
+        client_assertion: str,
+        client_assertion_type: str,
         refresh_token: str,
         token_type: str,
+        requested_token_use: str,
+        assertion: str,
         expires_in: int | str,
         access_token: str,
-        client_secret: str,
         device_code: str,
         code: str,
         username: str,
@@ -534,6 +564,7 @@ class OpenidApiInterface:
         OpenidException could also be raised for various validation and processing errors
         """
         _ = (
+            tenant,
             redirect_uri,
             code_verifier,
             refresh_token,
@@ -542,9 +573,11 @@ class OpenidApiInterface:
             access_token,
         )  # interface variables provided for future features
 
-        if not self.validate_client(client_id, client_secret):
+        if grant_type != "client_credentials" and not self.validate_client(
+            client_id, client_secret
+        ):
             raise OpenidApiInterfaceException(
-                "auth_processing_error", "A valid client_id is required"
+                "auth_processing_error", "A valid client credentials are required"
             )
 
         # OpenidApiInterfaceException is raised below for an invalid grant_type
@@ -552,7 +585,79 @@ class OpenidApiInterface:
 
         token_response: Dict[str, Any] | None = None
 
-        if grant_type == "device_code":
+        logging.debug(client_assertion)
+        logging.debug(client_assertion_type)
+
+        if (
+            grant_type == "client_credentials"
+            and client_assertion_type
+            == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        ):
+            logging.info(client_id)
+            logging.info(client_assertion)
+            logging.info(client_assertion_type)
+            logging.info(scope)
+            logging.info(resource)
+            try:
+                # validated_claims = self.token_store.decode_client_secret_token(client_assertion)
+                validated_claims = jwt.decode(client_assertion, options={"verify_signature": False})
+                if validated_claims:
+                    logging.info(validated_claims)
+                audience = get_audience(
+                    client_id=client_id, scope=scope, resource=resource
+                )
+                _, token_response = self.token_store.create_new_token(
+                    client_id=client_id,
+                    issuer=self.issuer_reference,
+                    sub=client_id,
+                    user_claims={},
+                    audience=audience,
+                    nonce=nonce,
+                )
+
+            except Exception as e:
+                raise OpenidApiInterfaceException("invalid_client", str(e))
+
+        elif (
+            grant_type in ("urn:ietf:params:oauth:grant-type:jwt-bearer",)
+            and requested_token_use == "on_behalf_of"
+        ):
+            """ During this step the following is required:
+            
+                Creates a token that will allow client_id(A) to access a different client_id(B)'s resource, using
+                the authorisation provided by an end-user token which is in the possession of client_id(A)
+                
+                For the purposes of the flow implemented here, it is assumed that the end-user has consented
+                to the on-behalf-of flow. 
+            """
+            logging.debug("on-behalf-of flow")
+            # TODO: A full implementation might implement the following:
+            # * validate the client_assertion
+            # * validate the assertion
+            # * authenticate the end user
+            logging.info(client_assertion)
+            # client_claims = self.token_store.decode_client_secret_token(client_assertion)
+            client_claims = jwt.decode(client_assertion, options={"verify_signature": False})
+            user_claims = jwt.decode(assertion, options={"verify_signature": False})
+            if not all([(client_id == client_claims["sub"]),
+                        (client_id in user_claims["aud"])]):
+                raise OpenidApiInterfaceException("client_validation_failed", "client_id not consistent across tokens")
+
+            # NOTE: Some claims inherited from client_claims will be overridden in create_new_token(...)
+            new_token_claims = {}
+            new_token_claims.update(client_claims)
+            audience = get_audience(client_id=client_id, scope=scope, resource=resource)
+
+            _, token_response = self.token_store.create_new_token(
+                client_id=client_id,
+                issuer=self.issuer_reference,
+                sub=username,
+                user_claims=new_token_claims,
+                audience=audience,
+                nonce=nonce,
+            )
+
+        elif grant_type in ("urn:ietf:params:oauth:grant-type:device_code", "device_code"):
             # TODO: check devicecode_request and handle additional unsuccessful
             #  error states, request expiry, authorization_declined etc.
             devicecode_request = self.devicecode_requests.get(device_code, None)
@@ -657,13 +762,13 @@ class OpenidApiInterface:
             "access_token_issuer": self.issuer_reference,
             "as_access_token_token_binding_supported": False,
             "as_refresh_token_token_binding_supported": False,
-            "authorization_endpoint": urljoin(base_url, f"{tenant}/oauth2/authorize"),
+            "authorization_endpoint": urljoin(base_url, f"/{tenant}/oauth2/authorize"),
             "capabilities": ["kdf_ver2"],
             "CLAIMS_SUPPORTED": CLAIMS_SUPPORTED,
             "device_authorization_endpoint": urljoin(
-                base_url, f"{tenant}/oauth2/devicecode"
+                base_url, f"/{tenant}/oauth2/devicecode"
             ),
-            "end_session_endpoint": urljoin(base_url, f"{tenant}/oauth2/logout"),
+            "end_session_endpoint": urljoin(base_url, f"/{tenant}/oauth2/logout"),
             "frontchannel_logout_session_supported": True,
             "frontchannel_logout_supported": True,
             "grant_types_supported": [
@@ -680,8 +785,8 @@ class OpenidApiInterface:
             "id_token_signing_alg_values_supported": [
                 self.token_store.token_issuer_algorithm
             ],
-            "issuer": urljoin(base_url, f"{tenant}"),
-            "jwks_uri": urljoin(base_url, f"{tenant}/discovery/keys"),
+            "issuer": urljoin(base_url, f"/{tenant}"),
+            "jwks_uri": urljoin(base_url, f"/{tenant}/discovery/keys"),
             "microsoft_multi_refresh_token": True,
             "op_id_token_token_binding_supported": False,
             "resource_access_token_token_binding_supported": False,
@@ -697,7 +802,7 @@ class OpenidApiInterface:
             "rp_id_token_token_binding_supported": False,
             "SCOPES_SUPPORTED": SCOPES_SUPPORTED,
             "subject_types_supported": ["pairwise"],
-            "token_endpoint": urljoin(base_url, f"{tenant}/oauth2/token"),
+            "token_endpoint": urljoin(base_url, f"/{tenant}/oauth2/token"),
             "token_endpoint_auth_methods_supported": [
                 "client_secret_post",
                 "client_secret_basic",
@@ -707,6 +812,6 @@ class OpenidApiInterface:
             "token_endpoint_auth_signing_alg_values_supported": [
                 self.token_store.token_issuer_algorithm
             ],
-            "userinfo_endpoint": urljoin(base_url, f"{tenant}/userinfo"),
+            "userinfo_endpoint": urljoin(base_url, f"/{tenant}/userinfo"),
         }
         return openid_configuration

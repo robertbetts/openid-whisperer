@@ -26,7 +26,7 @@ def main() -> None:  # pragma: no cover
             certificate=config.org_cert,
             private_key=config.org_key,
             issuer_certs=ca_certs,
-            verify=False,
+            verify=config.validate_certs,
         ),
         host=config.id_service_bind,
         port=config.id_service_port,

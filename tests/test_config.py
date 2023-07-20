@@ -1,5 +1,6 @@
 import logging
 import os
+from unittest import mock
 
 import pytest
 
@@ -10,6 +11,15 @@ from openid_whisperer.utils.config_utils import (
     get_bind_address,
 )
 from openid_whisperer.config import Config, get_cached_config
+
+
+def test_happy_path_bad_cert_filenames():
+    with mock.patch.dict(os.environ, {
+        "CA_CERT_FILENAME": "bad_path/ca_cert.pem",
+        "ORG_KEY_FILENAME": "bad_path/key.pem",
+        "ORG_CERT_FILENAME": "bad_path/cert.pem",
+    }):
+        config = Config()
 
 
 def test_config_base_url(config):
@@ -117,4 +127,3 @@ def test_initialize_logging():
 
     with pytest.raises(NotImplementedError):
         initialize_logging(log_level="DEBUG", initialize_flask=True)
-
