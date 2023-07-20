@@ -1,37 +1,11 @@
 import jwt
-import pytest
 
 
-def create_client_secret(
-        openid_api,
-        client_id,
-        resource,
-        client_algorithm,
-        token_key_id,
-):
-    audience = [client_id, resource]
-    token_response = openid_api.token_store.create_client_secret_token(
-        client_id=client_id,
-        client_secret=openid_api.token_store.token_issuer_private_key,
-        token_endpoint_url=audience,
-        token_key_id=token_key_id,
-        token_expiry=60,
-        token_algorithm=client_algorithm,
-        token_id=token_key_id,
-    )
-    return token_response["token"]
-
-
-# @pytest.mark.skip
 def test_on_behalf_request(client, openid_api, scenario_api_a):
     """
     # 1. end-user requests token IP to access API-A
 
     # 2. API-A validates end-user token and requests an on-behalf token from IP to access API-B
-
-    # 3. API-A uses new token to access API-B
-
-    # 4. Test to see if API-B can determine that the token is an on-behalf token?
 
     """
     form_post_headers = {
@@ -116,6 +90,4 @@ def test_on_behalf_request(client, openid_api, scenario_api_a):
     print(response.text)
     assert response.status_code == 200
 
-    # 3. API-A uses new token to access API-B
-    # 4. Test to see if API-B can determine that the token is an on-behalf token?
 

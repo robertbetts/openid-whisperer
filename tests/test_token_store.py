@@ -1,4 +1,21 @@
+import pytest
+
+from openid_whisperer.utils.test_utils import add_mock_client_secret_key
 from openid_whisperer.utils.token_store import TokenIssuerCertificateStore
+
+
+def test_added_client_key_info_for_testing(openid_api, scenario_api_b):
+    """ This key has already been loaded in conftest.py and should raise a KeyError
+    """
+    with pytest.raises(KeyError):
+        add_mock_client_secret_key(
+            openid_api=openid_api,
+            client_id=scenario_api_b["client_id"],
+            public_key_id=scenario_api_b["key_id"],
+            public_key=scenario_api_b["key"].public_key(),
+            issuer_reference=scenario_api_b["client_id"],
+            algorithm=scenario_api_b["algorithm"]
+        )
 
 
 def test_token_store_config(config):

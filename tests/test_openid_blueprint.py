@@ -135,6 +135,44 @@ def test_authorize_get_call():
     assert response.status_code == 200
 
 
+def test_authorize_post_with_form_post_and_fragment(client, scenario_api_a):
+    response_type = "code"
+    redirect_uri = "http://test/api/handleAccessToken"
+    state = secrets.token_hex()
+    auth_url = f"/adfs/oauth2/authorize"
+    data = {
+        "response_type": response_type,
+        "response_mode": "form_post",
+        "grant_type": "password",
+        "client_id": scenario_api_a["client_id"],
+        "scope": scenario_api_a["scope"],
+        "resource": scenario_api_a["resource"],
+        "UserName": scenario_api_a["username"],
+        "Password": scenario_api_a["password"],
+        "nonce": scenario_api_a["nonce"],
+        "state": state,
+        "redirect_uri": redirect_uri,
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    response = client.post(auth_url, data=data, headers=headers)
+    if response.status_code != 200:
+        print(response.text)  # pragma: no cover
+    print(response.text)
+    assert '<body onload="javascript:document.forms[0].submit()">' in response.text
+    assert response.status_code == 200
+
+    data["response_mode"] = "fragment"
+    response = client.post(auth_url, data=data, headers=headers)
+    if response.status_code != 302:
+        print(response.text)  # pragma: no cover
+    print(response.text)
+    assert 'id_token' in response.location
+    assert response.status_code == 302
+
+
 def test_authorize_code_and_fetch_token_flow(client, scenario_api_a):
     response_type = "code"
     redirect_uri = "http://test/api/handleAccessToken"

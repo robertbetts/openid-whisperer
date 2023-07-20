@@ -1,3 +1,4 @@
+import datetime
 import logging
 import pytest
 import secrets
@@ -73,13 +74,11 @@ def api_a_settings(openid_api):
     client_secret = uuid4().hex
     algorithm = "RS256"
     key_id = uuid4().hex
-    # cert, key = create_self_signed_certificate_pair(
-    #     organization_name=client_id,
-    #     common_name=None,
-    #     expiry_date=None
-    # )
-    cert = openid_api.token_store.token_issuer_certificate
-    key = openid_api.token_store.token_issuer_private_key
+    cert, key = create_self_signed_certificate_pair(
+        organization_name=client_id,
+    )
+    # cert = openid_api.token_store.token_issuer_certificate
+    # key = openid_api.token_store.token_issuer_private_key
 
     add_mock_client_secret_key(
         openid_api=openid_api,
@@ -92,7 +91,7 @@ def api_a_settings(openid_api):
     token_endpoint_url = "https://idp/oauth/token"
     token_response = openid_api.token_store.create_client_secret_token(
         client_id=client_id,
-        client_secret=openid_api.token_store.token_issuer_private_key,
+        client_secret=key,
         token_endpoint_url=token_endpoint_url,
         token_key_id=key_id,
         token_expiry=600,  # 10 minutes
@@ -115,18 +114,17 @@ def api_a_settings(openid_api):
 
 
 @pytest.fixture
-def api_b_settings():
+def api_b_settings(openid_api):
     client_id = "CLIENT-API-B"
     client_secret = uuid4().hex
     algorithm = "RS256"
     key_id = uuid4().hex
-    # cert, key = create_self_signed_certificate_pair(
-    #     organization_name=client_id,
-    #     common_name=None,
-    #     expiry_date=None
-    # )
-    cert = openid_api.token_store.token_issuer_certificate
-    key = openid_api.token_store.token_issuer_private_key
+
+    cert, key = create_self_signed_certificate_pair(
+        organization_name=client_id,
+    )
+    # cert = openid_api.token_store.token_issuer_certificate
+    # key = openid_api.token_store.token_issuer_private_key
 
     add_mock_client_secret_key(
         openid_api=openid_api,
@@ -139,7 +137,7 @@ def api_b_settings():
     token_endpoint_url = "https://idp/oauth/token"
     token_response = openid_api.token_store.create_client_secret_token(
         client_id=client_id,
-        client_secret=openid_api.token_store.token_issuer_private_key,
+        client_secret=key,
         token_endpoint_url=token_endpoint_url,
         token_key_id=key_id,
         token_expiry=600,  # 10 minutes
@@ -179,7 +177,7 @@ def api_a_enduser_aaa(enduser_aaa):
 
 
 @pytest.fixture
-def api_b_enduser_aaa(enduser_aaa):
+def api_b_enduser_aaa(enduser_aaa):  # pragma: no cover
     api_user = enduser_aaa.copy()
     api_user.update({
         "scope": "openid profile",
@@ -211,7 +209,7 @@ def scenario_api_a(api_a_settings, api_a_enduser_aaa, flow_session_state):
 
 
 @pytest.fixture
-def scenario_api_b(api_b_settings, api_b_enduser_aaa, flow_session_state):
+def scenario_api_b(api_b_settings, api_b_enduser_aaa, flow_session_state):  # pragma: no cover
     scenario_info = {}
     scenario_info.update(api_b_settings)
     scenario_info.update(api_b_enduser_aaa)

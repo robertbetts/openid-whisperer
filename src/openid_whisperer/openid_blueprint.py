@@ -285,7 +285,7 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
                     nonce=nonce,
                 )
             )
-        elif response_mode == "form_post" and status_code != 200:
+        elif response_mode == "form_post" and status_code != 200:  # pragma: no cover
             abort(403, code_response)
 
         else:
