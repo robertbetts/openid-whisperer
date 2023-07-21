@@ -464,7 +464,7 @@ class TokenIssuerCertificateStore:
         expires_in = get_seconds_epoch(auth_time + datetime.timedelta(seconds=self.token_expiry_seconds))
         auth_time_epoch = get_seconds_epoch(auth_time)
         expires_in_epoch = expires_in
-        auth_time_str = auth_time.isoformat(sep=" ")
+        auth_time_str = auth_time.isoformat()
         aud = audience
         jti = uuid4().hex
 
