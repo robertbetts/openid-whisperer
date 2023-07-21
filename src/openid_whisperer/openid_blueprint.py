@@ -317,12 +317,9 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
             )
         return authorize_get_resp
 
-    else:  # only other possible option is a response_type is "token" or "id_token":
-        if "error" in openid_response:
-            response = openid_response
-        else:
-            response = openid_response["access_token"]
-        return json.dumps(response), status_code
+    else:
+        # only other possible option is a response_type of "token" or "id_token":
+        return json.dumps(openid_response), status_code
 
 
 @openid_blueprint.route("/<tenant>/oauth2/token", methods=["POST"])  # type: ignore[misc]

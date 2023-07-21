@@ -207,6 +207,7 @@ def validate_grant_type(grant_type: str) -> str:
         "authorization_code",
         "password",
         "client_credentials",
+        "refresh_token",
         "device_code",  # associated with urn:ietf:params:oauth:grant-type:device_code
         "urn:ietf:params:oauth:grant-type:device_code",
         "jwt-bearer",  # associated with urn:ietf:params:oauth:grant-type:jwt-bearer

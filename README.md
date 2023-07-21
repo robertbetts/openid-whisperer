@@ -68,6 +68,8 @@ variables from `.env_TEST`
 The MSAL library is used as an alternative method for verifying OpenID protocol compliance, more
 specifically the complaince of ADFS or that of Azure.
 The following flow examples run through successfully:
+* `acquire_token_on_behalf_of_example.py`
+* `confidential_client_certificate_sample.py`
 * `device_code_flow.py`
 * `username_and_password_example.py`
 * `interactive_sample.py`
@@ -75,14 +77,6 @@ The following flow examples run through successfully:
 
 To run these examples, you may have to alter the configuration parameters to suite you environment
 and by default an instance of Openid-Whisperer and OpenID Web/API protected service.
-
-## Microsoft Authentication Library MSAL
-MSAL is used for alternative testing kit to verify ADFS and Azure OpenID authentication flows. The
-following MSAL code examples run through successfully:
-* `device_code_flow.py`
-* `username_and_password_example.py`
-* `interactive_sample.py`
-* `migrate_rt.py` This example has API compatibility, however there is no functional implementation.
 
 ## Development
 Active development is on Python 3.11 on both Windows 10 and macOS 13.4. Testing is run using PyTest against these 

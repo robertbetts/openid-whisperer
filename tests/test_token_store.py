@@ -48,7 +48,7 @@ def test_token_store_config(config):
     }
     token_store = TokenIssuerCertificateStore(**config_settings)
     assert token_store.token_expiry_seconds == 600
-    assert token_store.refresh_token_expiry_seconds == 3600
+    assert token_store.refresh_token_expiry_seconds == 50400
 
     issuer_certificate = token_store.token_issuer_certificate
     issuer_pair = token_store.token_certificates[token_store.token_issuer_key_id]
