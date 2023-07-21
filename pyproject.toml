@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openid-whisperer"
-version = "0.1.6"
+version = "0.1.7"
 description = "OpenID 1.0 Mock Identity Service"
 license = "MIT"
 authors = ["Robert Betts <betts_robert@yahoo.com>"]

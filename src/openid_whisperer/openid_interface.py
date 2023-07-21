@@ -687,9 +687,22 @@ class OpenidApiInterface:
                 )
 
         elif grant_type == "refresh_token":
-            # TODO: Implement for grant_type, "on-behalf-of flow"
-            raise OpenidApiInterfaceException(
-                "bad_token_request", f"grant_type '{grant_type}' not implemented"
+            logging.debug("refresh_token  flow")
+
+            # TODO: if scope is blank default to "openid" and update scope with client_id and resource
+            user_claims = self.credential_store.get_user_scope_claims(
+                username=username, scope=scope
+            )
+            audience = get_audience(client_id=client_id, scope=scope, resource=resource)
+
+            _, token_response = self.token_store.create_new_token(
+                client_id=client_id,
+                issuer=self.issuer_reference,
+                sub=username,
+                user_claims=user_claims,
+                audience=audience,
+                nonce=nonce,
+                refresh_token=refresh_token
             )
 
         elif grant_type == "authorization_code":
@@ -706,7 +719,7 @@ class OpenidApiInterface:
                     "Token issued for end user devicecode flow, has been revoked.",
                 )
 
-        elif grant_type == "password":
+        elif grant_type in "password":
             """End user information is provided as part of the request to issue a new token. There is no existing
             authentication flow related to this request.
             """

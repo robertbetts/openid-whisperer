@@ -77,7 +77,7 @@ class TokenIssuerCertificateStore:
         self.org_key_password: str = ""
         self.org_cert_filename: str = ""
         self.token_expiry_seconds: int | None = 600
-        self.refresh_token_expiry_seconds: int | None = 3600
+        self.refresh_token_expiry_seconds: int | None = None
 
         # Update class properties from kwargs
         for key, value in kwargs.items():
@@ -97,7 +97,7 @@ class TokenIssuerCertificateStore:
             self.refresh_token_expiry_seconds is None
             or self.refresh_token_expiry_seconds <= 0
         ):
-            self.refresh_token_expiry_seconds = 3600  # 1 hour
+            self.refresh_token_expiry_seconds = 60*60*14   # 24 hours
 
         # This value is hardcoded to RS256 and should not be changed after class initialisation
         self.token_issuer_algorithm: str = "RS256"
@@ -115,8 +115,8 @@ class TokenIssuerCertificateStore:
             str, Tuple[Any, str]
         ] = {}  # (expires_in, authorization_code) indexed by jti
         self.refresh_tokens_issued: Dict[
-            str, Tuple[int, str]
-        ] = {}  # (expires_in, authorization_code) indexed by jti
+            str, Dict[str, Any]
+        ] = {}  # dict{expires_in, client_id, jti} indexed by refresh_token
         self.token_requests: Dict[
             str, Dict[str, Any]
         ] = {}  # token_request Dict indexed by authorisation_code
@@ -419,6 +419,23 @@ class TokenIssuerCertificateStore:
         logger.debug(claims)
         return claims
 
+    def create_refresh_token(self, client_id: str, jti: str, expiry_seconds: Optional[int] = None) -> str:
+        """ Returns a refresh_token, its expiry is defaulted to 24 hours,
+        is stored locally, until a refresh is requested.
+        :param client_id:
+        :param jti:
+        :param expiry_seconds:
+        """
+        expiry_seconds = expiry_seconds if expiry_seconds else self.token_expiry_seconds
+        expires_in = datetime.datetime.utcnow() + datetime.timedelta(seconds=expiry_seconds)
+        refresh_token = uuid4().hex
+        self.refresh_tokens_issued[refresh_token] = {
+            "expires_in": expires_in,
+            "client": client_id,
+            "jti": jti,
+        }
+        return refresh_token
+
     def create_new_token(
         self,
         client_id,
@@ -427,8 +444,9 @@ class TokenIssuerCertificateStore:
         user_claims: Dict[str, Any],
         audience: List[str],
         nonce: str,
+        refresh_token: Optional[str] = None,
     ) -> Tuple[str, Dict[str, Any]]:
-        """Returns a response that include JWT.
+        """Returns a response that includes an id_token and access_token JWTs.
 
         The claims iss, sun, exp, iat, auth_time, appid, ver are overriden by the TokenIssuerCertificateStore
 
@@ -438,23 +456,48 @@ class TokenIssuerCertificateStore:
         :param user_claims:
         :param audience:
         :param nonce:
+        :param refresh_token:
         :return:
         """
+
         auth_time = datetime.datetime.utcnow()
-        expires_in = auth_time + datetime.timedelta(seconds=self.token_expiry_seconds)
-        payload = {}
-        payload.update(user_claims)
-        payload["nonce"] = nonce
+        expires_in = get_seconds_epoch(auth_time + datetime.timedelta(seconds=self.token_expiry_seconds))
+        auth_time_epoch = get_seconds_epoch(auth_time)
+        expires_in_epoch = expires_in
+        auth_time_str = auth_time.isoformat(sep=" ")
+        aud = audience
         jti = uuid4().hex
-        payload.update(
+
+        if refresh_token:
+            previous_refresh = self.refresh_tokens_issued.get(refresh_token)
+            if previous_refresh is None:
+                raise TokenIssuerCertificateStoreException("invalid_refresh_token", "refresh token request is invalid")
+            if previous_refresh["jti"] not in self.tokens_issued:
+                raise TokenIssuerCertificateStoreException("invalid_refresh_token", "refresh token request is invalid")
+            prev_expiry, prev_auth_code = self.tokens_issued[previous_refresh["jti"]]
+            if prev_auth_code not in self.token_requests:
+                raise TokenIssuerCertificateStoreException("invalid_refresh_token", "refresh token request is invalid")
+            previous_token = self.token_requests[prev_auth_code]["id_token"]
+            refresh_claims = jwt.decode(previous_token, options={"verify_signature": False})
+            sub = refresh_claims["sub"]
+            aud = refresh_claims["aud"]
+            auth_time_str = refresh_claims["auth_time"]
+            user_claims.update(refresh_claims)
+
+
+        # For now both the access_token and id_token have the same claims
+        access_token_payload = {}
+        access_token_payload.update(user_claims)
+        access_token_payload["nonce"] = nonce
+        access_token_payload.update(
             {
                 "iss": issuer,
                 "sub": sub,
-                "aud": audience,
-                "exp": get_seconds_epoch(expires_in),
-                "nbf": get_seconds_epoch(auth_time),
-                "iat": get_seconds_epoch(auth_time),
-                "auth_time": auth_time.isoformat(sep=" "),
+                "aud": aud,
+                "exp": expires_in_epoch,
+                "nbf": auth_time_epoch,
+                "iat": auth_time_epoch,
+                "auth_time": auth_time_str,
                 "appid": client_id,
                 "jti": jti,
                 "ver": "1.0",
@@ -466,23 +509,28 @@ class TokenIssuerCertificateStore:
             "kid": self.token_issuer_key_id,
             "x5t": self.token_issuer_key_id,
         }
-        token = jwt.encode(
-            payload=payload,
+        access_token = jwt.encode(
+            payload=access_token_payload,
             key=self.token_issuer_private_key,
             algorithm=self.token_issuer_algorithm,
             headers=headers,
         )
-        # TODO: Check conditions when to complete and return a refresh token
-        refresh_token = ""
-        refresh_token_expires_in = get_seconds_epoch(auth_time)
-        # TODO: Check when required to have both access_token and id_token in the return below
+        id_token_payload = {}
+        id_token_payload.update(access_token_payload)
+        id_token = jwt.encode(
+            payload=id_token_payload,
+            key=self.token_issuer_private_key,
+            algorithm=self.token_issuer_algorithm,
+            headers=headers,
+        )
+        refresh_token = self.create_refresh_token(client_id, jti)
+        # TODO: Check when not required to have both access_token and id_token in the response
         token_response = {
-            "access_token": token,
-            "id_token": token,
+            "access_token": access_token,
+            "id_token": id_token,
             "token_type": "Bearer",
-            "expires_in": get_seconds_epoch(expires_in),
+            "expires_in": expires_in_epoch,
             "refresh_token": refresh_token,
-            "refresh_token_expires_in": refresh_token_expires_in,
         }
         authorisation_code = generate_s256_hash(json.dumps(token_response))
         self.tokens_issued[jti] = (expires_in, authorisation_code)
