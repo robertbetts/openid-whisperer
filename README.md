@@ -138,6 +138,6 @@ poetry run python -m openid_whisperer.main
 
 Run within a Docker Container
 ```
-docker build -t opendid-whisperer:0.1.4 .
-docker run --name=openid-whisperer -p5005:5005  -eID_SERVICE_PORT_GW=5005 opendid-whisperer:0.1.4
+docker build -t opendid-whisperer:0.1.8 .
+docker run --name=openid-whisperer -p5005:5005  -eID_SERVICE_PORT_GW=5005 opendid-whisperer:0.1.8
 ```

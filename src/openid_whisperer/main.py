@@ -12,7 +12,10 @@ def app() -> "Flask":
     """returns WSGI compliant Object wrapper for openid_whisperer"""
     from flask import Flask
 
-    flask_app = Flask("openid_whisperer")
+    flask_app = Flask(
+        "openid_whisperer",
+        static_folder=None,
+    )
     flask_app.register_blueprint(openid_blueprint)
     return flask_app
 
