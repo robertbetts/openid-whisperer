@@ -68,7 +68,7 @@ body
 {
     min-height:100%;
     height: auto !important;
-    margin:0 auto -55px auto;
+    margin:0 auto -55px;
     padding:0px 150px 0px 50px;
 }
 #header
@@ -104,7 +104,7 @@ body
 #footer
 {
     height:40px;
-    padding:10px 50px 0px 50px;
+    padding:10px 50px 0px;
     position:relative;
     color:#666666;
     font-size:0.78em;
@@ -172,7 +172,7 @@ span.submit, input[type="submit"]
     min-width:80px;
     width:auto;
     height:30px;
-    padding:4px 20px 6px 20px;
+    padding:4px 20px 6px;
     border-style:solid;
     border-width:1px;
     transition:background 0s;
@@ -196,7 +196,7 @@ input[type="submit"]:hover,span.submit:hover
 }
 input.text{
     height:28px;
-    padding:0px 3px 0px 3px ;
+    padding:0px 3px;
     border:solid 1px #BABABA;
     font-size:1.0em;
 }
