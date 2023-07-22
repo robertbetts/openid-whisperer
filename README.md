@@ -4,6 +4,7 @@ OpenID Compliant Identity Service
 [![codecov](https://codecov.io/gh/robertbetts/openid-whisperer/branch/main/graph/badge.svg?token=DVSBZY794D)](https://codecov.io/gh/robertbetts/openid-whisperer)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CodeFactor](https://www.codefactor.io/repository/github/robertbetts/openid-whisperer/badge/main)](https://www.codefactor.io/repository/github/robertbetts/openid-whisperer/overview/main)
 
 Sometimes you want to stand up an application fast, and you don't want to compromise on its design or access control.
 Openid-Whisperer provides a quick and efficient set of solutions where applications have a requirement for OpenID 1.0
