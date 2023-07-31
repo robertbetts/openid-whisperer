@@ -75,6 +75,7 @@ pyyaml = "^6.0"
 flask = {extras = ["async"], version = "^2.2.3"}
 python-dotenv = "^1.0.0"
 Faker = "^18.13.0"
+flask-session = "^0.5.0"
 
 [tool.poetry.group.dev.dependencies]
 poetry = "^1.5.1"

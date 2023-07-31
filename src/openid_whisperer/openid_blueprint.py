@@ -6,6 +6,7 @@ from typing import Dict, Any
 from flask import (
     Blueprint,
     request,
+    session,
     make_response,
     render_template,
     redirect,
@@ -149,6 +150,7 @@ def authorize_get(tenant: str) -> ResponseReturnValue:
         authorize_get_resp = make_response(
             render_template("authenticate.html", **template_parameters)
         )
+        # authorize_get_resp.headers.add('Set-Cookie','cross-site-cookie=bar; SameSite=None; Secure')
         return authorize_get_resp, status_code
 
     except (
@@ -170,6 +172,9 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
 
     Where an error arises relating to the processing this request, error and error_description are
     appended to the response.
+
+    # TODO: research setting samesite cookie.
+
     """
     response_type: str = request.form.get("response_type", "")
     response_mode: str = request.form.get("response_mode", "")
@@ -220,6 +225,8 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
             code_challenge=code_challenge,
         )
         status_code: int = 200
+        session["username"] = username
+
     except (
         TokenIssuerCertificateStoreException,
         OpenidApiInterfaceException,
@@ -272,6 +279,7 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
                 "code": openid_response["authorization_code"],
                 "state": state,
                 "nonce": nonce,
+                "redirect_uri": redirect_uri,
             }
 
         if response_mode == "form_post" and status_code == 200:
@@ -281,7 +289,8 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
                 render_template(
                     "form_post_response.html",
                     action=redirect_uri,
-                    id_token=openid_response["access_token"],
+                    id_token=openid_response["id_token"],
+                    access_token=openid_response["access_token"],
                     state=state,
                     nonce=nonce,
                 )
@@ -296,6 +305,7 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
                     "id_token": openid_response["access_token"],
                     "state": state,
                     "nonce": nonce,
+                    "redirect_uri": redirect_uri,
                 }
             redirect_uri = update_redirect_url_query(redirect_uri, code_response)
             authorize_get_resp = redirect(redirect_uri, code=302)
@@ -315,6 +325,7 @@ def authorize_post(tenant: str) -> ResponseReturnValue:
                 value=auth_cookie_token,
                 secure=True,
                 httponly=True,
+                samesite="Strict",
             )
         return authorize_get_resp
 

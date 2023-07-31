@@ -85,30 +85,25 @@ class OpenIDClient:
     def __init__(
         self,
         provider_url: str,
-        provider_url_gw: str,
         tenant: str,
         client_id: str,
         scope: str,
         resource: Optional[str] = None,
-        use_gateway: bool = False,
         verify_server: bool = True,
     ):
         self.provider_url: str = provider_url
-        self.provider_url_gw: str = provider_url_gw
         self.tenant: str = tenant
         self.client_id: str = client_id
         self.scope: str = scope if scope else "openid"
         self.resource: str = resource if resource else ""
         self.audience = get_audience(client_id=self.client_id, scope=self.scope, resource=self.resource)
-        self.use_gateway: bool = use_gateway
         self.verify_server = verify_server
 
         self.identity_keys: Dict[str, Any] = {}
         self.validated_claims: Dict[str, Any] = {}
 
-        provider_url = self.provider_url_gw if use_gateway else self.provider_url
-        self.identity_config: Type[IdentityConfig] = IdentityConfig(
-            provider_url=provider_url,
+        self.identity_config: IdentityConfig = IdentityConfig(
+            provider_url=self.provider_url,
             tenant=self.tenant,
             verify_server=self.verify_server,
         )
@@ -122,9 +117,6 @@ class OpenIDClient:
     ) -> Dict[str, Any]:
         """Validate a JWT (Bearer token) against the keys provided by the IDA service and return the validated token
          claim payload. If the JWT, claim or IDA keys are invalid or the claim is empty, then raise an exception.
-
-        If a colon is found in the first 10 characters of the input access_token, the only accepted
-        "type indicator".lower() is "bearer"
 
         audience is a mandatory token check, as a minimum the aud claim should always contain the OpenID client_id,
         as well as being the value of the "appid" claim.
@@ -144,28 +136,27 @@ class OpenIDClient:
         """
         access_token = access_token.strip()
 
-        if ":" in access_token[:10]:
-            token_type, token = (item.strip() for item in access_token.split(":", 1))
-            if token_type.lower() != "bearer":
-                logger.warning(
-                    "Only Bearer tokens have been tested, result for {} is undefined"
-                )
+        if " " in access_token:
+            token_type, token = (item.strip() for item in access_token.split(" ", 1))
+            if "bearer" not in token_type.lower():
+                logger.warning(f"Only Bearer tokens are supports, results for {token_type} are undefined")
             access_token = token
+
+        if access_token in self.validated_claims:
+            token_claims = self.validated_claims[access_token]
+            logging.debug(f"Cached token found: {token_claims}")
+            # TODO: check for token expiry
+            return token_claims
 
         header = jwt.get_unverified_header(access_token)
         tok_x5t = header["x5t"]
         issuer: str = self.identity_config["access_token_issuer"]
 
         claims: Dict[str, Any] = {}
-        provider_url: str = (
-            self.provider_url_gw if self.use_gateway else self.provider_url
-        )
-        if use_gateway:
-            provider_url = self.provider_url_gw
 
         if not self.identity_keys:
             key_endpoint = replace_base_netloc(
-                provider_url, self.identity_config["jwks_uri"]
+                self.provider_url, self.identity_config["jwks_uri"]
             )
             header = {
                 "content_type": "application/x-www-form-urlencoded",
@@ -176,18 +167,22 @@ class OpenIDClient:
             )
             keys = json.loads(response.text)["keys"]
 
-            # Loop through keys to create dictionary
+            # Loop through keys and only cache the key identified in the token header
             for key in keys:
                 x5t = key["x5t"]  # Certificate id
-                x5c = key["x5c"][0]  # base64 x509 certificate (DER, PKCS1)
-                # extract signed public key to be used for access token validation
-                public_key_spki_der = base64.b64decode(x5c.encode("ascii"))
-                cert = x509.load_der_x509_certificate(
-                    public_key_spki_der, default_backend()
-                )
-                public_key = cert.public_key()
-                # cache the IDA public key
-                self.identity_keys[x5t] = public_key
+                if x5t == tok_x5t:
+                    x5c = key["x5c"][0]  # base64 x509 certificate (DER, PKCS1)
+                    # extract signed public key to be used for access token validation
+                    public_key_spki_der = base64.b64decode(x5c.encode("ascii"))
+                    cert = x509.load_der_x509_certificate(
+                        public_key_spki_der, default_backend()
+                    )
+                    public_key = cert.public_key()
+                    # cache the IDA public key
+                    self.identity_keys[x5t] = public_key
+
+                    # now stop iterating through any other keys
+                    break
 
         key_errors = []
         token_errors = []
@@ -240,22 +235,12 @@ class OpenIDClient:
 
         return claims
 
-    def token_endpoint_url(self, use_gateway: bool = False) -> str:
-        provider_url: str = (
-            self.provider_url_gw if self.use_gateway else self.provider_url
-        )
-        if use_gateway:
-            provider_url = self.provider_url_gw
-        return replace_base_netloc(provider_url, self.identity_config["token_endpoint"])
+    def token_endpoint_url(self) -> str:
+        return replace_base_netloc(self.provider_url, self.identity_config["token_endpoint"])
 
     def authorization_endpoint_url(self, use_gateway: bool = False) -> str:
-        provider_url: str = (
-            self.provider_url_gw if self.use_gateway else self.provider_url
-        )
-        if use_gateway:
-            provider_url = self.provider_url_gw
         return replace_base_netloc(
-            provider_url, self.identity_config["authorization_endpoint"]
+            self.provider_url, self.identity_config["authorization_endpoint"]
         )
 
     def request_token_password_grant(
@@ -276,7 +261,7 @@ class OpenIDClient:
             "password": secret,
         }
 
-        token_endpoint_url = self.token_endpoint_url(use_gateway=use_gateway)
+        token_endpoint_url = self.token_endpoint_url()
         headers = {} if headers is None else headers
         headers.update(
             {

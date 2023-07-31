@@ -24,6 +24,7 @@ You can then run this sample with a JSON configuration file:
 """
 
 import sys  # For simplicity, we'll read config file from 1st CLI param sys.argv[1]
+import os
 import json
 import logging
 
@@ -35,20 +36,12 @@ import msal
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
 logging.getLogger("msal").setLevel(logging.INFO)  # Optionally disable MSAL DEBUG logs
 
-
-config = {
-    "authority": "https://localhost:5005/adfs",
-    "client_id": "CLIENT-5700-DEV",
-    "client_secret": "your_client_secret",
-    "username": "your_username@your_tenant.com",
-    "password": "This is a sample only. You better NOT persist your password.",
-    "scope": ["URI:API:CLIENT-5700-API"],
-    "endpoint": "http://localhost:5700/mock-api/api/private",
-    "scope2": ["URI:API:CLIENT-5800-API"],
-    "endpoint2": "http://localhost:5800/mock-api/api/private",
-    "thumbprint": "thumbprint_value",
-    "private_key_file": "src/openid_whisperer/demo_certs/key.pem",
-}
+json_config_file = os.path.join(os.path.dirname(__file__), "common_config_https.json")
+if len(sys.argv) == 2 and sys.argv[1]:
+    json_config_file = sys.argv[1]
+config = json.load(open(json_config_file, "rb"))
+config.update({
+})
 
 
 # Create a preferably long-lived app instance which maintains a token cache.
@@ -104,12 +97,21 @@ obo_result = app.acquire_token_on_behalf_of(
 if "access_token" in obo_result:
 
     logging.info("Using OBO token to mke a request to API 2")
-    graph_data = requests.get(  # Use token to call downstream service
-        config["endpoint2"],
-        headers={"Authorization": "Bearer " + obo_result["access_token"]},
-        verify=False,
-    ).json()
-    print("API call result: %s" % json.dumps(graph_data, indent=2))
+    try:
+        response = requests.get(  # Use token to call downstream service
+            config["endpoint2"],
+            headers={"Authorization": "Bearer " + obo_result["access_token"]},
+            verify=False,
+        )
+        if response.status_code != 200:
+            logging.info((response.status_code, response.text))
+        else:
+            data = response.json()
+            print("API call result: %s" % json.dumps(data, indent=2))
+    except Exception as e:
+        logging.exception(e)
+        logging.info((response.status_code, response.text))
+
 else:
     print(obo_result.get("error"))
     print(obo_result.get("error_description"))

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        h1, body {
+            font-family: arial, sans-serif;
+        }
+    </style>
+    <meta charset="UTF-8">
+    <title>Mock Service Welcome</title>
+</head>
+<body>
+<h1>Mock Service Home</h1>
+<p>
+    <table>
+        <caption>Service and Session Properties</caption>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>instance_id</td><td>{{ instance_id }}</td></tr>
+        <tr><td>new_session</td><td>{{ new_session }}</td></tr>
+        <tr><td>session_id</td><td>{{ session_id }}</td></tr>
+        <tr><td>client_id</td><td>{{ client_id }}</td></tr>
+        <tr><td>provider_url</td><td>{{ provider_url }}</td></tr>
+        <tr><td>access_token</td><td>{{ access_token }}</td></tr>
+        <tr><td>id_token</td><td>{{ id_token }}</td></tr>
+        <tr><td>refresh_token</td><td>{{ refresh_token }}</td></tr>
+        <tr><td>user_claims</td><td>{{ user_claims }}</td></tr>
+    </table>
+</p>
+<ul>
+    <li><a href="/mock-api-public/api">Public api call</a></li>
+    <li><a href="/mock-api-private">Authenticated Page</a></li>
+    <li><a href="/mock-api-private/api">Private api call</a></li>
+    <li><a href="/mock-api-private/gettoken">Show token info</a></li>
+    <li><a href="/mock-api-private/logout">Logout</a></li>
+</ul>
+</body>
+</html>
