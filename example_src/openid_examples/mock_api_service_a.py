@@ -479,7 +479,7 @@ def main() -> None:
     instance_id = "instance_a"
     app = service_app(instance_id)
     app.run(
-        ssl_context="adhoc",
+        # ssl_context="adhoc",
         debug=config.flask_debug,
         host="0.0.0.0",
         port=config.api_port,
