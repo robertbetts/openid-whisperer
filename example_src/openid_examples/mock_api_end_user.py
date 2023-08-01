@@ -1,19 +1,19 @@
-from openid_examples.mock_shared_config import config
 import logging
 from urllib.parse import urljoin
 from typing import Dict, Any
-import json
 import requests
 
+from openid_examples.mock_shared_config import config
 from openid_examples.mock_openid_client_lib import OpenIDClient
 
 logger = logging.getLogger(__name__)
 
 
-def call_api_private_endpoint(access_token, use_gateway: bool = False):
-    api_endpoint: str = config.api_endpoint_gw if use_gateway else config.api_endpoint
-    api_endpoint = urljoin(api_endpoint, "/mock-api/api/private")
-    headers = {"Authorization": f"Bearer {access_token['access_token']}"}
+def call_private_endpoint(api_endpoint: str, access_token: str):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
     proxies: Dict[str, Any] = {"http": None, "https": None}
     try:
         response = requests.get(
@@ -21,10 +21,14 @@ def call_api_private_endpoint(access_token, use_gateway: bool = False):
         )
         logging.info(response.status_code)
         if response.status_code != 200:
-            logger.info("Unexpected response: \n%s", response.text)
+            logger.info(f"Unexpected response:\n{response.text}")
+        elif response == 302:
+            logging.info("redirect received")
+        if response.headers["Content-Type"] == "application/json":
+            result = response.json()
         else:
-            result = json.loads(response.text)
-            logger.info(result)
+            result = response.text
+        logger.info(result)
     except Exception as e:
         logger.exception(e)
         return {"error": str(e)}
@@ -34,26 +38,25 @@ def main():
     config.initialize_logging()
     openid_client: OpenIDClient = OpenIDClient(
         provider_url=config.identity_endpoint,
-        provider_url_gw=config.identity_endpoint_gw,
         tenant=config.tenant,
         client_id=config.client_id,
         scope=config.scope,
         resource=config.resource_uri,
         verify_server=config.validate_certs,
-        use_gateway=False,
     )
-    access_token = openid_client.request_token_password_grant(
+    token_response = openid_client.request_token_password_grant(
         username="username@domain",
-        secret="very long dev reminder",
+        secret="username authentication secret",
     )
-    if not access_token:
-        logger.error(
-            "Unable to validate credentials against the openid provider at %s",
-            config.identity_endpoint,
-        )
+    if not token_response:
+        logger.error((
+            f"Unable to validate credentials against the openid provider, "
+            f"{config.identity_endpoint}"
+        ))
     else:
-        logger.info(f"Access Token: {access_token}")
-        call_api_private_endpoint(access_token)
+        logger.info(f"Access Token: {token_response}")
+        endpoint_url = urljoin(config.api_endpoint, "mock-api-private/api")
+        call_private_endpoint(endpoint_url, token_response["access_token"])
 
 
 if __name__ == "__main__":

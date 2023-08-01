@@ -214,12 +214,13 @@ class OpenidApiInterface:
         client_assertion_type: str,
     ) -> bool:
         """Returns True or False depending on whether the client assertion is validated."""
+        # TODO: in a realworld implementation, the client_assertion would need to be validated.
+        _ = (client_id, client_assertion_type)
         input_claims = jwt.decode(client_assertion, options={"verify_signature": False})
         token_client_id = input_claims["sub"]
         token_audience = input_claims["aud"]
 
-        # TODO: Audience check, is token_audience a valid token endpoint url
-
+        # TODO: Audience check, is token_audience a validated for the given client_id
         token_headers = jwt.get_unverified_header(client_assertion)
         token_algorith = token_headers["alg"]
         token_key_id = token_headers.get("kid")
@@ -422,7 +423,10 @@ class OpenidApiInterface:
             user_claims = self.credential_store.get_user_scope_claims(
                 username=username, scope=scope
             )
-            logger.debug((client_id, resource, user_claims))
+            logger.debug(f"client_id: {client_id}")
+            logger.debug(f"scope: {scope}")
+            logger.debug(f"resource: {resource}")
+            logger.debug(f"user_claims: {user_claims}")
             audience = get_audience(client_id=client_id, scope=scope, resource=resource)
             authorization_code, token_response = self.token_store.create_new_token(
                 client_id=client_id,
@@ -450,6 +454,8 @@ class OpenidApiInterface:
             return {
                 "authorization_code": authorization_code,
                 "access_token": token_response["access_token"],
+                "id_token": token_response["access_token"],
+                "refresh_token": token_response["access_token"],
             }
 
         else:  # if "token" in response_type:

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openid-whisperer"
-version = "0.1.9"
+version = "0.1.10"
 description = "OpenID 1.0 Mock Identity Service"
 license = "MIT"
 authors = ["Robert Betts <betts_robert@yahoo.com>"]
@@ -75,6 +75,7 @@ pyyaml = "^6.0"
 flask = {extras = ["async"], version = "^2.2.3"}
 python-dotenv = "^1.0.0"
 Faker = "^18.13.0"
+flask-session = "^0.5.0"
 
 [tool.poetry.group.dev.dependencies]
 poetry = "^1.5.1"

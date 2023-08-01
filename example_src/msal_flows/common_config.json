@@ -1,0 +1,13 @@
+{
+  "authority": "https://localhost:5005/adfs",
+  "client_id": "CLIENT-5700-DEV",
+  "client_secret": "your_client_secret",
+  "username": "your_username@your_tenant.com",
+  "password": "This is a sample only. You better NOT persist your password.",
+  "scope": ["URI:API:CLIENT-5700-API"],
+  "endpoint": "http://localhost:5700/mock-api-private/api",
+  "scope2": ["URI:API:CLIENT-5700-API"],
+  "endpoint2": "http://localhost:5701/mock-api-private/api",
+  "thumbprint": "thumbprint_value",
+  "private_key_file": "src/openid_whisperer/demo_certs/key.pem"
+}

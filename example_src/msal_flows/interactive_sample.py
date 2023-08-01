@@ -22,21 +22,19 @@ You can then run this sample with a JSON configuration file:
 """
 
 import sys  # For simplicity, we'll read config file from 1st CLI param sys.argv[1]
+import os
 import json, logging, msal, requests
 
 # Optional logging
 logging.basicConfig(level=logging.DEBUG)  # Enable DEBUG log for entire script
 logging.getLogger("msal").setLevel(logging.INFO)  # Optionally disable MSAL DEBUG logs
 
-config = {
-    "authority": "https://localhost:5005/adfs",
-    "client_id": "CLIENT-90274-DEV",
-    "client_secret": "your_client_secret",
-    "username": "your_username@your_tenant.com",
-    "password": "This is a sample only. You better NOT persist your password.",
-    "scope": ["URI:API:CLIENT-90274-API"],
-    "endpoint": "http://localhost:5700/mock-api/api/private",
-}
+json_config_file = os.path.join(os.path.dirname(__file__), "common_config_https.json")
+if len(sys.argv) == 2 and sys.argv[1]:
+    json_config_file = sys.argv[1]
+config = json.load(open(json_config_file, "rb"))
+config.update({
+})
 
 
 # Create a preferably long-lived app instance which maintains a token cache.

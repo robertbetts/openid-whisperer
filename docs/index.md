@@ -19,3 +19,5 @@ api coverage as possible. Some of the references that have been useful to this e
 * https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios
 * https://github.com/AzureAD/microsoft-authentication-library-for-python
 
+## [Considerations with Testing and Mocks](cookies.md)
+Here you can find notes on considerations around how Cookies, Headers and Gateways impact on service design and testing.

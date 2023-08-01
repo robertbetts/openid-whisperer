@@ -12,7 +12,9 @@ logger = package_get_logger(__name__)
 
 default_config_type = Dict[str, Tuple[Callable[[Any], Any], Any]]
 
-DEFAULT_LOGGING_FORMAT = "[%(levelname)1.1s %(asctime)s.%(msecs)06d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
+DEFAULT_LOGGING_FORMAT = (
+    "[%(levelname)1.1s %(asctime)s.%(msecs)06d %(process)d %(module)s:%(lineno)d %(name)s] %(message)s"
+)
 
 
 def load_environment_variables(env_target: str | None = None) -> None:
